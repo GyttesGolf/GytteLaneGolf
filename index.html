@@ -3641,9 +3641,7 @@ function renderHonours(){
       }).join('') || '<li><span class="tw-name" style="opacity:.6;">No captains recorded yet.</span></li>'}
     </ol>`;
 
-  const addSlot = document.getElementById('add-honour-slot');
-  if (addSlot) addSlot.innerHTML = isLoggedIn
-    ? `<button class="add-item-btn" style="max-width:480px;" onclick="addHonour()">+ Add entry (trophy, Captain or Vice-Captain)</button>` : '';
+  renderAddHonourSlot();
 }
 
 function toggleTrophy(name){
@@ -3694,18 +3692,108 @@ async function deleteHonour(id){
   renderHonours();
 }
 
-async function addHonour(){
-  if (!db) return;
-  const payload = { year: new Date().getFullYear(), title: 'New entry', winner: '' };
-  const { data, error } = await db.from('honours').insert(payload).select().single();
-  if (error){ console.error(error); alert('Could not add entry. Please try again.'); return; }
+let addHonourMode = null; // null | 'trophy' | 'captain'
+
+function renderAddHonourSlot(){
+  const slot = document.getElementById('add-honour-slot');
+  if (!slot || !isLoggedIn){ if(slot) slot.innerHTML = ''; return; }
+
+  if (!addHonourMode){
+    slot.innerHTML = `
+      <div style="display:flex; gap:.7rem; flex-wrap:wrap; margin-top:.5rem;">
+        <button class="add-item-btn" style="flex:1; min-width:180px;" onclick="addHonourMode='trophy'; renderAddHonourSlot();">+ Add trophy result</button>
+        <button class="add-item-btn" style="flex:1; min-width:180px;" onclick="addHonourMode='captain'; renderAddHonourSlot();">+ Add captain</button>
+      </div>`;
+    return;
+  }
+
+  const yr = new Date().getFullYear();
+  if (addHonourMode === 'trophy'){
+    const trophyOpts = TROPHY_ORDER.map(t => `<option value="${t}">${t}</option>`).join('');
+    slot.innerHTML = `
+      <div class="edit-form" style="max-width:520px; margin-top:.8rem;">
+        <h4>Add trophy result</h4>
+        <div class="edit-form-grid">
+          <div>
+            <label>Year</label>
+            <input type="number" id="ah-year" value="${yr}">
+          </div>
+          <div>
+            <label>Trophy</label>
+            <select id="ah-trophy">${trophyOpts}</select>
+          </div>
+          <div class="full">
+            <label>Course (optional — appears as "Trophy — Course")</label>
+            <input id="ah-course" placeholder="e.g. Silverstone">
+          </div>
+          <div class="full">
+            <label>Winner</label>
+            <input id="ah-winner" placeholder="Player name">
+          </div>
+        </div>
+        <div class="edit-form-actions">
+          <button class="btn brass" onclick="saveNewHonour()">Save</button>
+          <button class="btn ghost" onclick="addHonourMode=null; renderAddHonourSlot();">Cancel</button>
+          <div class="edit-status" id="ah-status"></div>
+        </div>
+      </div>`;
+    setTimeout(() => { const el = document.getElementById('ah-winner'); if (el) el.focus(); }, 50);
+  } else {
+    slot.innerHTML = `
+      <div class="edit-form" style="max-width:400px; margin-top:.8rem;">
+        <h4>Add captain</h4>
+        <div class="edit-form-grid">
+          <div>
+            <label>Year</label>
+            <input type="number" id="ah-year" value="${yr}">
+          </div>
+          <div>
+            <label>Role</label>
+            <select id="ah-role">
+              <option value="Captain">Captain</option>
+              <option value="Vice-Captain">Vice-Captain</option>
+            </select>
+          </div>
+          <div class="full">
+            <label>Name</label>
+            <input id="ah-winner" placeholder="Player name">
+          </div>
+        </div>
+        <div class="edit-form-actions">
+          <button class="btn brass" onclick="saveNewHonour()">Save</button>
+          <button class="btn ghost" onclick="addHonourMode=null; renderAddHonourSlot();">Cancel</button>
+          <div class="edit-status" id="ah-status"></div>
+        </div>
+      </div>`;
+    setTimeout(() => { const el = document.getElementById('ah-winner'); if (el) el.focus(); }, 50);
+  }
+}
+
+async function saveNewHonour(){
+  const setStatus = (msg, kind) => {
+    const el = document.getElementById('ah-status');
+    if (el){ el.textContent = msg; el.className = 'edit-status ' + kind; }
+  };
+  if (!db){ setStatus('Not connected.', 'error'); return; }
+  const year = Number(document.getElementById('ah-year')?.value) || 0;
+  const winner = (document.getElementById('ah-winner')?.value || '').trim();
+  if (!year || !winner){ setStatus('Year and name are required.', 'error'); return; }
+
+  let title;
+  if (addHonourMode === 'captain'){
+    title = (document.getElementById('ah-role')?.value) || 'Captain';
+  } else {
+    const trophy = document.getElementById('ah-trophy')?.value || '';
+    const course = (document.getElementById('ah-course')?.value || '').trim();
+    title = trophy + (course ? ' \u2014 ' + course : '');
+  }
+
+  setStatus('Saving\u2026', 'loading');
+  const { data, error } = await db.from('honours').insert({ year, title, winner }).select().single();
+  if (error){ console.error(error); setStatus('Save failed. Please try again.', 'error'); return; }
   honours.push(data);
-  editingHonourIds.add(data.id);
+  addHonourMode = null;
   renderHonours();
-  setTimeout(() => {
-    const el = document.getElementById('ho-title-' + data.id);
-    if (el){ el.focus(); el.select(); el.scrollIntoView({ behavior:'smooth', block:'center' }); }
-  }, 60);
 }
 
 /* ===================== init ===================== */
