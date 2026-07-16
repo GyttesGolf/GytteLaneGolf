@@ -456,7 +456,7 @@
   .captains-board .board-rule{height:1px; background:var(--brass); margin:0 1.4rem 1rem; opacity:.7;}
   .captains-board ol{list-style:none; margin:0; padding:0;}
   .captains-board li{
-    display:flex; align-items:baseline; gap:1rem; padding:.35rem .4rem; font-size:.95rem;
+    display:flex; align-items:center; gap:.6rem; padding:.35rem .4rem; font-size:.95rem; flex-wrap:wrap;
   }
   .captains-board .tw-year{color:var(--brass);}
   .captains-board .tw-name{font-family:var(--display); color:#F0E6D0; letter-spacing:.03em;}
@@ -3627,15 +3627,19 @@ function renderHonours(){
   }
 
   captainsBoard.innerHTML = `
-    <p class="board-title">Past Captains</p>
+    <p class="board-title">Past Captains &amp; Vice-Captains</p>
     <div class="board-rule"></div>
     <ol>
       ${captains.map(h => {
         if (editingHonourIds.has(h.id)) return `<li style="display:block;">${honourEditFormHtml(h)}</li>`;
-        const roleNote = (h.title||'').trim().toLowerCase() === 'vice-captain' ? ' (Vice-Captain)' : '';
+        const isVC = (h.title||'').trim().toLowerCase() === 'vice-captain';
+        const badge = isVC
+          ? `<span style="font-family:var(--mono); font-size:.6rem; text-transform:uppercase; letter-spacing:.07em; background:rgba(184,134,47,.25); color:var(--brass-light); padding:.15rem .5rem; border-radius:999px; margin-left:.5rem;">Vice-Captain</span>`
+          : `<span style="font-family:var(--mono); font-size:.6rem; text-transform:uppercase; letter-spacing:.07em; background:rgba(255,255,255,.12); color:rgba(255,255,255,.55); padding:.15rem .5rem; border-radius:999px; margin-left:.5rem;">Captain</span>`;
         return `<li>
           <span class="tw-year">${h.year}</span>
-          <span class="tw-name">${h.winner}${roleNote}</span>
+          <span class="tw-name">${h.winner}</span>
+          ${badge}
           ${isLoggedIn ? `<button class="committee-edit-btn" onclick="toggleHonourEdit(${h.id})">Edit</button>` : ''}
         </li>`;
       }).join('') || '<li><span class="tw-name" style="opacity:.6;">No captains recorded yet.</span></li>'}
@@ -3692,6 +3696,15 @@ async function deleteHonour(id){
   renderHonours();
 }
 
+function honourPlayerSelectHtml(inputId){
+  const sorted = [...players].sort((a,b) => a.first_name.localeCompare(b.first_name));
+  return `
+    <select id="${inputId}">
+      <option value="">— Select player —</option>
+      ${sorted.map(p => `<option value="${p.first_name} ${p.last_name}">${p.first_name} ${p.last_name}</option>`).join('')}
+    </select>`;
+}
+
 let addHonourMode = null; // null | 'trophy' | 'captain'
 
 function renderAddHonourSlot(){
@@ -3728,7 +3741,7 @@ function renderAddHonourSlot(){
           </div>
           <div class="full">
             <label>Winner</label>
-            <input id="ah-winner" placeholder="Player name">
+            ${honourPlayerSelectHtml('ah-winner')}
           </div>
         </div>
         <div class="edit-form-actions">
@@ -3737,7 +3750,6 @@ function renderAddHonourSlot(){
           <div class="edit-status" id="ah-status"></div>
         </div>
       </div>`;
-    setTimeout(() => { const el = document.getElementById('ah-winner'); if (el) el.focus(); }, 50);
   } else {
     slot.innerHTML = `
       <div class="edit-form" style="max-width:400px; margin-top:.8rem;">
@@ -3756,7 +3768,7 @@ function renderAddHonourSlot(){
           </div>
           <div class="full">
             <label>Name</label>
-            <input id="ah-winner" placeholder="Player name">
+            ${honourPlayerSelectHtml('ah-winner')}
           </div>
         </div>
         <div class="edit-form-actions">
@@ -3765,7 +3777,6 @@ function renderAddHonourSlot(){
           <div class="edit-status" id="ah-status"></div>
         </div>
       </div>`;
-    setTimeout(() => { const el = document.getElementById('ah-winner'); if (el) el.focus(); }, 50);
   }
 }
 
