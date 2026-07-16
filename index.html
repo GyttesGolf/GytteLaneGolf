@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gytte Lane Golf Society — Syresham</title>
-<meta name="description" content="Gytte Lane Golf Society, Syresham. Founded 1994. Fixtures, results, committee, gallery and news.">
+<meta name="description" content="Gytte Lane Golf Society, Syresham. Founded 1994. Events, results, committee, gallery and news.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -712,35 +712,49 @@
     width:min(420px, 80vw); opacity:.05; pointer-events:none; z-index:0;
   }
   .scorecard{
-    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
+    background:var(--ink); border-radius:var(--radius);
     margin-bottom:1.4rem; overflow:hidden; position:relative; z-index:1;
-    background-image:repeating-linear-gradient(0deg, transparent 0 27px, rgba(75,19,32,.06) 27px 28px);
-    box-shadow:0 3px 12px rgba(75,19,32,.08);
+    box-shadow:0 8px 28px rgba(75,19,32,.28);
   }
   .sc-head{
-    background:var(--ink); color:var(--paper); padding:.8rem 1.2rem;
-    display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:.3rem .8rem;
+    background:repeating-linear-gradient(45deg, var(--claret) 0 14px, #3A0F19 14px 28px);
+    color:var(--paper); padding:.75rem 1.2rem;
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.3rem .8rem;
   }
-  .sc-head h3{font-family:var(--mono); font-size:.95rem; text-transform:uppercase; letter-spacing:.08em; margin:0;}
-  .sc-head h3 a{color:var(--paper);}
-  .sc-head .sc-meta{font-family:var(--mono); font-size:.72rem; color:var(--brass-light);}
-  .sc-podium{display:flex; align-items:flex-end; justify-content:center; gap:1.6rem; padding:1.6rem 1rem 1.2rem; flex-wrap:wrap;}
-  .sc-place{text-align:center; max-width:180px;}
-  .sc-place .medal{font-size:1.5rem;}
-  .sc-place.first .medal{font-size:2.1rem;}
-  .sc-place .p-name{font-family:'Caveat', cursive; font-size:1.35rem; color:var(--ink); line-height:1.1;}
-  .sc-place.first .p-name{font-size:1.9rem;}
-  .sc-place .p-label{font-family:var(--mono); font-size:.62rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);}
+  .sc-head h3{font-family:var(--mono); font-size:.9rem; text-transform:uppercase; letter-spacing:.1em; margin:0;}
+  .sc-head h3 a{color:var(--paper); text-decoration:none;}
+  .sc-head .sc-meta{font-family:var(--mono); font-size:.68rem; color:rgba(255,255,255,.5); text-align:right; line-height:1.5;}
+  .sc-podium{display:grid; grid-template-columns:1fr 1fr 1fr; border-top:1px solid rgba(255,255,255,.08);}
+  .sc-place{padding:1.7rem .8rem 1.4rem; text-align:center; position:relative;}
+  .sc-place:not(:last-child){border-right:1px solid rgba(255,255,255,.08);}
+  .sc-place::before{content:''; position:absolute; top:0; left:0; right:0; height:5px;}
+  .sc-place.first{background:rgba(184,134,47,.08);}
+  .sc-place.first::before{background:linear-gradient(90deg,#B8862F,#F5D78E,#B8862F);}
+  .sc-place.second::before{background:linear-gradient(90deg,#9E9E9E,#D4D4D4,#9E9E9E);}
+  .sc-place.third::before{background:linear-gradient(90deg,#8C5E2A,#CDA27A,#8C5E2A);}
+  .sc-place .sc-ghost{
+    font-family:var(--display); font-size:4.2rem; font-weight:800; line-height:1;
+    position:absolute; top:.5rem; left:50%; transform:translateX(-50%);
+    letter-spacing:-.03em; pointer-events:none; color:rgba(255,255,255,.05);
+  }
+  .sc-place.first .sc-ghost{font-size:5.2rem; color:rgba(184,134,47,.1);}
+  .sc-place .p-label{font-family:var(--mono); font-size:.6rem; text-transform:uppercase; letter-spacing:.12em; color:var(--brass); margin-bottom:.5rem; position:relative; z-index:1;}
+  .sc-place.first .p-label{color:var(--brass-light);}
+  .sc-place .p-name{font-family:var(--display); font-size:1.1rem; font-weight:700; color:var(--paper); line-height:1.15; position:relative; z-index:1;}
+  .sc-place.first .p-name{font-size:1.4rem; color:#fff;}
   .sc-foot{
-    border-top:1px dashed var(--line); padding:.6rem 1.2rem; display:flex; justify-content:space-between;
-    align-items:center; font-family:var(--mono); font-size:.72rem; color:var(--text-muted); flex-wrap:wrap; gap:.4rem .8rem;
+    border-top:1px solid rgba(255,255,255,.08); padding:.6rem 1.2rem; display:flex; justify-content:space-between;
+    align-items:center; font-family:var(--mono); font-size:.7rem; color:rgba(255,255,255,.3); flex-wrap:wrap; gap:.4rem .8rem;
   }
+  .sc-foot a{color:var(--brass); text-decoration:none;}
   .sc-stamp{
     position:absolute; top:12px; right:-26px; transform:rotate(35deg);
     font-family:var(--mono); font-size:.6rem; letter-spacing:.2em; text-transform:uppercase;
     background:var(--claret); color:var(--paper); padding:.25rem 2.4rem; opacity:.9; z-index:2;
   }
-  .scorecard .edit-form{margin:1rem 1.2rem 1.2rem;}
+  .scorecard .edit-form{margin:1rem 1.2rem 1.2rem; background:var(--paper);}
+  .scorecard .edit-form label{color:var(--text);}
+  .scorecard .edit-form input, .scorecard .edit-form select{background:var(--stone); color:var(--text);}
 
   /* ---------- players ---------- */
   .players-login-note{font-size:.88rem; color:var(--text-muted); margin:0 0 1.2rem;}
@@ -818,7 +832,7 @@
         <h1>Tradition on the fairway. Good company on the 19th.</h1>
         <p class="intro">Founded <span id="years-founded">32</span> years ago in Syresham, Northamptonshire, the Gyttes have played all over England, Wales and Ireland — with trips to France, Spain and Portugal along the way.</p>
         <div class="btn-row">
-          <button class="btn" onclick="goTo('events')">See upcoming fixtures</button>
+          <button class="btn" onclick="goTo('events')">See upcoming events</button>
           <button class="btn ghost" onclick="goTo('committee')">Meet the committee</button>
           <button class="btn ghost" onclick="goTo('shop')">Visit the shop</button>
         </div>
@@ -854,7 +868,7 @@
   <section class="section" id="sec-events" data-section="events">
     <p class="eyebrow">Fixtures</p>
     <h2 class="section-title">Events</h2>
-    <div class="filter-row" role="group" aria-label="Filter fixtures">
+    <div class="filter-row" role="group" aria-label="Filter events">
       <button class="chip" data-filter="all" aria-pressed="false">All</button>
       <button class="chip" data-filter="upcoming" aria-pressed="true">Upcoming</button>
       <button class="chip" data-filter="past" aria-pressed="false">Past</button>
@@ -888,7 +902,7 @@
   <section class="section" id="sec-gallery" data-section="gallery">
     <p class="eyebrow">Photos &amp; video</p>
     <h2 class="section-title">Gallery</h2>
-    <div class="filter-row" id="gallery-filter" role="group" aria-label="Filter gallery by fixture"></div>
+    <div class="filter-row" id="gallery-filter" role="group" aria-label="Filter gallery by event"></div>
     <div class="gallery-grid" id="gallery-grid"></div>
     <div id="gallery-add-slot"></div>
   </section>
@@ -1228,7 +1242,7 @@ function renderEvents(filter){
 
   const addSlot = document.getElementById('add-event-slot');
   if (addSlot) addSlot.innerHTML = isLoggedIn
-    ? `<button class="add-item-btn" onclick="addNewEvent()">+ Add new fixture</button>` : '';
+    ? `<button class="add-item-btn" onclick="addNewEvent()">+ Add new event</button>` : '';
 }
 document.querySelectorAll('#sec-events .chip').forEach(chip => {
   chip.addEventListener('click', () => {
@@ -1588,7 +1602,7 @@ function shareEventToWhatsApp(eventId){
   const e = eventById(eventId);
   if (!e) return;
   const lines = [
-    `\u26F3 *New fixture: ${e.name}*`,
+    `\u26F3 *New event: ${e.name}*`,
     `\uD83D\uDCC5 ${fmtDate(e.date)}${e.course ? ' \u00B7 ' + e.course : ''}`,
   ];
   if (e.format) lines.push(e.format);
@@ -1644,9 +1658,9 @@ async function deleteEvent(eventId){
 async function addNewEvent(){
   if (!db) return;
   const id = 'ev-' + Date.now();
-  const payload = { id, name: 'New fixture', date: new Date().toISOString().slice(0,10), status: 'upcoming' };
+  const payload = { id, name: 'New event', date: new Date().toISOString().slice(0,10), status: 'upcoming' };
   const { error } = await db.from('events').insert(payload);
-  if (error){ console.error(error); alert('Could not create fixture. Please try again.'); return; }
+  if (error){ console.error(error); alert('Could not create event. Please try again.'); return; }
   events.push(payload);
   expandedEventId = id;
   renderEvents('all');
@@ -2001,7 +2015,7 @@ function galleryTileHtml(g, opts){
               </select>
             </div>
             <div>
-              <label>Linked fixture</label>
+              <label>Linked event</label>
               <select id="gi-event-${g.id}">
                 <option value="">None</option>
                 ${eventOpts}
@@ -2082,7 +2096,7 @@ function renderGallery(filterId){
       <input type="text" id="ga-title" placeholder="e.g. Prize presentation">
       <label>Description (optional)</label>
       <textarea id="ga-desc" placeholder="A bit more detail about the moment…"></textarea>
-      <label>Linked fixture (optional)</label>
+      <label>Linked event (optional)</label>
       <select id="ga-event">
         <option value="">None</option>
         ${eventOpts}
@@ -2280,7 +2294,7 @@ function newsCardHtml(n){
           <input type="date" id="nf-date-${n.id}" value="${n.date||''}">
         </div>
         <div>
-          <label>Related fixture (optional)</label>
+          <label>Related event (optional)</label>
           <select id="nf-event-${n.id}">
             <option value="">None</option>
             ${eventOpts}
@@ -2308,7 +2322,7 @@ function newsCardHtml(n){
       <time>${fmtDate(n.date)}${editToggle}</time>
       <h3>${n.title}</h3>
       <p>${n.excerpt}</p>
-      ${ev ? `<a class="related-chip" href="#" onclick="goTo('events',{highlightEvent:'${ev.id}'}); return false;">Related fixture: ${ev.name} ↗</a>` : ''}
+      ${ev ? `<a class="related-chip" href="#" onclick="goTo('events',{highlightEvent:'${ev.id}'}); return false;">Related event: ${ev.name} ↗</a>` : ''}
       ${editForm}
     </article>`;
 }
@@ -2400,7 +2414,7 @@ function resultEditFormHtml(r){
       <h4>Edit result</h4>
       <div class="edit-form-grid">
         <div class="full">
-          <label>Fixture</label>
+          <label>Event</label>
           <select id="rf-event-${r.id}">
             <option value="" ${!r.eventId?'selected':''}>— Select fixture —</option>
             ${sortedEvents.map(e => `<option value="${e.id}" ${r.eventId===e.id?'selected':''}>${e.name} — ${e.course || 'TBC'} (${fmtDate(e.date)})</option>`).join('')}
@@ -2417,10 +2431,6 @@ function resultEditFormHtml(r){
         <div>
           <label>3rd place</label>
           ${playerSelectHtml('rf-third-' + r.id, r.thirdPlace || '')}
-        </div>
-        <div>
-          <label>Score / result</label>
-          <input id="rf-score-${r.id}" value="${(r.score||'').replace(/"/g,'&quot;')}">
         </div>
       </div>
       <div class="edit-form-actions">
@@ -2454,23 +2464,23 @@ function renderResults(){
     const meta = ev ? [ev.course, fmtDate(ev.date), ev.format].filter(Boolean).join(' · ') : '';
 
     const places = [];
-    if (r.runnerUp) places.push(`
-      <div class="sc-place">
-        <div class="medal">🥈</div>
-        <div class="p-name">${r.runnerUp}</div>
-        <div class="p-label">Runner-up</div>
-      </div>`);
     places.push(`
       <div class="sc-place first">
-        <div class="medal">🥇</div>
-        <div class="p-name">${r.winner || 'TBC'}</div>
+        <div class="sc-ghost">1</div>
         <div class="p-label">Winner</div>
+        <div class="p-name">${r.winner || 'TBC'}</div>
       </div>`);
-    if (r.thirdPlace) places.push(`
-      <div class="sc-place">
-        <div class="medal">🥉</div>
-        <div class="p-name">${r.thirdPlace}</div>
-        <div class="p-label">3rd place</div>
+    places.push(`
+      <div class="sc-place second">
+        <div class="sc-ghost">2</div>
+        <div class="p-label">Runner-up</div>
+        <div class="p-name">${r.runnerUp || '—'}</div>
+      </div>`);
+    places.push(`
+      <div class="sc-place third">
+        <div class="sc-ghost">3</div>
+        <div class="p-label">3rd Place</div>
+        <div class="p-name">${r.thirdPlace || '—'}</div>
       </div>`);
 
     const fullScores = ev ? eventFullScores(ev.id) : [];
@@ -2485,13 +2495,13 @@ function renderResults(){
         </div>
         <div class="sc-podium">${places.join('')}</div>
         ${isExpanded ? `
-        <div style="border-top:1px dashed var(--line); padding:.8rem 1.2rem;">
+        <div style="border-top:1px solid rgba(255,255,255,.08); padding:.8rem 1.2rem;">
           <ol style="list-style:none; margin:0; padding:0; max-width:360px; margin:0 auto;">
             ${fullScores.map((x, i) => `
-              <li style="display:flex; gap:.8rem; align-items:baseline; padding:.3rem 0; ${i < fullScores.length-1 ? 'border-bottom:1px solid var(--line);' : ''} font-size:.9rem;">
-                <span style="font-family:var(--mono); color:var(--text-muted); min-width:1.6rem;">${i+1}</span>
-                <span style="font-weight:${i===0?'600':'400'};">${x.player.first_name} ${x.player.last_name}</span>
-                <span style="font-family:var(--mono); margin-left:auto;">${x.total} pts</span>
+              <li style="display:flex; gap:.8rem; align-items:baseline; padding:.3rem 0; ${i < fullScores.length-1 ? 'border-bottom:1px solid rgba(255,255,255,.08);' : ''} font-size:.9rem;">
+                <span style="font-family:var(--mono); color:rgba(255,255,255,.4); min-width:1.6rem;">${i+1}</span>
+                <span style="color:var(--paper); font-weight:${i===0?'600':'400'};">${x.player.first_name} ${x.player.last_name}</span>
+                <span style="font-family:var(--mono); margin-left:auto; color:var(--brass-light);">${x.total} pts</span>
               </li>`).join('')}
           </ol>
         </div>` : ''}
@@ -2535,7 +2545,6 @@ async function saveResult(id){
     winner: gv('rf-winner-' + id) || null,
     runner_up: gv('rf-runner-' + id) || null,
     third_place: gv('rf-third-' + id) || null,
-    score: gv('rf-score-' + id) || null,
   };
   if (!payload.event_id){ setStatus('Please select a fixture.', 'error'); return; }
   setStatus('Saving\u2026', 'loading');
@@ -2708,7 +2717,7 @@ function renderHome(){
     }
     slot.innerHTML = `
       <div class="next-fixture">
-        <div class="label">Next fixture</div>
+        <div class="label">Next event</div>
         <h3>${upcoming.name}</h3>
         <dl>
           <dt>Date</dt><dd>${fmtDate(upcoming.date)}</dd>
@@ -2716,7 +2725,7 @@ function renderHome(){
           <dt>Format</dt><dd>${upcoming.format || 'TBC'}</dd>
         </dl>
         ${countdownHtml}
-        <div style="margin-top:.7rem;"><a href="#" onclick="goTo('events'); return false;">Sign up &amp; all fixtures &rarr;</a></div>
+        <div style="margin-top:.7rem;"><a href="#" onclick="goTo('events'); return false;">Sign up &amp; all events &rarr;</a></div>
       </div>`;
   }
   const latestNews = [...news].sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0,2);
