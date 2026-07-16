@@ -998,6 +998,8 @@ let news = [];
 let results = [];
 let rules = [];
 let honours = [];
+let allScorecards = [];   // every scorecard across all events (for player history & results)
+let allHoleScores = [];   // every hole score across all events
 let players = [];
 let signups = [];
 let expandedEventId = null;
@@ -1008,7 +1010,7 @@ const DATA_CACHE_KEY = 'glgs-data-cache';
 function saveDataSnapshot(){
   try {
     localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({
-      events, committee, gallery, news, results, players, signups, rules, honours, savedAt: Date.now()
+      events, committee, gallery, news, results, players, signups, rules, honours, allScorecards, allHoleScores, savedAt: Date.now()
     }));
   } catch(e){ console.warn('Could not save offline snapshot:', e); }
 }
@@ -1027,6 +1029,8 @@ function restoreDataSnapshot(){
     signups = snap.signups || [];
     rules = snap.rules || [];
     honours = snap.honours || [];
+    allScorecards = snap.allScorecards || [];
+    allHoleScores = snap.allHoleScores || [];
     const age = Math.round((Date.now() - (snap.savedAt || 0)) / 60000);
     document.getElementById('main-content').insertAdjacentHTML('afterbegin',
       `<div class="card" style="border-color:var(--brass); margin-bottom:1.5rem;">
@@ -1123,6 +1127,21 @@ async function loadData(){
   } catch (err){
     console.warn('Honours table not available yet (run add-hall-of-fame.sql):', err);
     honours = [];
+  }
+
+  /* all scorecards + hole scores (for player history & full results) */
+  try {
+    const [scRes, hsRes] = await Promise.all([
+      db.from('scorecards').select('*'),
+      db.from('hole_scores').select('*'),
+    ]);
+    if (scRes.error || hsRes.error) throw (scRes.error || hsRes.error);
+    allScorecards = scRes.data || [];
+    allHoleScores = hsRes.data || [];
+  } catch (err){
+    console.warn('Scorecards not available yet (run add-live-scores.sql):', err);
+    allScorecards = [];
+    allHoleScores = [];
   }
 
   /* Save everything for offline use */
@@ -1292,10 +1311,12 @@ function eventDetailHtml(e){
         </div>
       </div>` : '';
 
+  const isEditingScores = scoresEditorEventId === e.id;
   const editToggle = isLoggedIn
     ? `<div style="margin-top:.5rem; display:flex; gap:.6rem; flex-wrap:wrap; align-items:center;">
          <button class="wa-share-btn" onclick="event.stopPropagation(); shareEventToWhatsApp('${e.id}')">${WA_ICON} Share to WhatsApp</button>
          <button class="committee-edit-btn" onclick="toggleEventEdit('${e.id}')">${isEditing ? 'Cancel edit' : 'Edit fixture'}</button>
+         ${e.status === 'past' ? `<button class="committee-edit-btn" onclick="toggleScoresEditor('${e.id}')">${isEditingScores ? 'Close scores' : 'Enter full scores'}</button>` : ''}
        </div>`
     : '';
 
@@ -1332,6 +1353,7 @@ function eventDetailHtml(e){
       </div>
 
       ${editToggle}
+      ${isLoggedIn && isEditingScores ? scoresEditorHtml(e) : ''}
       ${editForm}
     </div>`;
 }
@@ -1412,6 +1434,152 @@ async function submitSignup(eventId){
 
 /* ===================== edit: events ===================== */
 function gv(id){ const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+
+/* ===================== full scores (all events) ===================== */
+function scTotal(sc){
+  if (sc.total_points != null) return sc.total_points;
+  return allHoleScores.filter(h => h.scorecard_id === sc.id).reduce((s,h) => s + h.points, 0);
+}
+function scHasScore(sc){
+  return sc.total_points != null || allHoleScores.some(h => h.scorecard_id === sc.id);
+}
+function eventFullScores(eventId){
+  return allScorecards
+    .filter(sc => sc.event_id === eventId && scHasScore(sc))
+    .map(sc => ({ sc, player: players.find(p => p.id === sc.player_id), total: scTotal(sc) }))
+    .filter(x => x.player)
+    .sort((a,b) => b.total - a.total);
+}
+
+let scoresEditorEventId = null;
+function toggleScoresEditor(eventId){
+  scoresEditorEventId = (scoresEditorEventId === eventId) ? null : eventId;
+  renderEvents();
+}
+
+function scoresEditorHtml(e){
+  const existing = allScorecards.filter(sc => sc.event_id === e.id);
+  const existingIds = new Set(existing.map(sc => sc.player_id));
+  /* include signed-up players without a scorecard yet */
+  const signedUp = signups.filter(s => s.event_id === e.id && !existingIds.has(s.player_id)).map(s => s.player_id);
+  const rowPlayerIds = [...existing.map(sc => sc.player_id), ...signedUp];
+  const rowSet = new Set(rowPlayerIds);
+  const others = [...players].filter(p => !rowSet.has(p.id)).sort((a,b) => a.first_name.localeCompare(b.first_name));
+
+  const rows = rowPlayerIds.map(pid => {
+    const p = players.find(x => x.id === pid);
+    if (!p) return '';
+    const sc = existing.find(x => x.player_id === pid);
+    const val = sc && sc.total_points != null ? sc.total_points
+      : (sc && allHoleScores.some(h => h.scorecard_id === sc.id) ? scTotal(sc) : '');
+    return `
+      <div style="display:flex; align-items:center; gap:.7rem; padding:.3rem 0;">
+        <span style="flex:1; font-size:.92rem;">${p.first_name} ${p.last_name}</span>
+        <input class="handicap-input" type="number" min="0" max="60" placeholder="pts"
+          id="fs-${e.id}-${pid}" value="${val}">
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="edit-form" onclick="event.stopPropagation();">
+      <h4>Full scores — total Stableford points per player</h4>
+      ${rows || '<p class="muted">No players yet — add them below.</p>'}
+      <div style="display:flex; gap:.6rem; margin:.7rem 0; align-items:center;">
+        <select id="fs-add-${e.id}" style="flex:1; font-family:var(--body); font-size:.9rem; padding:.5rem .65rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--paper);">
+          <option value="">Add a player…</option>
+          ${others.map(p => `<option value="${p.id}">${p.first_name} ${p.last_name}</option>`).join('')}
+        </select>
+        <button class="committee-edit-btn" onclick="addPlayerToScores('${e.id}')">Add</button>
+      </div>
+      <div class="edit-form-actions">
+        <button class="btn brass" onclick="saveFullScores('${e.id}')">Save scores &amp; publish result</button>
+        <div class="edit-status" id="fs-status-${e.id}"></div>
+      </div>
+      <p class="muted" style="margin:.5rem 0 0;">Saving updates the Results page with the top 3 automatically${e.trophy ? ', and the Hall of Fame (' + e.trophy + ')' : ''}. Leave a box empty to skip that player.</p>
+    </div>`;
+}
+
+async function addPlayerToScores(eventId){
+  const sel = document.getElementById('fs-add-' + eventId);
+  const pid = sel && sel.value ? Number(sel.value) : null;
+  if (!pid || !db) return;
+  /* preserve any typed values before re-render */
+  const typed = {};
+  allScorecards.filter(sc => sc.event_id === eventId).forEach(sc => {
+    const el = document.getElementById(`fs-${eventId}-${sc.player_id}`);
+    if (el) typed[sc.player_id] = el.value;
+  });
+  const { data, error } = await db.from('scorecards')
+    .upsert({ event_id: eventId, player_id: pid }, { onConflict: 'event_id,player_id' })
+    .select().single();
+  if (error){ console.error(error); alert('Could not add player.'); return; }
+  if (data && !allScorecards.find(sc => sc.id === data.id)) allScorecards.push(data);
+  renderEvents();
+  setTimeout(() => {
+    Object.entries(typed).forEach(([p, v]) => {
+      const el = document.getElementById(`fs-${eventId}-${p}`);
+      if (el && v !== '') el.value = v;
+    });
+    const focus = document.getElementById(`fs-${eventId}-${pid}`);
+    if (focus) focus.focus();
+  }, 0);
+}
+
+async function saveFullScores(eventId){
+  const setStatus = (msg, kind) => {
+    const el = document.getElementById('fs-status-' + eventId);
+    if (el){ el.textContent = msg; el.className = 'edit-status ' + kind; }
+  };
+  if (!db){ setStatus('Not connected.', 'error'); return; }
+  setStatus('Saving\u2026', 'loading');
+
+  const cards = allScorecards.filter(sc => sc.event_id === eventId);
+  for (const sc of cards){
+    const el = document.getElementById(`fs-${eventId}-${sc.player_id}`);
+    if (!el) continue;
+    const raw = el.value.trim();
+    const val = raw === '' ? null : Number(raw);
+    if (val !== null && (Number.isNaN(val) || val < 0)){ setStatus('Scores must be numbers.', 'error'); return; }
+    if (val !== sc.total_points){
+      const { error } = await db.from('scorecards').update({ total_points: val }).eq('id', sc.id);
+      if (error){ console.error(error); setStatus('Save failed part-way — please try again.', 'error'); return; }
+      sc.total_points = val;
+    }
+  }
+
+  /* publish top 3 to Results (and Hall of Fame if trophy fixture) */
+  const scored = eventFullScores(eventId);
+  if (scored.length){
+    const nm = x => x.player.first_name + ' ' + x.player.last_name;
+    const winner = scored[0] ? nm(scored[0]) : '';
+    const runnerUp = scored[1] ? nm(scored[1]) : '';
+    const thirdPlace = scored[2] ? nm(scored[2]) : '';
+    const score = scored.slice(0,3).map(x => `${x.player.last_name} ${x.total}pts`).join(' / ');
+    const existing = results.find(r => r.eventId === eventId);
+    try {
+      if (existing){
+        const { error } = await db.from('results').update({ winner, runner_up: runnerUp, third_place: thirdPlace, score }).eq('id', existing.id);
+        if (error) throw error;
+        Object.assign(existing, { winner, runnerUp, thirdPlace, score });
+      } else {
+        const { data, error } = await db.from('results').insert({ event_id: eventId, winner, runner_up: runnerUp, third_place: thirdPlace, score }).select().single();
+        if (error) throw error;
+        if (data) results.push({ ...data, eventId, runnerUp: data.runner_up, thirdPlace: data.third_place });
+      }
+      renderResults();
+      renderPlayers();
+      await syncHonourForEvent(eventId, winner);
+      setStatus('Saved & published!', 'success');
+    } catch(err){
+      console.error(err);
+      setStatus('Scores saved, but publishing the result failed — try again.', 'error');
+      return;
+    }
+  } else {
+    setStatus('Saved.', 'success');
+    renderPlayers();
+  }
+}
 
 /* ===================== whatsapp sharing ===================== */
 const WA_ICON = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.149-.174.198-.298.297-.497.1-.198.05-.371-.025-.52-.074-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`;
@@ -2211,7 +2379,22 @@ async function addNewNews(){
 /* ===================== render: results ===================== */
 const editingResultIds = new Set();
 
+function playerSelectHtml(id, currentValue){
+  const sorted = [...players].sort((a,b) => a.first_name.localeCompare(b.first_name));
+  const names = sorted.map(p => `${p.first_name} ${p.last_name}`);
+  /* keep legacy values (e.g. pairs like "Whitlock & Carr") selectable so nothing breaks */
+  const legacy = currentValue && !names.includes(currentValue)
+    ? `<option value="${currentValue.replace(/"/g,'&quot;')}" selected>${currentValue} (as entered)</option>` : '';
+  return `
+    <select id="${id}">
+      <option value="">—</option>
+      ${legacy}
+      ${names.map(n => `<option value="${n.replace(/"/g,'&quot;')}" ${currentValue===n?'selected':''}>${n}</option>`).join('')}
+    </select>`;
+}
+
 function resultEditFormHtml(r){
+  const sortedEvents = [...events].sort((a,b) => new Date(b.date) - new Date(a.date));
   return `
     <div class="edit-form">
       <h4>Edit result</h4>
@@ -2219,20 +2402,21 @@ function resultEditFormHtml(r){
         <div class="full">
           <label>Fixture</label>
           <select id="rf-event-${r.id}">
-            ${events.map(e => `<option value="${e.id}" ${r.eventId===e.id?'selected':''}>${e.name} (${fmtDate(e.date)})</option>`).join('')}
+            <option value="" ${!r.eventId?'selected':''}>— Select fixture —</option>
+            ${sortedEvents.map(e => `<option value="${e.id}" ${r.eventId===e.id?'selected':''}>${e.name} — ${e.course || 'TBC'} (${fmtDate(e.date)})</option>`).join('')}
           </select>
         </div>
         <div>
           <label>Winner</label>
-          <input id="rf-winner-${r.id}" value="${(r.winner||'').replace(/"/g,'&quot;')}">
+          ${playerSelectHtml('rf-winner-' + r.id, r.winner || '')}
         </div>
         <div>
           <label>Runner-up</label>
-          <input id="rf-runner-${r.id}" value="${(r.runnerUp||'').replace(/"/g,'&quot;')}">
+          ${playerSelectHtml('rf-runner-' + r.id, r.runnerUp || '')}
         </div>
         <div>
           <label>3rd place</label>
-          <input id="rf-third-${r.id}" value="${(r.thirdPlace||'').replace(/"/g,'&quot;')}">
+          ${playerSelectHtml('rf-third-' + r.id, r.thirdPlace || '')}
         </div>
         <div>
           <label>Score / result</label>
@@ -2289,6 +2473,9 @@ function renderResults(){
         <div class="p-label">3rd place</div>
       </div>`);
 
+    const fullScores = ev ? eventFullScores(ev.id) : [];
+    const isExpanded = ev && expandedResultScores.has(ev.id);
+
     return `
       <div class="scorecard">
         <div class="sc-stamp">Result</div>
@@ -2297,9 +2484,21 @@ function renderResults(){
           ${meta ? `<div class="sc-meta">${meta}</div>` : ''}
         </div>
         <div class="sc-podium">${places.join('')}</div>
+        ${isExpanded ? `
+        <div style="border-top:1px dashed var(--line); padding:.8rem 1.2rem;">
+          <ol style="list-style:none; margin:0; padding:0; max-width:360px; margin:0 auto;">
+            ${fullScores.map((x, i) => `
+              <li style="display:flex; gap:.8rem; align-items:baseline; padding:.3rem 0; ${i < fullScores.length-1 ? 'border-bottom:1px solid var(--line);' : ''} font-size:.9rem;">
+                <span style="font-family:var(--mono); color:var(--text-muted); min-width:1.6rem;">${i+1}</span>
+                <span style="font-weight:${i===0?'600':'400'};">${x.player.first_name} ${x.player.last_name}</span>
+                <span style="font-family:var(--mono); margin-left:auto;">${x.total} pts</span>
+              </li>`).join('')}
+          </ol>
+        </div>` : ''}
         <div class="sc-foot">
           <span>${r.score || ''}</span>
           <span>
+            ${fullScores.length > 3 ? `<button class="committee-edit-btn" onclick="toggleResultScores('${ev.id}')">${isExpanded ? 'Hide' : 'Full'} scores (${fullScores.length})</button> ` : ''}
             ${ev ? `<a href="#" onclick="goTo('events',{highlightEvent:'${ev.id}'}); return false;">View fixture →</a>` : ''}
             ${isLoggedIn ? ` <button class="committee-edit-btn" onclick="toggleResultEdit(${r.id})">Edit</button>` : ''}
           </span>
@@ -2310,6 +2509,13 @@ function renderResults(){
   const addSlot = document.getElementById('add-result-slot');
   if (addSlot) addSlot.innerHTML = isLoggedIn
     ? `<button class="add-item-btn" onclick="addResult()">+ Add result</button>` : '';
+}
+
+const expandedResultScores = new Set();
+function toggleResultScores(eventId){
+  if (expandedResultScores.has(eventId)) expandedResultScores.delete(eventId);
+  else expandedResultScores.add(eventId);
+  renderResults();
 }
 
 function toggleResultEdit(id){
@@ -2354,9 +2560,8 @@ async function deleteResult(id){
 
 async function addResult(){
   if (!db) return;
-  const firstEvent = events[0];
-  if (!firstEvent){ alert('Please add a fixture first before adding a result.'); return; }
-  const payload = { event_id: firstEvent.id, winner: '', runner_up: '', third_place: '', score: '' };
+  if (!events.length){ alert('Please add a fixture first before adding a result.'); return; }
+  const payload = { event_id: null, winner: '', runner_up: '', third_place: '', score: '' };
   const { data, error } = await db.from('results').insert(payload).select().single();
   if (error){ console.error(error); alert('Could not add result. Please try again.'); return; }
   results.push({ ...data, eventId: data.event_id, runnerUp: data.runner_up, thirdPlace: data.third_place });
@@ -2366,11 +2571,32 @@ async function addResult(){
 
 /* ===================== render: players ===================== */
 function eventsAttendedCount(playerId){
-  return signups.filter(s => {
-    if (s.player_id !== playerId) return false;
+  /* union of past-fixture sign-ups and any event with a recorded score */
+  const attended = new Set();
+  signups.forEach(s => {
+    if (s.player_id !== playerId) return;
     const ev = eventById(s.event_id);
-    return ev && ev.status === 'past';
-  }).length;
+    if (ev && ev.status === 'past') attended.add(s.event_id);
+  });
+  allScorecards.forEach(sc => {
+    if (sc.player_id === playerId && scHasScore(sc)) attended.add(sc.event_id);
+  });
+  return attended.size;
+}
+
+function playerScoreHistory(playerId){
+  return allScorecards
+    .filter(sc => sc.player_id === playerId && scHasScore(sc))
+    .map(sc => ({ ev: eventById(sc.event_id), total: scTotal(sc) }))
+    .filter(x => x.ev)
+    .sort((a,b) => new Date(b.ev.date) - new Date(a.ev.date));
+}
+
+const expandedPlayerIds = new Set();
+function togglePlayerHistory(playerId){
+  if (expandedPlayerIds.has(playerId)) expandedPlayerIds.delete(playerId);
+  else expandedPlayerIds.add(playerId);
+  renderPlayers();
 }
 
 function renderPlayers(){
@@ -2382,14 +2608,16 @@ function renderPlayers(){
   const note = document.getElementById('players-login-note');
   if (note){
     note.innerHTML = isLoggedIn
-      ? 'Logged in \u2014 you can update handicaps and membership status below.'
-      : 'Handicap and membership status are editable by committee members only. Use the \uD83D\uDD12 button in the nav to log in.';
+      ? 'Logged in \u2014 you can update handicaps and membership status below. Tap a player\u2019s name to see their scores.'
+      : 'Tap a player\u2019s name to see their scores. Handicap and membership status are editable by committee members only.';
   }
 
   const sorted = [...players].sort((a,b) => a.first_name.localeCompare(b.first_name));
   document.getElementById('players-body').innerHTML = sorted.map(p => {
     const attended = eventsAttendedCount(p.id);
     const isPaid = p.membership_paid_year === currentYear;
+    const history = playerScoreHistory(p.id);
+    const isExpanded = expandedPlayerIds.has(p.id);
 
     const handicapCell = isLoggedIn
       ? `<input class="handicap-input" type="number" step="0.1" value="${p.handicap ?? ''}"
@@ -2401,13 +2629,30 @@ function renderPlayers(){
            onchange="updateMembershipPaid(${p.id}, this.checked)">`
       : `<span class="membership-pill ${isPaid ? 'paid' : 'unpaid'}">${isPaid ? 'Paid' : 'Not paid'}</span>`;
 
+    const nameCell = history.length
+      ? `<a href="#" onclick="togglePlayerHistory(${p.id}); return false;" style="font-weight:500;">${p.first_name} ${p.last_name} <span style="font-family:var(--mono); font-size:.7rem;">${isExpanded ? '\u25B4' : '\u25BE'}</span></a>`
+      : `${p.first_name} ${p.last_name}`;
+
+    const historyRow = isExpanded && history.length ? `
+      <tr>
+        <td colspan="4" style="background:var(--paper); padding:.8rem 1rem;">
+          <div style="font-family:var(--mono); font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); margin-bottom:.5rem;">Score history</div>
+          ${history.map(h => `
+            <div style="display:flex; gap:.9rem; align-items:baseline; padding:.25rem 0; font-size:.9rem; border-bottom:1px solid var(--line);">
+              <span style="font-family:var(--mono); font-size:.76rem; color:var(--text-muted); min-width:5.4rem;">${fmtDate(h.ev.date)}</span>
+              <a href="#" onclick="goTo('events',{highlightEvent:'${h.ev.id}'}); return false;">${h.ev.name}</a>
+              <span style="font-family:var(--mono); font-weight:600; margin-left:auto;">${h.total} pts</span>
+            </div>`).join('')}
+        </td>
+      </tr>` : '';
+
     return `
       <tr>
-        <td>${p.first_name} ${p.last_name}</td>
+        <td>${nameCell}</td>
         <td>${attended}</td>
         <td>${handicapCell}</td>
         <td>${membershipCell}</td>
-      </tr>`;
+      </tr>${historyRow}`;
   }).join('');
 }
 
