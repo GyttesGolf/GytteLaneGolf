@@ -257,43 +257,21 @@
   .map-empty-note{font-size:.88rem; color:var(--text-muted); margin-top:.6rem;}
 
   .leaders-section{margin:0 0 2.2rem; padding-bottom:2.2rem; border-bottom:1px solid var(--line);}
-  .leaders-row{max-width:540px;}
+  .leaders-row{display:flex; gap:1.2rem; flex-wrap:wrap;}
   .leader-card{
-    border:3px solid var(--brass); border-radius:10px; overflow:hidden;
-    box-shadow:0 4px 20px rgba(184,134,47,.2);
+    display:flex; align-items:center; gap:1rem; flex:1; min-width:230px;
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); padding:1rem 1.3rem;
   }
-  .leader-card-head{
-    background:var(--brass); padding:.6rem 1.2rem; text-align:center;
-  }
-  .leader-card-head span{
-    font-family:var(--mono); font-size:.72rem; text-transform:uppercase;
-    letter-spacing:.1em; color:var(--ink); font-weight:600;
-  }
-  .leader-card-body{background:var(--paper); padding:1rem 1.2rem; display:flex; flex-direction:column; gap:.2rem;}
-  .leader-row{
-    display:flex; align-items:center; gap:1rem; padding:.7rem 0;
-    border-bottom:1px solid var(--line);
-  }
-  .leader-row:last-child{border-bottom:none;}
   .leader-photo{
-    width:52px; height:52px; min-width:52px; border-radius:50%; object-fit:cover;
-    border:2px solid var(--brass); background:var(--stone);
+    width:64px; height:64px; min-width:64px; border-radius:50%; object-fit:cover;
+    border:3px solid var(--brass); background:var(--stone);
   }
   .leader-photo.placeholder{
     display:flex; align-items:center; justify-content:center;
-    font-family:var(--mono); font-size:.85rem; letter-spacing:.03em; color:var(--ink);
+    font-family:var(--mono); font-size:1rem; letter-spacing:.03em; color:var(--ink);
   }
-  .leader-role{font-family:var(--mono); font-size:.62rem; text-transform:uppercase; letter-spacing:.1em; color:var(--claret); margin-bottom:.2rem;}
-  .leader-name{font-family:var(--display); font-size:1.15rem; font-weight:700; color:var(--ink);}
-  .leader-card-foot{
-    background:var(--stone); border-top:1px solid var(--line);
-    padding:.5rem 1.2rem; text-align:center;
-  }
-  .leader-card-foot a{
-    font-family:var(--mono); font-size:.68rem; text-transform:uppercase;
-    letter-spacing:.06em; color:var(--brass); text-decoration:none;
-  }
-  .leader-card-foot a:hover{color:var(--ink);}
+  .leader-role{font-family:var(--mono); font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:var(--claret);}
+  .leader-name{font-family:var(--display); font-size:1.15rem; font-weight:600; color:var(--ink); margin:.2rem 0 0;}
   .home-col h3.mini-title{
     font-family:var(--mono); font-size:.78rem; letter-spacing:.06em; text-transform:uppercase;
     color:var(--ink); border-bottom:2px solid var(--ink); padding-bottom:.5rem; margin:0 0 1rem;
@@ -2093,7 +2071,7 @@ function renderLeaders(){
   const viceCaptain = committee.find(m => (m.role || '').toLowerCase() === 'vice-captain');
   const yr = new Date().getFullYear();
 
-  const rowHtml = (member, label) => {
+  const leaderCardHtml = (member, label) => {
     if (!member) return '';
     const first = member.first_name || (member.name ? member.name.split(' ')[0] : '');
     const last = member.last_name || (member.name ? member.name.split(' ').slice(1).join(' ') : '');
@@ -2102,7 +2080,7 @@ function renderLeaders(){
       ? `<img class="leader-photo" src="${member.photo_url}" alt="${first} ${last}">`
       : `<div class="leader-photo placeholder">${initials}</div>`;
     return `
-      <div class="leader-row">
+      <div class="leader-card">
         ${photo}
         <div>
           <div class="leader-role">${label} &middot; ${yr}</div>
@@ -2111,17 +2089,7 @@ function renderLeaders(){
       </div>`;
   };
 
-  slot.innerHTML = `
-    <div class="leader-card">
-      <div class="leader-card-head"><span>${yr} Captain &amp; Vice-Captain</span></div>
-      <div class="leader-card-body">
-        ${rowHtml(captain, 'Captain')}
-        ${rowHtml(viceCaptain, 'Vice-Captain')}
-      </div>
-      <div class="leader-card-foot">
-        <a href="#" onclick="goTo('halloffame'); setTimeout(()=>{const el=document.getElementById('past-captains');if(el)el.scrollIntoView({behavior:'smooth'});},100); return false;">Past captains →</a>
-      </div>
-    </div>`;
+  slot.innerHTML = leaderCardHtml(captain, 'Captain') + leaderCardHtml(viceCaptain, 'Vice-Captain');
 }
 
 /* ===================== render: gallery ===================== */
