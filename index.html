@@ -257,21 +257,52 @@
   .map-empty-note{font-size:.88rem; color:var(--text-muted); margin-top:.6rem;}
 
   .leaders-section{margin:0 0 2.2rem; padding-bottom:2.2rem; border-bottom:1px solid var(--line);}
-  .leaders-row{display:flex; gap:1.2rem; flex-wrap:wrap;}
-  .leader-card{
-    display:flex; align-items:center; gap:1rem; flex:1; min-width:230px;
-    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); padding:1rem 1.3rem;
+  .leaders-row{max-width:580px;}
+  .leader-split{
+    display:grid; grid-template-columns:1fr 3px 1fr;
+    border-radius:10px; overflow:hidden; border:1px solid var(--line);
+    box-shadow:0 6px 20px rgba(75,19,32,.12);
   }
+  .leader-left{
+    background:var(--ink); padding:1.3rem 1.1rem; position:relative; overflow:hidden;
+  }
+  .leader-left::after{
+    content:''; position:absolute; top:0; left:0; right:0; height:4px;
+    background:linear-gradient(90deg, var(--claret), var(--brass));
+  }
+  .leader-right{
+    background:var(--paper); padding:1.3rem 1.1rem; position:relative; overflow:hidden;
+  }
+  .leader-right::after{
+    content:''; position:absolute; top:0; left:0; right:0; height:4px;
+    background:linear-gradient(90deg, var(--brass), var(--brass-light));
+  }
+  .leader-divider{background:var(--brass);}
   .leader-photo{
-    width:64px; height:64px; min-width:64px; border-radius:50%; object-fit:cover;
-    border:3px solid var(--brass); background:var(--stone);
+    width:52px; height:52px; min-width:52px; border-radius:50%; object-fit:cover;
+    border:2px solid var(--brass); background:var(--stone); margin-bottom:.6rem;
   }
   .leader-photo.placeholder{
     display:flex; align-items:center; justify-content:center;
-    font-family:var(--mono); font-size:1rem; letter-spacing:.03em; color:var(--ink-soft);
+    font-family:var(--mono); font-size:.85rem; letter-spacing:.03em;
   }
-  .leader-role{font-family:var(--mono); font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:var(--claret);}
-  .leader-name{font-family:var(--display); font-size:1.15rem; font-weight:600; color:var(--ink); margin:.2rem 0 0;}
+  .leader-photo.placeholder.dark{background:rgba(255,255,255,.1); color:var(--brass-light);}
+  .leader-photo.placeholder.light{background:var(--stone); color:var(--ink);}
+  .leader-role{font-family:var(--mono); font-size:.62rem; text-transform:uppercase; letter-spacing:.1em; margin-bottom:.25rem;}
+  .leader-role.dark{color:var(--brass);}
+  .leader-role.light{color:var(--claret);}
+  .leader-name{font-family:var(--display); font-size:1.1rem; font-weight:700; line-height:1.15;}
+  .leader-name.dark{color:var(--paper);}
+  .leader-name.light{color:var(--ink);}
+  .leader-split-foot{
+    grid-column:1/-1; background:var(--stone); border-top:1px solid var(--line);
+    padding:.55rem 1.1rem; text-align:center;
+  }
+  .leader-split-foot a{
+    font-family:var(--mono); font-size:.68rem; text-transform:uppercase;
+    letter-spacing:.06em; color:var(--brass); text-decoration:none;
+  }
+  .leader-split-foot a:hover{color:var(--ink);}
   .home-col h3.mini-title{
     font-family:var(--mono); font-size:.78rem; letter-spacing:.06em; text-transform:uppercase;
     color:var(--ink); border-bottom:2px solid var(--ink); padding-bottom:.5rem; margin:0 0 1rem;
@@ -760,49 +791,46 @@
     width:min(420px, 80vw); opacity:.05; pointer-events:none; z-index:0;
   }
   .scorecard{
-    background:var(--ink); border-radius:var(--radius);
+    background:var(--paper); border:3px solid var(--brass); border-radius:10px;
     margin-bottom:1.4rem; overflow:hidden; position:relative; z-index:1;
-    box-shadow:0 8px 28px rgba(75,19,32,.28);
+    box-shadow:0 4px 20px rgba(184,134,47,.18);
   }
   .sc-head{
-    background:repeating-linear-gradient(45deg, var(--claret) 0 14px, #3A0F19 14px 28px);
-    color:var(--paper); padding:.75rem 1.2rem;
+    background:var(--brass); padding:.75rem 1.3rem;
     display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.3rem .8rem;
   }
-  .sc-head h3{font-family:var(--mono); font-size:.9rem; text-transform:uppercase; letter-spacing:.1em; margin:0;}
-  .sc-head h3 a{color:var(--paper); text-decoration:none;}
-  .sc-head .sc-meta{font-family:var(--mono); font-size:.68rem; color:rgba(255,255,255,.5); text-align:right; line-height:1.5;}
-  .sc-podium{display:grid; grid-template-columns:1fr 1fr 1fr; border-top:1px solid rgba(255,255,255,.08);}
-  .sc-place{padding:1.7rem .8rem 1.4rem; text-align:center; position:relative;}
-  .sc-place:not(:last-child){border-right:1px solid rgba(255,255,255,.08);}
-  .sc-place::before{content:''; position:absolute; top:0; left:0; right:0; height:5px;}
-  .sc-place.first{background:rgba(184,134,47,.08);}
-  .sc-place.first::before{background:linear-gradient(90deg,#B8862F,#F5D78E,#B8862F);}
-  .sc-place.second::before{background:linear-gradient(90deg,#9E9E9E,#D4D4D4,#9E9E9E);}
-  .sc-place.third::before{background:linear-gradient(90deg,#8C5E2A,#CDA27A,#8C5E2A);}
-  .sc-place .sc-ghost{
-    font-family:var(--display); font-size:4.2rem; font-weight:800; line-height:1;
-    position:absolute; top:.5rem; left:50%; transform:translateX(-50%);
-    letter-spacing:-.03em; pointer-events:none; color:rgba(255,255,255,.05);
+  .sc-head h3{font-family:var(--display); font-size:1.05rem; font-weight:700; color:var(--ink); text-transform:uppercase; letter-spacing:.03em; margin:0;}
+  .sc-head h3 a{color:var(--ink); text-decoration:none;}
+  .sc-head .sc-meta{font-family:var(--mono); font-size:.68rem; color:var(--ink); opacity:.7;}
+  .sc-podium{display:flex; flex-direction:column; padding:.4rem 0;}
+  .sc-place{
+    display:flex; align-items:center; gap:1rem; padding:.75rem 1.3rem;
+    border-bottom:1px solid var(--line); position:relative;
   }
-  .sc-place.first .sc-ghost{font-size:5.2rem; color:rgba(184,134,47,.1);}
-  .sc-place .p-label{font-family:var(--mono); font-size:.6rem; text-transform:uppercase; letter-spacing:.12em; color:var(--brass); margin-bottom:.5rem; position:relative; z-index:1;}
-  .sc-place.first .p-label{color:var(--brass-light);}
-  .sc-place .p-name{font-family:var(--display); font-size:1.1rem; font-weight:700; color:var(--paper); line-height:1.15; position:relative; z-index:1;}
-  .sc-place.first .p-name{font-size:1.4rem; color:#fff;}
+  .sc-place:last-child{border-bottom:none;}
+  .sc-place .ribbon{
+    width:5px; align-self:stretch; border-radius:3px; flex-shrink:0; min-height:48px;
+  }
+  .sc-place.first .ribbon{background:linear-gradient(180deg,#F5D78E,#B8862F);}
+  .sc-place.second .ribbon{background:linear-gradient(180deg,#D4D4D4,#9E9E9E);}
+  .sc-place.third .ribbon{background:linear-gradient(180deg,#CDA27A,#8C5E2A);}
+  .sc-place .p-label{font-family:var(--mono); font-size:.6rem; text-transform:uppercase; letter-spacing:.1em; color:var(--text-muted); margin-bottom:.2rem; min-width:5rem;}
+  .sc-place .p-name{font-family:var(--display); font-weight:700; color:var(--ink); line-height:1.15;}
+  .sc-place.first .p-name{font-size:1.35rem;}
+  .sc-place.second .p-name,.sc-place.third .p-name{font-size:1.05rem; color:var(--text);}
   .sc-foot{
-    border-top:1px solid rgba(255,255,255,.08); padding:.6rem 1.2rem; display:flex; justify-content:space-between;
-    align-items:center; font-family:var(--mono); font-size:.7rem; color:rgba(255,255,255,.3); flex-wrap:wrap; gap:.4rem .8rem;
+    background:var(--stone); border-top:1px solid var(--line); padding:.55rem 1.3rem;
+    display:flex; justify-content:space-between; align-items:center;
+    font-family:var(--mono); font-size:.7rem; color:var(--text-muted); flex-wrap:wrap; gap:.4rem .8rem;
   }
-  .sc-foot a{color:var(--brass); text-decoration:none;}
+  .sc-foot a{color:var(--claret); text-decoration:none;}
+  .sc-foot a:hover{text-decoration:underline;}
   .sc-stamp{
-    position:absolute; top:12px; right:-26px; transform:rotate(35deg);
-    font-family:var(--mono); font-size:.6rem; letter-spacing:.2em; text-transform:uppercase;
-    background:var(--claret); color:var(--paper); padding:.25rem 2.4rem; opacity:.9; z-index:2;
+    position:absolute; top:10px; right:-24px; transform:rotate(35deg);
+    font-family:var(--mono); font-size:.58rem; letter-spacing:.2em; text-transform:uppercase;
+    background:var(--claret); color:var(--paper); padding:.22rem 2.2rem; opacity:.85; z-index:2;
   }
-  .scorecard .edit-form{margin:1rem 1.2rem 1.2rem; background:var(--paper);}
-  .scorecard .edit-form label{color:var(--text);}
-  .scorecard .edit-form input, .scorecard .edit-form select{background:var(--stone); color:var(--text);}
+  .scorecard .edit-form{margin:1rem 1.2rem 1.2rem;}
 
   /* ---------- players ---------- */
   .players-login-note{font-size:.88rem; color:var(--text-muted); margin:0 0 1.2rem;}
@@ -2072,26 +2100,33 @@ function renderLeaders(){
 
   const captain = committee.find(m => (m.role || '').toLowerCase() === 'captain');
   const viceCaptain = committee.find(m => (m.role || '').toLowerCase() === 'vice-captain');
+  const yr = new Date().getFullYear();
 
-  const leaderCardHtml = (member, label) => {
-    if (!member) return '';
+  const sideHtml = (member, label, side) => {
+    if (!member) return `<div class="leader-${side}"><div class="leader-role ${side}">${label}</div><div class="leader-name ${side}" style="opacity:.4;">Not set</div></div>`;
     const first = member.first_name || (member.name ? member.name.split(' ')[0] : '');
     const last = member.last_name || (member.name ? member.name.split(' ').slice(1).join(' ') : '');
     const initials = ((first[0] || '') + (last[0] || '')).toUpperCase();
     const photo = member.photo_url
       ? `<img class="leader-photo" src="${member.photo_url}" alt="${first} ${last}">`
-      : `<div class="leader-photo placeholder">${initials}</div>`;
+      : `<div class="leader-photo placeholder ${side}">${initials}</div>`;
     return `
-      <div class="leader-card">
+      <div class="leader-${side}">
         ${photo}
-        <div>
-          <div class="leader-role">${label} &middot; 2026</div>
-          <div class="leader-name">${first} ${last}</div>
-        </div>
+        <div class="leader-role ${side}">${label} &middot; ${yr}</div>
+        <div class="leader-name ${side}">${first} ${last}</div>
       </div>`;
   };
 
-  slot.innerHTML = leaderCardHtml(captain, 'Captain') + leaderCardHtml(viceCaptain, 'Vice-Captain');
+  slot.innerHTML = `
+    <div class="leader-split">
+      ${sideHtml(captain, 'Captain', 'left')}
+      <div class="leader-divider"></div>
+      ${sideHtml(viceCaptain, 'Vice-Captain', 'right')}
+      <div class="leader-split-foot">
+        <a href="#" onclick="goTo('halloffame'); setTimeout(()=>{const el=document.getElementById('past-captains');if(el)el.scrollIntoView({behavior:'smooth'});},100); return false;">Past captains →</a>
+      </div>
+    </div>`;
 }
 
 /* ===================== render: gallery ===================== */
@@ -2591,21 +2626,27 @@ function renderResults(){
     const places = [];
     places.push(`
       <div class="sc-place first">
-        <div class="sc-ghost">1</div>
-        <div class="p-label">Winner</div>
-        <div class="p-name">${r.winner || 'TBC'}</div>
+        <div class="ribbon"></div>
+        <div style="flex:1;">
+          <div class="p-label">Winner</div>
+          <div class="p-name">${r.winner || 'TBC'}</div>
+        </div>
       </div>`);
-    places.push(`
+    if (r.runnerUp) places.push(`
       <div class="sc-place second">
-        <div class="sc-ghost">2</div>
-        <div class="p-label">Runner-up</div>
-        <div class="p-name">${r.runnerUp || '—'}</div>
+        <div class="ribbon"></div>
+        <div style="flex:1;">
+          <div class="p-label">Runner-up</div>
+          <div class="p-name">${r.runnerUp}</div>
+        </div>
       </div>`);
-    places.push(`
+    if (r.thirdPlace) places.push(`
       <div class="sc-place third">
-        <div class="sc-ghost">3</div>
-        <div class="p-label">3rd Place</div>
-        <div class="p-name">${r.thirdPlace || '—'}</div>
+        <div class="ribbon"></div>
+        <div style="flex:1;">
+          <div class="p-label">3rd Place</div>
+          <div class="p-name">${r.thirdPlace}</div>
+        </div>
       </div>`);
 
     const fullScores = ev ? eventFullScores(ev.id) : [];
@@ -2620,13 +2661,13 @@ function renderResults(){
         </div>
         <div class="sc-podium">${places.join('')}</div>
         ${isExpanded ? `
-        <div style="border-top:1px solid rgba(255,255,255,.08); padding:.8rem 1.2rem;">
+        <div style="border-top:1px solid var(--line); padding:.8rem 1.2rem; background:var(--stone);">
           <ol style="list-style:none; margin:0; padding:0; max-width:360px; margin:0 auto;">
             ${fullScores.map((x, i) => `
-              <li style="display:flex; gap:.8rem; align-items:baseline; padding:.3rem 0; ${i < fullScores.length-1 ? 'border-bottom:1px solid rgba(255,255,255,.08);' : ''} font-size:.9rem;">
-                <span style="font-family:var(--mono); color:rgba(255,255,255,.4); min-width:1.6rem;">${i+1}</span>
-                <span style="color:var(--paper); font-weight:${i===0?'600':'400'};">${x.player.first_name} ${x.player.last_name}</span>
-                <span style="font-family:var(--mono); margin-left:auto; color:var(--brass-light);">${x.total} pts</span>
+              <li style="display:flex; gap:.8rem; align-items:baseline; padding:.3rem 0; ${i < fullScores.length-1 ? 'border-bottom:1px solid var(--line);' : ''} font-size:.9rem;">
+                <span style="font-family:var(--mono); color:var(--text-muted); min-width:1.6rem;">${i+1}</span>
+                <span style="color:var(--ink); font-weight:${i===0?'600':'400'};">${x.player.first_name} ${x.player.last_name}</span>
+                <span style="font-family:var(--mono); margin-left:auto; color:var(--brass);">${x.total} pts</span>
               </li>`).join('')}
           </ol>
         </div>` : ''}
