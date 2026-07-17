@@ -1344,11 +1344,33 @@ function eventDetailHtml(e){
       ${e.description
         ? `<p class="event-description">${e.description}</p>`
         : isLoggedIn
-          ? `<p class="event-description muted">No description yet — use "Edit fixture" below to add one.</p>`
+          ? `<p class="event-description muted">No description yet — use "Edit event" below to add one.</p>`
           : `<p class="event-description muted">No description added yet.</p>`}
 
+      ${e.status === 'past' ? (() => {
+        const fullScores = eventFullScores(e.id);
+        const played = fullScores.length || attendees.length;
+        const winner = results.find(r => r.eventId === e.id);
+        return `
+          <div class="attendee-list" style="margin-top:.8rem;">
+            <h4>Event summary</h4>
+            <div style="display:flex; gap:1.4rem; flex-wrap:wrap; margin:.5rem 0 .8rem; font-size:.92rem;">
+              <span><strong>${played}</strong> <span style="color:var(--text-muted);">player${played===1?'':'s'} took part</span></span>
+              ${winner && winner.winner ? `<span>🥇 <strong>${winner.winner}</strong></span>` : ''}
+              ${winner && winner.runnerUp ? `<span>🥈 <strong>${winner.runnerUp}</strong></span>` : ''}
+              ${winner && winner.thirdPlace ? `<span>🥉 <strong>${winner.thirdPlace}</strong></span>` : ''}
+            </div>
+            ${attendees.length ? `
+              <details style="margin-top:.4rem;">
+                <summary style="cursor:pointer; font-family:var(--mono); font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); user-select:none;">
+                  Show who played (${attendees.length})
+                </summary>
+                <ul style="margin-top:.6rem;">${attendees.map(p => `<li>${p.first_name} ${p.last_name}</li>`).join('')}</ul>
+              </details>` : ''}
+          </div>`;
+      })() : `
       <div class="signup-block">
-        <h4>Sign up for this fixture</h4>
+        <h4>Sign up for this event</h4>
         <div class="signup-status" id="signup-status-${e.id}"></div>
         <label class="signup-label" for="existing-${e.id}">Played with us before? Select your name</label>
         <select id="existing-${e.id}">
@@ -1369,7 +1391,7 @@ function eventDetailHtml(e){
         ${attendees.length
           ? '<ul>' + attendees.map(p => `<li>${p.first_name} ${p.last_name}</li>`).join('') + '</ul>'
           : '<p class="muted">No one signed up yet — be the first.</p>'}
-      </div>
+      </div>`}
 
       ${editToggle}
       ${isLoggedIn && isEditingScores ? scoresEditorHtml(e) : ''}
