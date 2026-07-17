@@ -389,6 +389,43 @@
   }
   .add-item-btn:hover{border-color:var(--brass); color:var(--ink);}
 
+  /* ---------- courses panel ---------- */
+  .courses-panel{margin-top:2rem; padding-top:1.8rem; border-top:1px solid var(--line);}
+  .courses-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:.9rem; margin-top:1rem;}
+  .course-card{
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
+    padding:1rem 1.1rem; position:relative;
+  }
+  .course-card h4{font-family:var(--display); font-size:1.05rem; margin:0 0 .2rem; color:var(--ink);}
+  .course-card .course-postcode{font-family:var(--mono); font-size:.72rem; color:var(--text-muted); margin-bottom:.5rem;}
+  .course-card .course-played{font-family:var(--mono); font-size:.7rem; color:var(--text-muted); margin-top:.4rem;}
+  .star-display{display:flex; align-items:center; gap:.3rem;}
+  .star-display .stars{color:var(--brass); font-size:1rem; letter-spacing:.05em;}
+  .star-display .star-empty{color:var(--line); font-size:1rem;}
+  .star-display .star-filled{color:var(--brass); font-size:1rem;}
+  .star-display .star-avg{font-family:var(--mono); font-size:.78rem; color:var(--text-muted);}
+  .star-picker{display:flex; align-items:center; gap:.2rem; margin:.5rem 0;}
+  .star-picker button{
+    background:none; border:none; cursor:pointer; font-size:1.6rem; line-height:1;
+    color:var(--line); padding:.1rem; transition:color .1s; transform:scale(1); transition:transform .1s;
+  }
+  .star-picker button.lit{color:var(--brass);}
+  .star-picker button:hover{transform:scale(1.15);}
+  .rate-block{margin-top:.8rem; padding-top:.8rem; border-top:1px solid var(--line);}
+  .rate-block h5{font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin:0 0 .5rem;}
+  .rate-select{
+    width:100%; font-family:var(--body); font-size:.88rem; padding:.45rem .6rem;
+    border:1px solid var(--line); border-radius:var(--radius); background:var(--stone); margin-bottom:.4rem;
+  }
+  .rate-select:focus{border-color:var(--brass); outline:none;}
+  .rate-status{font-size:.8rem; min-height:1em; margin-top:.3rem;}
+  .rate-status.success{color:var(--bracken); font-weight:600;}
+  .rate-status.error{color:var(--claret);}
+
+  /* course edit form inside event edit */
+  .course-select-row{display:flex; gap:.5rem; align-items:flex-start;}
+  .course-select-row select{flex:1;}
+
   /* ---------- rules ---------- */
   .rules-list{display:flex; flex-direction:column; gap:1rem; max-width:720px;}
   .rule-card{
@@ -876,6 +913,7 @@
     </div>
     <div class="event-list" id="event-list"></div>
     <div id="add-event-slot"></div>
+    <div id="courses-panel"></div>
   </section>
 
   <!-- ============ COMMITTEE ============ -->
@@ -1017,8 +1055,11 @@ let news = [];
 let results = [];
 let rules = [];
 let honours = [];
-let allScorecards = [];   // every scorecard across all events (for player history & results)
-let allHoleScores = [];   // every hole score across all events
+let allScorecards = [];
+let allHoleScores = [];
+let courses = [];
+let courseRatings = [];
+let ratingState = {}; // { eventId: { playerId, stars } }
 let players = [];
 let signups = [];
 let expandedEventId = null;
@@ -1029,7 +1070,7 @@ const DATA_CACHE_KEY = 'glgs-data-cache';
 function saveDataSnapshot(){
   try {
     localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({
-      events, committee, gallery, news, results, players, signups, rules, honours, allScorecards, allHoleScores, savedAt: Date.now()
+      events, committee, gallery, news, results, players, signups, rules, honours, allScorecards, allHoleScores, courses, courseRatings, savedAt: Date.now()
     }));
   } catch(e){ console.warn('Could not save offline snapshot:', e); }
 }
@@ -1050,6 +1091,8 @@ function restoreDataSnapshot(){
     honours = snap.honours || [];
     allScorecards = snap.allScorecards || [];
     allHoleScores = snap.allHoleScores || [];
+    courses = snap.courses || [];
+    courseRatings = snap.courseRatings || [];
     const age = Math.round((Date.now() - (snap.savedAt || 0)) / 60000);
     document.getElementById('main-content').insertAdjacentHTML('afterbegin',
       `<div class="card" style="border-color:var(--brass); margin-bottom:1.5rem;">
@@ -1161,6 +1204,21 @@ async function loadData(){
     console.warn('Scorecards not available yet (run add-live-scores.sql):', err);
     allScorecards = [];
     allHoleScores = [];
+  }
+
+  /* courses + ratings */
+  try {
+    const [crRes, ratRes] = await Promise.all([
+      db.from('courses').select('*').order('name'),
+      db.from('course_ratings').select('*'),
+    ]);
+    if (crRes.error || ratRes.error) throw (crRes.error || ratRes.error);
+    courses = crRes.data || [];
+    courseRatings = ratRes.data || [];
+  } catch(err){
+    console.warn('Courses not available yet (run add-courses.sql):', err);
+    courses = [];
+    courseRatings = [];
   }
 
   /* Save everything for offline use */
@@ -1293,7 +1351,20 @@ function eventDetailHtml(e){
           </div>
           <div>
             <label>Course</label>
-            <input id="ef-course-${e.id}" value="${(e.course||'').replace(/"/g,'&quot;')}">
+            <select id="ef-course-${e.id}" onchange="onCourseSelected('${e.id}')">
+              <option value="">— Select course —</option>
+              ${courses.map(c => `<option value="${c.id}" ${e.course_id===c.id?'selected':''}>${c.name}</option>`).join('')}
+              ${e.course && !e.course_id ? `<option value="legacy" selected>${e.course} (existing)</option>` : ''}
+              <option value="__new__">＋ Add new course…</option>
+            </select>
+            <div id="ef-new-course-form-${e.id}" style="display:none; margin-top:.5rem; background:var(--paper); padding:.7rem; border-radius:var(--radius); border:1px solid var(--line);">
+              <label style="font-size:.8rem; color:var(--text-muted); display:block; margin-bottom:.2rem;">Course name</label>
+              <input id="ef-nc-name-${e.id}" placeholder="e.g. Silverstone Golf Club" style="margin-bottom:.4rem; width:100%; font-family:var(--body); font-size:.9rem; padding:.5rem .65rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone); color:var(--text); box-sizing:border-box;">
+              <label style="font-size:.8rem; color:var(--text-muted); display:block; margin-bottom:.2rem;">Postcode</label>
+              <input id="ef-nc-postcode-${e.id}" placeholder="e.g. NN12 8TN" style="margin-bottom:.4rem; width:100%; font-family:var(--body); font-size:.9rem; padding:.5rem .65rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone); color:var(--text); box-sizing:border-box;">
+              <button class="committee-edit-btn" onclick="saveNewCourseFromEvent('${e.id}')">Save &amp; select course</button>
+              <div class="edit-status" id="ef-nc-status-${e.id}" style="margin-top:.3rem;"></div>
+            </div>
           </div>
           <div>
             <label>Format</label>
@@ -1351,9 +1422,16 @@ function eventDetailHtml(e){
         const fullScores = eventFullScores(e.id);
         const played = fullScores.length || attendees.length;
         const winner = results.find(r => r.eventId === e.id);
+        const course = courseById(e.course_id);
+        const mapsUrl = (e.course || course) ? googleMapsUrl(e.course || (course && course.name), e.postcode || (course && course.postcode)) : null;
+        const avg = course ? courseAvgRating(course.id) : null;
+        const cnt = course ? courseRatingCount(course.id) : 0;
+        const ratingBlock = course ? starPickerHtml(course.id, e.id) : '';
         return `
           <div class="attendee-list" style="margin-top:.8rem;">
             <h4>Event summary</h4>
+            ${mapsUrl ? `<p style="margin:.3rem 0 .5rem;"><a href="${mapsUrl}" target="_blank" rel="noopener" style="font-family:var(--mono); font-size:.8rem;">📍 ${e.course || (course && course.name)} — directions ↗</a></p>` : ''}
+            ${course ? `<div style="margin:.3rem 0 .6rem;">${starsHtml(avg, cnt)}</div>` : ''}
             <div style="display:flex; gap:1.4rem; flex-wrap:wrap; margin:.5rem 0 .8rem; font-size:.92rem;">
               <span><strong>${played}</strong> <span style="color:var(--text-muted);">player${played===1?'':'s'} took part</span></span>
               ${winner && winner.winner ? `<span>🥇 <strong>${winner.winner}</strong></span>` : ''}
@@ -1367,9 +1445,11 @@ function eventDetailHtml(e){
                 </summary>
                 <ul style="margin-top:.6rem;">${attendees.map(p => `<li>${p.first_name} ${p.last_name}</li>`).join('')}</ul>
               </details>` : ''}
+            ${ratingBlock}
           </div>`;
       })() : `
       <div class="signup-block">
+        ${e.course ? `<p style="margin:0 0 .9rem;"><a href="${googleMapsUrl(e.course, e.postcode)}" target="_blank" rel="noopener" style="font-family:var(--mono); font-size:.8rem; color:var(--claret);">📍 ${e.course} — directions ↗</a></p>` : ''}
         <h4>Sign up for this event</h4>
         <div class="signup-status" id="signup-status-${e.id}"></div>
         <label class="signup-label" for="existing-${e.id}">Played with us before? Select your name</label>
@@ -1645,12 +1725,16 @@ async function saveEvent(eventId){
     if (el){ el.textContent = msg; el.className = 'edit-status ' + kind; }
   };
   if (!db){ setStatus('Not connected.', 'error'); return; }
+  const courseSelVal = gv('ef-course-' + eventId);
+  const selectedCourse = courseSelVal && courseSelVal !== 'legacy' && courseSelVal !== '__new__'
+    ? courses.find(c => c.id === Number(courseSelVal)) : null;
   const payload = {
     name: gv('ef-name-' + eventId),
     date: gv('ef-date-' + eventId),
-    course: gv('ef-course-' + eventId),
+    course: selectedCourse ? selectedCourse.name : gv('ef-course-' + eventId),
+    course_id: selectedCourse ? selectedCourse.id : null,
     format: gv('ef-format-' + eventId),
-    postcode: gv('ef-postcode-' + eventId),
+    postcode: selectedCourse ? (selectedCourse.postcode || gv('ef-postcode-' + eventId)) : gv('ef-postcode-' + eventId),
     status: gv('ef-status-' + eventId),
     trophy: gv('ef-trophy-' + eventId) || null,
     description: gv('ef-desc-' + eventId) || null,
@@ -1923,6 +2007,7 @@ async function initAuth(){
     renderResults();
     renderRules();
     renderHonours();
+    renderCoursesPanel();
   });
 }
 
@@ -3833,6 +3918,250 @@ async function saveNewHonour(){
   renderHonours();
 }
 
+/* ===================== courses & ratings ===================== */
+function courseById(id){ return courses.find(c => c.id === Number(id)); }
+function googleMapsUrl(name, postcode){
+  const q = [name, postcode].filter(Boolean).join(' ');
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+}
+function courseAvgRating(courseId){
+  const r = courseRatings.filter(x => x.course_id === courseId);
+  return r.length ? r.reduce((s,x) => s + x.stars, 0) / r.length : null;
+}
+function courseRatingCount(courseId){ return courseRatings.filter(x => x.course_id === courseId).length; }
+function timesPlayed(courseId){ return events.filter(e => e.course_id === courseId).length; }
+
+function starsHtml(avg, count){
+  if (avg === null) return `<span style="font-family:var(--mono); font-size:.72rem; color:var(--text-muted);">No ratings yet</span>`;
+  const filled = Math.round(avg);
+  const stars = [1,2,3,4,5].map(i => `<span class="${i <= filled ? 'star-filled' : 'star-empty'}">★</span>`).join('');
+  return `<span class="star-display">${stars} <span class="star-avg">${avg.toFixed(1)} (${count})</span></span>`;
+}
+
+function onCourseSelected(eventId){
+  const sel = document.getElementById('ef-course-' + eventId);
+  const newCourseForm = document.getElementById('ef-new-course-form-' + eventId);
+  const postcodeEl = document.getElementById('ef-postcode-' + eventId);
+  if (!sel) return;
+  if (sel.value === '__new__'){
+    if (newCourseForm) newCourseForm.style.display = 'block';
+    return;
+  }
+  if (newCourseForm) newCourseForm.style.display = 'none';
+  const c = courseById(sel.value);
+  if (c && postcodeEl) postcodeEl.value = c.postcode || '';
+}
+
+async function saveNewCourseFromEvent(eventId){
+  const setStatus = (msg, kind) => {
+    const el = document.getElementById('ef-nc-status-' + eventId);
+    if (el){ el.textContent = msg; el.className = 'edit-status ' + kind; }
+  };
+  if (!db){ setStatus('Not connected.', 'error'); return; }
+  const name = (document.getElementById('ef-nc-name-' + eventId)?.value || '').trim();
+  const postcode = (document.getElementById('ef-nc-postcode-' + eventId)?.value || '').trim().toUpperCase();
+  if (!name){ setStatus('Course name is required.', 'error'); return; }
+  setStatus('Saving\u2026', 'loading');
+  const { data, error } = await db.from('courses').insert({ name, postcode }).select().single();
+  if (error){ console.error(error); setStatus('Save failed.', 'error'); return; }
+  courses.push(data);
+  courses.sort((a,b) => a.name.localeCompare(b.name));
+  /* update the select dropdown to include and select the new course */
+  const sel = document.getElementById('ef-course-' + eventId);
+  const postcodeEl = document.getElementById('ef-postcode-' + eventId);
+  if (sel){
+    const opt = document.createElement('option');
+    opt.value = data.id; opt.text = data.name; opt.selected = true;
+    sel.insertBefore(opt, sel.querySelector('option[value="__new__"]'));
+    sel.value = data.id;
+  }
+  if (postcodeEl) postcodeEl.value = postcode;
+  const newCourseForm = document.getElementById('ef-new-course-form-' + eventId);
+  if (newCourseForm) newCourseForm.style.display = 'none';
+  setStatus('');
+  renderCoursesPanel();
+}
+
+/* star rating on past events */
+function starPickerHtml(courseId, eventId){
+  const key = eventId;
+  const state = ratingState[key] || {};
+  const pending = state.stars || 0;
+  const pid = state.playerId || '';
+  const playerOpts = [...players].sort((a,b) => a.first_name.localeCompare(b.first_name))
+    .map(p => `<option value="${p.id}" ${pid==p.id?'selected':''}>${p.first_name} ${p.last_name}</option>`).join('');
+
+  const stars = [1,2,3,4,5].map(i =>
+    `<button class="star-btn ${i <= pending ? 'lit' : ''}"
+      onmouseenter="previewStars('${eventId}',${i})"
+      onmouseleave="previewStars('${eventId}',${pending})"
+      onclick="selectStars('${courseId}','${eventId}',${i})">★</button>`
+  ).join('');
+
+  return `
+    <div class="rate-block">
+      <h5>Rate this course</h5>
+      <select class="rate-select" onchange="ratingState['${key}']=(ratingState['${key}']||{}); ratingState['${key}'].playerId=this.value;">
+        <option value="">— Select your name —</option>
+        ${playerOpts}
+      </select>
+      <div class="star-picker" id="star-picker-${eventId}">${stars}</div>
+      <button class="btn brass" style="padding:.45rem 1rem; font-size:.82rem;" onclick="submitRating('${courseId}','${eventId}')">Submit rating</button>
+      <div class="rate-status" id="rate-status-${eventId}"></div>
+    </div>`;
+}
+
+function previewStars(eventId, count){
+  const picker = document.getElementById('star-picker-' + eventId);
+  if (!picker) return;
+  picker.querySelectorAll('.star-btn').forEach((btn, i) => {
+    btn.classList.toggle('lit', i < count);
+  });
+}
+
+function selectStars(courseId, eventId, stars){
+  ratingState[eventId] = ratingState[eventId] || {};
+  ratingState[eventId].stars = stars;
+  previewStars(eventId, stars);
+}
+
+async function submitRating(courseId, eventId){
+  const setStatus = (msg, kind) => {
+    const el = document.getElementById('rate-status-' + eventId);
+    if (el){ el.textContent = msg; el.className = 'rate-status ' + (kind||''); }
+  };
+  const state = ratingState[eventId] || {};
+  if (!state.playerId){ setStatus('Please select your name first.', 'error'); return; }
+  if (!state.stars){ setStatus('Please select a star rating.', 'error'); return; }
+  if (!db){ setStatus('Not connected.', 'error'); return; }
+
+  const existing = courseRatings.find(r => r.course_id==courseId && r.event_id===eventId && r.player_id==state.playerId);
+  setStatus('Saving\u2026');
+  if (existing){
+    const { error } = await db.from('course_ratings').update({ stars: state.stars }).eq('id', existing.id);
+    if (error){ console.error(error); setStatus('Save failed.', 'error'); return; }
+    existing.stars = state.stars;
+  } else {
+    const { data, error } = await db.from('course_ratings').insert({ course_id: Number(courseId), event_id: eventId, player_id: Number(state.playerId), stars: state.stars }).select().single();
+    if (error){ console.error(error); setStatus('Save failed.', 'error'); return; }
+    if (data) courseRatings.push(data);
+  }
+  setStatus('Thanks for rating! ⭐', 'success');
+  renderCoursesPanel();
+  renderEvents();
+}
+
+/* courses panel */
+const editingCourseIds = new Set();
+
+function renderCoursesPanel(){
+  const panel = document.getElementById('courses-panel');
+  if (!panel) return;
+  if (!courses.length && !isLoggedIn){ panel.innerHTML = ''; return; }
+
+  const sorted = [...courses].sort((a,b) => {
+    const ra = courseAvgRating(a.id) || 0, rb = courseAvgRating(b.id) || 0;
+    return rb - ra || a.name.localeCompare(b.name);
+  });
+
+  const cards = sorted.map(c => {
+    const avg = courseAvgRating(c.id); const cnt = courseRatingCount(c.id);
+    const played = timesPlayed(c.id);
+    const isEditing = editingCourseIds.has(c.id);
+    const mapsUrl = googleMapsUrl(c.name, c.postcode);
+
+    const editForm = (isLoggedIn && isEditing) ? `
+      <div class="edit-form" style="margin-top:.7rem;">
+        <h4>Edit course</h4>
+        <div class="edit-form-grid">
+          <div class="full"><label>Name</label><input id="cc-name-${c.id}" value="${c.name.replace(/"/g,'&quot;')}"></div>
+          <div class="full"><label>Postcode</label><input id="cc-postcode-${c.id}" value="${(c.postcode||'').replace(/"/g,'&quot;')}"></div>
+        </div>
+        <div class="edit-form-actions">
+          <button class="btn brass" onclick="saveCourse(${c.id})">Save</button>
+          <button class="btn ghost" onclick="toggleCourseEdit(${c.id})">Cancel</button>
+          <div class="edit-status" id="cc-status-${c.id}"></div>
+          <button class="delete-btn" onclick="deleteCourse(${c.id})">Delete</button>
+        </div>
+      </div>` : '';
+
+    return `
+      <div class="course-card">
+        <h4><a href="${mapsUrl}" target="_blank" rel="noopener" style="color:var(--ink); text-decoration:none;">${c.name} ↗</a></h4>
+        ${c.postcode ? `<div class="course-postcode">${c.postcode}</div>` : ''}
+        <div style="margin:.4rem 0;">${starsHtml(avg, cnt)}</div>
+        <div class="course-played">${played} event${played===1?'':'s'} played here</div>
+        ${isLoggedIn ? `<button class="committee-edit-btn" style="margin-top:.5rem;" onclick="toggleCourseEdit(${c.id})">${isEditing?'Cancel':'Edit'}</button>` : ''}
+        ${editForm}
+      </div>`;
+  }).join('');
+
+  panel.innerHTML = `
+    <div class="courses-panel">
+      <h3 class="mini-title">Course library</h3>
+      <p style="font-size:.88rem; color:var(--text-muted); margin:.2rem 0 .8rem;">Ranked by member rating. Click a course name to open in Google Maps.</p>
+      <div class="courses-grid">${cards || '<p class="muted">No courses in the library yet.</p>'}</div>
+      ${isLoggedIn ? `<button class="add-item-btn" style="margin-top:1rem;" onclick="openAddCourseForm()">+ Add course to library</button>
+      <div id="add-course-panel"></div>` : ''}
+    </div>`;
+}
+
+function toggleCourseEdit(id){
+  if (editingCourseIds.has(id)) editingCourseIds.delete(id); else editingCourseIds.add(id);
+  renderCoursesPanel();
+}
+async function saveCourse(id){
+  const setStatus = (msg, kind) => { const el = document.getElementById('cc-status-'+id); if(el){el.textContent=msg; el.className='edit-status '+(kind||'');} };
+  if (!db){ setStatus('Not connected.','error'); return; }
+  const payload = { name: gv('cc-name-'+id), postcode: gv('cc-postcode-'+id).toUpperCase()||null };
+  if (!payload.name){ setStatus('Name required.','error'); return; }
+  setStatus('Saving\u2026','loading');
+  const { error } = await db.from('courses').update(payload).eq('id', id);
+  if (error){ console.error(error); setStatus('Save failed.','error'); return; }
+  const c = courses.find(x => x.id===id); if(c) Object.assign(c, payload);
+  editingCourseIds.delete(id);
+  renderCoursesPanel(); renderEvents();
+}
+async function deleteCourse(id){
+  if (!confirm('Delete this course from the library? Events linked to it will keep their course name but lose the library link.')) return;
+  if (!db) return;
+  const { error } = await db.from('courses').delete().eq('id', id);
+  if (error){ console.error(error); alert('Delete failed.'); return; }
+  courses = courses.filter(c => c.id!==id);
+  editingCourseIds.delete(id);
+  renderCoursesPanel();
+}
+function openAddCourseForm(){
+  const panel = document.getElementById('add-course-panel');
+  if (!panel) return;
+  panel.innerHTML = `
+    <div class="edit-form" style="max-width:400px; margin-top:.8rem;">
+      <h4>Add course to library</h4>
+      <div class="edit-form-grid">
+        <div class="full"><label>Course name</label><input id="ncc-name" placeholder="e.g. Silverstone Golf Club"></div>
+        <div class="full"><label>Postcode</label><input id="ncc-postcode" placeholder="e.g. NN12 8TN"></div>
+      </div>
+      <div class="edit-form-actions">
+        <button class="btn brass" onclick="saveNewCourseLibrary()">Save</button>
+        <button class="btn ghost" onclick="document.getElementById('add-course-panel').innerHTML=''">Cancel</button>
+        <div class="edit-status" id="ncc-status"></div>
+      </div>
+    </div>`;
+  setTimeout(() => { const el = document.getElementById('ncc-name'); if(el) el.focus(); }, 50);
+}
+async function saveNewCourseLibrary(){
+  const setStatus = (msg, kind) => { const el = document.getElementById('ncc-status'); if(el){el.textContent=msg; el.className='edit-status '+(kind||'');} };
+  if (!db){ setStatus('Not connected.','error'); return; }
+  const name = (document.getElementById('ncc-name')?.value||'').trim();
+  const postcode = (document.getElementById('ncc-postcode')?.value||'').trim().toUpperCase()||null;
+  if (!name){ setStatus('Name required.','error'); return; }
+  setStatus('Saving\u2026','loading');
+  const { data, error } = await db.from('courses').insert({ name, postcode }).select().single();
+  if (error){ console.error(error); setStatus('Save failed.','error'); return; }
+  courses.push(data); courses.sort((a,b) => a.name.localeCompare(b.name));
+  renderCoursesPanel();
+}
+
 /* ===================== init ===================== */
 async function init(){
   /* Offline support — keeps a copy of the page on the device so it opens
@@ -3858,6 +4187,7 @@ async function init(){
   renderResults();
   renderRules();
   renderHonours();
+  renderCoursesPanel();
   renderHome();
 }
 init();
