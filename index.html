@@ -11,6 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -327,6 +328,66 @@
   }
   .edi-label{font-family:var(--mono); font-size:.74rem; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); white-space:nowrap; padding:.1rem 0;}
   .edi-value{font-size:.9rem; color:var(--text); padding:.1rem 0;}
+
+  /* ---------- payments ---------- */
+  .payment-row{
+    display:flex; align-items:center; gap:.8rem; padding:.5rem .2rem;
+    border-bottom:1px solid var(--line); font-size:.92rem;
+  }
+  .payment-row:last-child{border-bottom:none;}
+  .payment-row input[type=checkbox]{accent-color:var(--bracken); width:18px; height:18px; cursor:pointer; flex-shrink:0;}
+  .payment-row .pay-name{flex:1;}
+  .payment-row .pay-amount{font-family:var(--mono); font-size:.82rem; color:var(--text-muted);}
+  .payment-row.paid .pay-name{color:var(--bracken);}
+  .payment-summary{
+    font-family:var(--mono); font-size:.8rem; padding:.6rem .8rem; margin-top:.5rem;
+    background:var(--stone); border-radius:var(--radius); display:flex; gap:1.2rem; flex-wrap:wrap;
+  }
+  .payment-summary .ps-total{color:var(--bracken); font-weight:600;}
+  .payment-summary .ps-outstanding{color:var(--claret);}
+
+  /* ---------- accounts page ---------- */
+  .accounts-login-note{max-width:480px; text-align:center; padding:2rem; color:var(--text-muted);}
+  .accounts-year-tabs{display:flex; gap:.5rem; margin-bottom:1.4rem; flex-wrap:wrap;}
+  .accounts-year-tab{
+    font-family:var(--mono); font-size:.8rem; text-transform:uppercase; letter-spacing:.04em;
+    padding:.5rem 1rem; border-radius:999px; border:1px solid var(--line);
+    background:transparent; color:var(--text-muted); cursor:pointer;
+  }
+  .accounts-year-tab.active{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+  .accounts-report{max-width:680px;}
+  .accounts-section{margin-bottom:1.6rem;}
+  .accounts-section h3{
+    font-family:var(--mono); font-size:.78rem; text-transform:uppercase; letter-spacing:.08em;
+    color:var(--ink); border-bottom:2px solid var(--ink); padding-bottom:.4rem; margin-bottom:.8rem;
+  }
+  .accounts-row{
+    display:flex; align-items:baseline; gap:.8rem; padding:.4rem 0;
+    border-bottom:1px solid var(--line); font-size:.92rem;
+  }
+  .accounts-row:last-child{border-bottom:none;}
+  .accounts-row .ar-label{flex:1; color:var(--text);}
+  .accounts-row .ar-sub{font-size:.78rem; color:var(--text-muted); font-family:var(--mono);}
+  .accounts-row .ar-amount{font-family:var(--mono); font-weight:600; min-width:5rem; text-align:right;}
+  .accounts-row .ar-amount.income{color:var(--bracken);}
+  .accounts-row .ar-amount.expense{color:var(--claret);}
+  .accounts-total{
+    display:flex; align-items:baseline; gap:.8rem; padding:.7rem 0;
+    margin-top:.4rem; font-size:1rem; font-weight:600; border-top:2px solid var(--ink);
+  }
+  .accounts-total .ar-label{flex:1;}
+  .accounts-total .ar-amount{font-family:var(--mono); min-width:5rem; text-align:right; font-size:1.1rem;}
+  .accounts-surplus{
+    background:var(--ink); color:var(--paper); border-radius:var(--radius);
+    padding:1rem 1.2rem; display:flex; align-items:baseline; gap:.8rem; margin-top:1rem;
+  }
+  .accounts-surplus .ar-label{flex:1; font-family:var(--display); font-size:1.1rem;}
+  .accounts-surplus .ar-amount{font-family:var(--mono); font-size:1.4rem; font-weight:700; color:var(--brass-light);}
+  .accounts-actions{display:flex; gap:.7rem; flex-wrap:wrap; margin-bottom:1.4rem;}
+  .exp-category-pill{
+    font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.05em;
+    padding:.2rem .55rem; border-radius:999px; background:var(--stone); color:var(--text-muted);
+  }
   .status-pill{
     font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.05em;
     padding:.25rem .6rem; border-radius:999px; white-space:nowrap;
@@ -871,6 +932,7 @@
     <button class="tab-btn" role="tab" data-section="scores" aria-selected="false">Live Scores</button>
     <button class="tab-btn" role="tab" data-section="rules" aria-selected="false">Rules</button>
     <button class="tab-btn" role="tab" data-section="halloffame" aria-selected="false">Hall of Fame</button>
+    <button class="tab-btn" role="tab" data-section="accounts" aria-selected="false">Accounts</button>
     <button class="nav-lock-btn" id="nav-lock-btn" onclick="toggleLoginModal()" aria-label="Committee login">
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
       <span id="nav-lock-label">Committee</span>
@@ -1021,6 +1083,13 @@
     <div id="add-honour-slot" style="margin-top:1.4rem;"></div>
   </section>
 
+  <!-- ============ ACCOUNTS ============ -->
+  <section class="section" id="sec-accounts" data-section="accounts">
+    <p class="eyebrow">Committee only</p>
+    <h2 class="section-title">Accounts</h2>
+    <div id="accounts-content"></div>
+  </section>
+
   <!-- ============ COMMITTEE LOGIN MODAL ============ -->
   <div class="login-modal-backdrop" id="login-modal-backdrop" style="display:none;" onclick="handleBackdropClick(event)">
     <div class="login-modal" id="login-modal">
@@ -1077,7 +1146,10 @@ let allScorecards = [];
 let allHoleScores = [];
 let courses = [];
 let courseRatings = [];
-let ratingState = {}; // { eventId: { playerId, stars } }
+let ratingState = {};
+let eventPayments = [];
+let expenditures = [];
+let editingExpenditureIds = new Set(); // { eventId: { playerId, stars } }
 let players = [];
 let signups = [];
 let expandedEventId = null;
@@ -1237,6 +1309,22 @@ async function loadData(){
     console.warn('Courses not available yet (run add-courses.sql):', err);
     courses = [];
     courseRatings = [];
+  }
+
+  /* payments + expenditures (committee only — load silently) */
+  if (isLoggedIn || db){
+    try {
+      const [pmRes, exRes] = await Promise.all([
+        db.from('event_payments').select('*'),
+        db.from('expenditures').select('*').order('date'),
+      ]);
+      eventPayments = pmRes.data || [];
+      expenditures = exRes.data || [];
+    } catch(err){
+      console.warn('Payments not available yet (run add-payments.sql):', err);
+      eventPayments = [];
+      expenditures = [];
+    }
   }
 
   /* Save everything for offline use */
@@ -1491,6 +1579,11 @@ function eventDetailHtml(e){
         const avg = course ? courseAvgRating(course.id) : null;
         const cnt = course ? courseRatingCount(course.id) : 0;
         const ratingBlock = course ? starPickerHtml(course.id, e.id) : '';
+        const fee = parseFloat((e.cost||'').replace(/[^0-9.]/g,'')) || 0;
+        const eventPlayers = attendees.length ? attendees : (eventFullScores(e.id).map(x => x.player).filter(Boolean));
+        const paidIds = new Set(eventPayments.filter(p => p.event_id === e.id && p.paid).map(p => p.player_id));
+        const totalCollected = paidIds.size * fee;
+        const totalExpected = eventPlayers.length * fee;
         return `
           <div class="attendee-list" style="margin-top:.8rem;">
             <h4>Event summary</h4>
@@ -1509,10 +1602,27 @@ function eventDetailHtml(e){
                 </summary>
                 <ul style="margin-top:.6rem;">${attendees.map(p => `<li>${p.first_name} ${p.last_name}</li>`).join('')}</ul>
               </details>` : ''}
+            ${isLoggedIn && fee && eventPlayers.length ? `
+                <div class="edit-form" style="margin-top:.8rem;">
+                  <h4>Payment tracking — £${fee.toFixed(2)} per player</h4>
+                  <div>
+                    ${eventPlayers.map(p => {
+                      const isPaid = paidIds.has(p.id);
+                      return `<div class="payment-row ${isPaid?'paid':''}">
+                        <input type="checkbox" ${isPaid?'checked':''} onchange="togglePayment('${e.id}',${p.id},${fee},this.checked)">
+                        <span class="pay-name">${p.first_name} ${p.last_name}</span>
+                        <span class="pay-amount">${isPaid?'£'+fee.toFixed(2):'—'}</span>
+                      </div>`;
+                    }).join('')}
+                  </div>
+                  <div class="payment-summary">
+                    <span class="ps-total">✓ Collected: £${totalCollected.toFixed(2)} (${paidIds.size} players)</span>
+                    ${paidIds.size < eventPlayers.length ? `<span class="ps-outstanding">Outstanding: £${(totalExpected-totalCollected).toFixed(2)} (${eventPlayers.length-paidIds.size} players)</span>` : ''}
+                  </div>
+                </div>` : ''}
             ${ratingBlock}
           </div>`;
-      })() : `
-      ${e.status !== 'past' ? (() => {
+      })() : (() => {
         const details = [];
         if (e.meet_at) details.push(['Meet at', e.meet_at]);
         if (e.meeting_time) details.push(['Meeting time', e.meeting_time]);
@@ -1522,35 +1632,54 @@ function eventDetailHtml(e){
         if (e.max_players) details.push(['Max players', e.max_players]);
         if (e.signup_by) details.push(['Sign up by', fmtDate(e.signup_by)]);
         if (e.pay_by) details.push(['Pay by', fmtDate(e.pay_by)]);
-        if (!details.length) return '';
-        return `<div class="event-detail-info">
-          ${details.map(([k,v]) => `<div class="edi-row"><span class="edi-label">${k}</span><span class="edi-value">${v}</span></div>`).join('')}
-        </div>`;
-      })() : ''}
-
-      <div class="signup-block">
-        <h4>Sign up for this event</h4>
-        <div class="signup-status" id="signup-status-${e.id}"></div>
-        <label class="signup-label" for="existing-${e.id}">Played with us before? Select your name</label>
-        <select id="existing-${e.id}">
-          <option value="">— I'm new, add my details below —</option>
-          ${playerOptions}
-        </select>
-        <label class="signup-label">Or, if you're new:</label>
-        <div class="new-player-fields">
-          <input type="text" id="fname-${e.id}" placeholder="First name">
-          <input type="text" id="lname-${e.id}" placeholder="Last name">
-          <input type="email" id="email-${e.id}" placeholder="Email address">
-        </div>
-        <button class="btn brass" onclick="submitSignup('${e.id}')">Sign up</button>
-      </div>
-
-      <div class="attendee-list">
-        <h4>Who's playing (${attendees.length})</h4>
-        ${attendees.length
-          ? '<ul>' + attendees.map(p => `<li>${p.first_name} ${p.last_name}</li>`).join('') + '</ul>'
-          : '<p class="muted">No one signed up yet — be the first.</p>'}
-      </div>`}
+        const fee = parseFloat((e.cost||'').replace(/[^0-9.]/g,'')) || 0;
+        const signedUp = signupsForEvent(e.id);
+        const paidIds = new Set(eventPayments.filter(p => p.event_id === e.id && p.paid).map(p => p.player_id));
+        const totalCollected = paidIds.size * fee;
+        const totalExpected = signedUp.length * fee;
+        return `
+          ${details.length ? `<div class="event-detail-info">${details.map(([k,v]) => `<div class="edi-row"><span class="edi-label">${k}</span><span class="edi-value">${v}</span></div>`).join('')}</div>` : ''}
+          <div class="signup-block">
+            <h4>Sign up for this event</h4>
+            <div class="signup-status" id="signup-status-${e.id}"></div>
+            <label class="signup-label" for="existing-${e.id}">Played with us before? Select your name</label>
+            <select id="existing-${e.id}">
+              <option value="">— I'm new, add my details below —</option>
+              ${playerOptions}
+            </select>
+            <label class="signup-label">Or, if you're new:</label>
+            <div class="new-player-fields">
+              <input type="text" id="fname-${e.id}" placeholder="First name">
+              <input type="text" id="lname-${e.id}" placeholder="Last name">
+              <input type="email" id="email-${e.id}" placeholder="Email address">
+            </div>
+            <button class="btn brass" onclick="submitSignup('${e.id}')">Sign up</button>
+          </div>
+          <div class="attendee-list">
+            <h4>Who's playing (${attendees.length})</h4>
+            ${attendees.length
+              ? '<ul>' + attendees.map(p => `<li>${p.first_name} ${p.last_name}</li>`).join('') + '</ul>'
+              : '<p class="muted">No one signed up yet — be the first.</p>'}
+          </div>
+          ${isLoggedIn && fee && signedUp.length ? `
+            <div class="edit-form" style="margin-top:.8rem;">
+              <h4>Payment tracking — £${fee.toFixed(2)} per player</h4>
+              <div>
+                ${signedUp.map(p => {
+                  const isPaid = paidIds.has(p.id);
+                  return `<div class="payment-row ${isPaid?'paid':''}">
+                    <input type="checkbox" ${isPaid?'checked':''} onchange="togglePayment('${e.id}',${p.id},${fee},this.checked)">
+                    <span class="pay-name">${p.first_name} ${p.last_name}</span>
+                    <span class="pay-amount">${isPaid?'£'+fee.toFixed(2):'—'}</span>
+                  </div>`;
+                }).join('')}
+              </div>
+              <div class="payment-summary">
+                <span class="ps-total">✓ Collected: £${totalCollected.toFixed(2)} (${paidIds.size} players)</span>
+                ${paidIds.size < signedUp.length ? `<span class="ps-outstanding">Outstanding: £${(totalExpected-totalCollected).toFixed(2)} (${signedUp.length-paidIds.size} players)</span>` : ''}
+              </div>
+            </div>` : ''}`;
+      })()}
 
       ${editToggle}
       ${isLoggedIn && isEditingScores ? scoresEditorHtml(e) : ''}
@@ -2096,6 +2225,7 @@ async function initAuth(){
     renderRules();
     renderHonours();
     renderCoursesPanel();
+    renderAccounts();
   });
 }
 
@@ -4257,6 +4387,252 @@ async function saveNewCourseLibrary(){
   renderCoursesPanel();
 }
 
+/* ===================== payments ===================== */
+async function togglePayment(eventId, playerId, amount, paid){
+  if (!db) return;
+  const existing = eventPayments.find(p => p.event_id === eventId && p.player_id === playerId);
+  if (existing){
+    const { error } = await db.from('event_payments').update({ paid, paid_date: paid ? new Date().toISOString().slice(0,10) : null }).eq('id', existing.id);
+    if (error){ console.error(error); return; }
+    existing.paid = paid;
+    existing.paid_date = paid ? new Date().toISOString().slice(0,10) : null;
+  } else {
+    const { data, error } = await db.from('event_payments').insert({ event_id: eventId, player_id: playerId, amount, paid, paid_date: paid ? new Date().toISOString().slice(0,10) : null }).select().single();
+    if (error){ console.error(error); return; }
+    if (data) eventPayments.push(data);
+  }
+  renderEvents();
+}
+
+/* ===================== accounts ===================== */
+const EXPENSE_CATEGORIES = ['prizes','green fees','sponsorship','admin','social','other'];
+let accountsYear = new Date().getFullYear();
+
+function renderAccounts(){
+  const el = document.getElementById('accounts-content');
+  if (!el) return;
+  if (!isLoggedIn){
+    el.innerHTML = `<div class="accounts-login-note"><p>This section is for committee members only.</p><p style="margin-top:.6rem; font-size:.85rem;">Use the 🔒 button in the nav to log in.</p></div>`;
+    return;
+  }
+
+  /* year tabs — show years that have events or expenditures */
+  const eventYears = [...new Set(events.map(e => new Date(e.date+'T00:00:00').getFullYear()))];
+  const expYears = [...new Set(expenditures.map(x => x.year))];
+  const allYears = [...new Set([...eventYears, ...expYears, new Date().getFullYear()])].sort((a,b) => b-a);
+
+  const yearTabs = `<div class="accounts-year-tabs">
+    ${allYears.map(y => `<button class="accounts-year-tab ${y===accountsYear?'active':''}" onclick="accountsYear=${y}; renderAccounts();">${y}</button>`).join('')}
+  </div>`;
+
+  /* income: paid event payments for this year */
+  const yearEvents = events.filter(e => new Date(e.date+'T00:00:00').getFullYear() === accountsYear && e.status === 'past');
+  const incomeRows = yearEvents.map(e => {
+    const paidList = eventPayments.filter(p => p.event_id === e.id && p.paid);
+    const total = paidList.reduce((s,p) => s + Number(p.amount||0), 0);
+    if (total === 0) return null;
+    return { label: e.name, sub: `${paidList.length} players @ ${e.cost||'?'}`, amount: total };
+  }).filter(Boolean);
+  const totalIncome = incomeRows.reduce((s,r) => s + r.amount, 0);
+
+  /* expenditure for this year */
+  const yearExp = expenditures.filter(x => x.year === accountsYear);
+  const totalExp = yearExp.reduce((s,x) => s + Number(x.amount||0), 0);
+  const surplus = totalIncome - totalExp;
+
+  /* expenditure by category */
+  const expByCat = {};
+  EXPENSE_CATEGORIES.forEach(c => expByCat[c] = []);
+  yearExp.forEach(x => (expByCat[x.category] = expByCat[x.category]||[]).push(x));
+
+  el.innerHTML = `
+    ${yearTabs}
+    <div class="accounts-actions">
+      <button class="btn brass" onclick="window.print()">🖨 Print</button>
+      <button class="btn ghost" onclick="downloadAccountsPdf(${accountsYear})">⬇ Download PDF</button>
+      <button class="btn ghost" onclick="copyAccountsLink()">🔗 Copy share link</button>
+    </div>
+
+    <div class="accounts-report" id="accounts-report-${accountsYear}">
+      <p style="font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); margin-bottom:1.4rem;">
+        Gytte Lane Golf Society &nbsp;·&nbsp; Financial Year ${accountsYear}
+      </p>
+
+      <div class="accounts-section">
+        <h3>Income</h3>
+        ${incomeRows.length ? incomeRows.map(r => `
+          <div class="accounts-row">
+            <span class="ar-label">${r.label}<br><span class="ar-sub">${r.sub}</span></span>
+            <span class="ar-amount income">£${r.amount.toFixed(2)}</span>
+          </div>`).join('') : '<p class="muted">No income recorded for this year.</p>'}
+        ${incomeRows.length ? `<div class="accounts-total"><span class="ar-label">Total income</span><span class="ar-amount" style="color:var(--bracken);">£${totalIncome.toFixed(2)}</span></div>` : ''}
+      </div>
+
+      <div class="accounts-section">
+        <h3>Expenditure</h3>
+        ${EXPENSE_CATEGORIES.filter(c => expByCat[c]?.length).map(cat => `
+          <div style="margin-bottom:.6rem;">
+            <div style="font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin:.5rem 0 .3rem;">${cat}</div>
+            ${expByCat[cat].map(x => `
+              <div class="accounts-row">
+                <span class="ar-label">${x.description}${x.date ? '<br><span class="ar-sub">'+fmtDate(x.date)+'</span>' : ''}</span>
+                <span class="ar-amount expense">£${Number(x.amount).toFixed(2)}</span>
+              </div>`).join('')}
+          </div>`).join('')}
+        ${yearExp.length ? `<div class="accounts-total"><span class="ar-label">Total expenditure</span><span class="ar-amount" style="color:var(--claret);">£${totalExp.toFixed(2)}</span></div>` : '<p class="muted">No expenditure recorded for this year.</p>'}
+      </div>
+
+      <div class="accounts-surplus">
+        <span class="ar-label">${surplus >= 0 ? 'Surplus' : 'Deficit'} for ${accountsYear}</span>
+        <span class="ar-amount">${surplus >= 0 ? '+' : ''}£${Math.abs(surplus).toFixed(2)}</span>
+      </div>
+    </div>
+
+    <div style="margin-top:2rem; padding-top:1.6rem; border-top:1px solid var(--line);">
+      <h3 class="mini-title" style="margin-bottom:1rem;">Expenditure log — ${accountsYear}</h3>
+      ${yearExp.map(x => {
+        if (editingExpenditureIds.has(x.id)) return expenditureEditFormHtml(x);
+        return `<div class="accounts-row">
+          <span class="ar-label">${x.description} <span class="exp-category-pill">${x.category}</span>${x.date?'<br><span class="ar-sub">'+fmtDate(x.date)+'</span>':''}</span>
+          <span class="ar-amount expense" style="white-space:nowrap;">£${Number(x.amount).toFixed(2)}</span>
+          <button class="committee-edit-btn" onclick="toggleExpenditureEdit(${x.id})">Edit</button>
+        </div>`;
+      }).join('') || '<p class="muted">No expenditure entries for this year.</p>'}
+      <div style="margin-top:.8rem;" id="add-expenditure-slot">
+        <button class="add-item-btn" onclick="openAddExpenditure()">+ Add expenditure</button>
+      </div>
+      <div id="add-expenditure-form"></div>
+    </div>`;
+}
+
+function expenditureEditFormHtml(x){
+  const catOpts = EXPENSE_CATEGORIES.map(c => `<option value="${c}" ${x.category===c?'selected':''}>${c.charAt(0).toUpperCase()+c.slice(1)}</option>`).join('');
+  return `<div class="edit-form" style="margin-bottom:.8rem;">
+    <h4>Edit expenditure</h4>
+    <div class="edit-form-grid">
+      <div class="full"><label>Description</label><input id="ex-desc-${x.id}" value="${(x.description||'').replace(/"/g,'&quot;')}"></div>
+      <div><label>Amount (£)</label><input type="number" step="0.01" id="ex-amount-${x.id}" value="${x.amount||''}"></div>
+      <div><label>Date</label><input type="date" id="ex-date-${x.id}" value="${x.date||''}"></div>
+      <div><label>Category</label><select id="ex-cat-${x.id}">${catOpts}</select></div>
+    </div>
+    <div class="edit-form-actions">
+      <button class="btn brass" onclick="saveExpenditure(${x.id})">Save</button>
+      <button class="btn ghost" onclick="toggleExpenditureEdit(${x.id})">Cancel</button>
+      <div class="edit-status" id="ex-status-${x.id}"></div>
+      <button class="delete-btn" onclick="deleteExpenditure(${x.id})">Delete</button>
+    </div>
+  </div>`;
+}
+
+function toggleExpenditureEdit(id){
+  if (editingExpenditureIds.has(id)) editingExpenditureIds.delete(id); else editingExpenditureIds.add(id);
+  renderAccounts();
+}
+
+async function saveExpenditure(id){
+  const setStatus = (msg, kind) => { const el = document.getElementById('ex-status-'+id); if(el){el.textContent=msg; el.className='edit-status '+(kind||'');} };
+  if (!db){ setStatus('Not connected.','error'); return; }
+  const payload = { description: gv('ex-desc-'+id), amount: parseFloat(gv('ex-amount-'+id))||0, date: gv('ex-date-'+id)||null, category: gv('ex-cat-'+id)||'other', year: accountsYear };
+  if (!payload.description){ setStatus('Description required.','error'); return; }
+  setStatus('Saving\u2026','loading');
+  const { error } = await db.from('expenditures').update(payload).eq('id', id);
+  if (error){ console.error(error); setStatus('Save failed.','error'); return; }
+  const x = expenditures.find(e => e.id===id); if(x) Object.assign(x, payload);
+  editingExpenditureIds.delete(id);
+  renderAccounts();
+}
+
+async function deleteExpenditure(id){
+  if (!confirm('Delete this expenditure entry?')) return;
+  if (!db) return;
+  const { error } = await db.from('expenditures').delete().eq('id', id);
+  if (error){ console.error(error); alert('Delete failed.'); return; }
+  expenditures = expenditures.filter(x => x.id !== id);
+  editingExpenditureIds.delete(id);
+  renderAccounts();
+}
+
+function openAddExpenditure(){
+  const catOpts = EXPENSE_CATEGORIES.map(c => `<option value="${c}">${c.charAt(0).toUpperCase()+c.slice(1)}</option>`).join('');
+  document.getElementById('add-expenditure-form').innerHTML = `
+    <div class="edit-form" style="margin-top:.6rem; max-width:520px;">
+      <h4>Add expenditure</h4>
+      <div class="edit-form-grid">
+        <div class="full"><label>Description</label><input id="nex-desc" placeholder="e.g. Prizes — Summer Trophy"></div>
+        <div><label>Amount (£)</label><input type="number" step="0.01" id="nex-amount" placeholder="0.00"></div>
+        <div><label>Date</label><input type="date" id="nex-date" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div><label>Category</label><select id="nex-cat">${catOpts}</select></div>
+      </div>
+      <div class="edit-form-actions">
+        <button class="btn brass" onclick="saveNewExpenditure()">Save</button>
+        <button class="btn ghost" onclick="document.getElementById('add-expenditure-form').innerHTML=''">Cancel</button>
+        <div class="edit-status" id="nex-status"></div>
+      </div>
+    </div>`;
+  setTimeout(() => { const el = document.getElementById('nex-desc'); if(el) el.focus(); }, 50);
+}
+
+async function saveNewExpenditure(){
+  const setStatus = (msg, kind) => { const el = document.getElementById('nex-status'); if(el){el.textContent=msg; el.className='edit-status '+(kind||'');} };
+  if (!db){ setStatus('Not connected.','error'); return; }
+  const payload = { description: gv('nex-desc'), amount: parseFloat(gv('nex-amount'))||0, date: gv('nex-date')||null, category: gv('nex-cat')||'other', year: accountsYear };
+  if (!payload.description){ setStatus('Description required.','error'); return; }
+  setStatus('Saving\u2026','loading');
+  const { data, error } = await db.from('expenditures').insert(payload).select().single();
+  if (error){ console.error(error); setStatus('Save failed.','error'); return; }
+  if (data) expenditures.push(data);
+  document.getElementById('add-expenditure-form').innerHTML = '';
+  renderAccounts();
+}
+
+function copyAccountsLink(){
+  const url = window.location.origin + '#accounts=' + accountsYear;
+  navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard!')).catch(() => prompt('Copy this link:', url));
+}
+
+async function downloadAccountsPdf(year){
+  const { jsPDF } = window.jspdf || {};
+  if (!jsPDF){ alert('PDF library not loaded — use Print instead.'); return; }
+  const doc = new jsPDF();
+  const yr = accountsYear;
+  const yearEvents = events.filter(e => new Date(e.date+'T00:00:00').getFullYear() === yr && e.status === 'past');
+  const incomeRows = yearEvents.map(e => {
+    const paidList = eventPayments.filter(p => p.event_id === e.id && p.paid);
+    const total = paidList.reduce((s,p) => s + Number(p.amount||0), 0);
+    return total > 0 ? { label: e.name, sub: `${paidList.length} @ ${e.cost||'?'}`, amount: total } : null;
+  }).filter(Boolean);
+  const totalIncome = incomeRows.reduce((s,r) => s + r.amount, 0);
+  const yearExp = expenditures.filter(x => x.year === yr);
+  const totalExp = yearExp.reduce((s,x) => s + Number(x.amount||0), 0);
+  const surplus = totalIncome - totalExp;
+
+  let y = 20;
+  doc.setFontSize(16); doc.setFont('helvetica','bold');
+  doc.text('Gytte Lane Golf Society', 105, y, {align:'center'}); y+=8;
+  doc.setFontSize(12); doc.setFont('helvetica','normal');
+  doc.text(`Financial Year ${yr}`, 105, y, {align:'center'}); y+=14;
+
+  doc.setFontSize(11); doc.setFont('helvetica','bold');
+  doc.text('INCOME', 20, y); y+=6;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10);
+  incomeRows.forEach(r => { doc.text(r.label, 22, y); doc.text(`£${r.amount.toFixed(2)}`, 175, y, {align:'right'}); y+=6; });
+  doc.setFont('helvetica','bold');
+  doc.text('Total Income', 22, y); doc.text(`£${totalIncome.toFixed(2)}`, 175, y, {align:'right'}); y+=12;
+
+  doc.text('EXPENDITURE', 20, y); y+=6;
+  doc.setFont('helvetica','normal');
+  yearExp.forEach(x => { doc.text(x.description, 22, y); doc.text(`£${Number(x.amount).toFixed(2)}`, 175, y, {align:'right'}); y+=6; if(y>270){doc.addPage(); y=20;} });
+  doc.setFont('helvetica','bold');
+  doc.text('Total Expenditure', 22, y); doc.text(`£${totalExp.toFixed(2)}`, 175, y, {align:'right'}); y+=12;
+
+  doc.line(20, y, 190, y); y+=6;
+  doc.setFontSize(12);
+  doc.text(surplus >= 0 ? 'SURPLUS' : 'DEFICIT', 22, y);
+  doc.text(`${surplus>=0?'+':''}£${Math.abs(surplus).toFixed(2)}`, 175, y, {align:'right'});
+
+  doc.save(`GLGS-Accounts-${yr}.pdf`);
+}
+
 /* ===================== init ===================== */
 async function init(){
   /* Offline support — keeps a copy of the page on the device so it opens
@@ -4283,6 +4659,7 @@ async function init(){
   renderRules();
   renderHonours();
   renderCoursesPanel();
+  renderAccounts();
   renderHome();
 }
 init();
