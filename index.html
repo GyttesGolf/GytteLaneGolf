@@ -317,6 +317,16 @@
     font-size:.8rem; color:var(--claret); text-decoration:none;
   }
   .event-main .event-address:hover{text-decoration:underline;}
+  .event-main .event-chips{
+    font-family:var(--mono); font-size:.73rem; color:var(--text-muted);
+    margin-top:.25rem; line-height:1.5;
+  }
+  .event-detail-info{
+    background:var(--stone); border-radius:var(--radius); padding:.8rem 1rem;
+    margin-bottom:1rem; display:grid; grid-template-columns:auto 1fr; gap:.3rem .9rem;
+  }
+  .edi-label{font-family:var(--mono); font-size:.74rem; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); white-space:nowrap; padding:.1rem 0;}
+  .edi-value{font-size:.9rem; color:var(--text); padding:.1rem 0;}
   .status-pill{
     font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.05em;
     padding:.25rem .6rem; border-radius:999px; white-space:nowrap;
@@ -1239,6 +1249,10 @@ function fmtDate(iso){
   const d = new Date(iso + 'T00:00:00');
   return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
 }
+function fmtDateShort(iso){
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-GB', { day:'numeric', month:'short' });
+}
 function fmtDateParts(iso){
   const d = new Date(iso + 'T00:00:00');
   return {
@@ -1301,6 +1315,14 @@ function renderEvents(filter){
             <h3>${e.name}</h3>
             <div class="meta">${e.format || ''}</div>
             ${mapsUrl ? `<a class="event-address" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation();">${CAR_ICON} ${e.course}${e.postcode ? ' · ' + e.postcode : ''}</a>` : (e.course ? `<div class="meta">${e.course}</div>` : '')}
+            ${(() => {
+              const chips = [];
+              if (e.meeting_time) chips.push(`⏰ Meet ${e.meeting_time}`);
+              if (e.tee_time) chips.push(`Tee ${e.tee_time}`);
+              if (e.cost) chips.push(`💰 ${e.cost}`);
+              if (e.signup_by && e.status === 'upcoming') chips.push(`Sign up by ${fmtDateShort(e.signup_by)}`);
+              return chips.length ? `<div class="event-chips">${chips.join(' &nbsp;·&nbsp; ')}</div>` : '';
+            })()}
           </div>
           <div class="event-links">
             <span class="status-pill ${e.status}">${e.status}</span>
@@ -1402,6 +1424,38 @@ function eventDetailHtml(e){
             <label>Description</label>
             <textarea id="ef-desc-${e.id}">${e.description||''}</textarea>
           </div>
+          <div>
+            <label>Meeting time</label>
+            <input type="time" id="ef-meeting-${e.id}" value="${e.meeting_time||''}">
+          </div>
+          <div>
+            <label>First tee time</label>
+            <input type="time" id="ef-tee-${e.id}" value="${e.tee_time||''}">
+          </div>
+          <div>
+            <label>Cost</label>
+            <input id="ef-cost-${e.id}" placeholder="e.g. £55" value="${(e.cost||'').replace(/"/g,'&quot;')}">
+          </div>
+          <div>
+            <label>Max players</label>
+            <input type="number" id="ef-maxplayers-${e.id}" value="${e.max_players||''}">
+          </div>
+          <div>
+            <label>Sign up by</label>
+            <input type="date" id="ef-signupby-${e.id}" value="${e.signup_by||''}">
+          </div>
+          <div>
+            <label>Pay by</label>
+            <input type="date" id="ef-payby-${e.id}" value="${e.pay_by||''}">
+          </div>
+          <div>
+            <label>Meet at</label>
+            <input id="ef-meetat-${e.id}" placeholder="e.g. Golf Club" value="${(e.meet_at||'').replace(/"/g,'&quot;')}">
+          </div>
+          <div class="full">
+            <label>What's included</label>
+            <textarea id="ef-included-${e.id}">${e.whats_included||''}</textarea>
+          </div>
         </div>
         <div class="edit-form-actions">
           <button class="btn brass" onclick="saveEvent('${e.id}')">Save</button>
@@ -1458,6 +1512,22 @@ function eventDetailHtml(e){
             ${ratingBlock}
           </div>`;
       })() : `
+      ${e.status !== 'past' ? (() => {
+        const details = [];
+        if (e.meet_at) details.push(['Meet at', e.meet_at]);
+        if (e.meeting_time) details.push(['Meeting time', e.meeting_time]);
+        if (e.tee_time) details.push(['First tee time', e.tee_time]);
+        if (e.cost) details.push(['Cost', e.cost]);
+        if (e.whats_included) details.push(["What's included", e.whats_included]);
+        if (e.max_players) details.push(['Max players', e.max_players]);
+        if (e.signup_by) details.push(['Sign up by', fmtDate(e.signup_by)]);
+        if (e.pay_by) details.push(['Pay by', fmtDate(e.pay_by)]);
+        if (!details.length) return '';
+        return `<div class="event-detail-info">
+          ${details.map(([k,v]) => `<div class="edi-row"><span class="edi-label">${k}</span><span class="edi-value">${v}</span></div>`).join('')}
+        </div>`;
+      })() : ''}
+
       <div class="signup-block">
         <h4>Sign up for this event</h4>
         <div class="signup-status" id="signup-status-${e.id}"></div>
@@ -1748,6 +1818,14 @@ async function saveEvent(eventId){
     status: gv('ef-status-' + eventId),
     trophy: gv('ef-trophy-' + eventId) || null,
     description: gv('ef-desc-' + eventId) || null,
+    meeting_time: gv('ef-meeting-' + eventId) || null,
+    tee_time: gv('ef-tee-' + eventId) || null,
+    cost: gv('ef-cost-' + eventId) || null,
+    max_players: gv('ef-maxplayers-' + eventId) ? Number(gv('ef-maxplayers-' + eventId)) : null,
+    signup_by: gv('ef-signupby-' + eventId) || null,
+    pay_by: gv('ef-payby-' + eventId) || null,
+    meet_at: gv('ef-meetat-' + eventId) || null,
+    whats_included: gv('ef-included-' + eventId) || null,
   };
   if (!payload.name || !payload.date){ setStatus('Name and date are required.', 'error'); return; }
   setStatus('Saving\u2026', 'loading');
