@@ -682,7 +682,7 @@
   .wa-share-btn svg{width:15px; height:15px; fill:currentColor;}
 
   /* ---------- live scores ---------- */
-  .scores-sub-tabs{display:grid; grid-template-columns:1fr 1fr; gap:.5rem; margin-bottom:1.2rem;}
+  .scores-sub-tabs{display:grid; grid-template-columns:1fr 1fr 1fr; gap:.5rem; margin-bottom:1.2rem;}
   .scores-sub-tab{
     font-family:var(--mono); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em;
     padding:.8rem .6rem; border-radius:var(--radius); border:1.5px solid var(--line);
@@ -987,10 +987,6 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" stroke-width="1.8"/><line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="1.8"/><line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="1.8"/></svg>
       Events
     </button>
-    <button class="tab-btn" role="tab" data-section="groupings" aria-selected="false">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="17" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 20c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
-      Groupings
-    </button>
     <button class="tab-btn" role="tab" data-section="scores" aria-selected="false">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.8"/><polyline points="12,6 12,12 16,14" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
       Live Scores
@@ -1215,13 +1211,13 @@
         <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         Events
       </button>
-      <button class="bn-tab" data-section="groupings" onclick="goTo('groupings'); setBottomNav('groupings');">
-        <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="3"/><circle cx="17" cy="7" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6"/></svg>
-        Groupings
-      </button>
       <button class="bn-tab" data-section="scores" onclick="goTo('scores'); setBottomNav('scores');">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
         Live Scores
+      </button>
+      <button class="bn-tab" data-section="results" onclick="goTo('results'); setBottomNav('results');">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
+        Results
       </button>
       <button class="bn-tab" id="bn-more" onclick="openMoreDrawer();">
         <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none"/></svg>
@@ -3443,6 +3439,7 @@ function renderLiveScores(){
 
   const subTabs = `
     <div class="scores-sub-tabs">
+      <button class="scores-sub-tab ${liveSubView==='groupings'?'active':''}" onclick="setLiveSubView('groupings')">👥 Groupings</button>
       <button class="scores-sub-tab ${liveSubView==='leaderboard'?'active':''}" onclick="setLiveSubView('leaderboard')">🏆 Leaderboard</button>
       <button class="scores-sub-tab ${liveSubView==='setup'||liveSubView==='entry'?'active':''}" onclick="setLiveSubView('setup')">⛳ Enter Scores</button>
     </div>`;
@@ -3453,7 +3450,8 @@ function renderLiveScores(){
     </div>`;
 
   let body = '';
-  if (liveSubView === 'leaderboard')  body = renderLeaderboardView();
+  if (liveSubView === 'groupings')    body = renderGroupingsInScores();
+  else if (liveSubView === 'leaderboard')  body = renderLeaderboardView();
   else if (liveSubView === 'setup')   body = renderSetupView();
   else if (liveSubView === 'entry')   body = renderEntryView();
 
@@ -4994,6 +4992,46 @@ async function deleteGroup(groupId){
   matchGroupPlayers = matchGroupPlayers.filter(gp => gp.group_id !== groupId);
   editingGroupId = null;
   renderGroupings();
+}
+
+function renderGroupingsInScores(){
+  const ev = events.find(e => e.id === liveEventId);
+  if (!ev) return '<p class="muted">No event selected.</p>';
+
+  const evGroups = matchGroups.filter(g => g.event_id === liveEventId).sort((a,b) => a.tee_time.localeCompare(b.tee_time));
+
+  if (!evGroups.length){
+    return `<p class="muted">No groups set up for ${ev.name} yet.${isLoggedIn ? ' Go to the Groupings page to add them.' : ''}</p>`;
+  }
+
+  const cards = evGroups.map((g, idx) => {
+    const gPlayers = matchGroupPlayers.filter(gp => gp.group_id === g.id);
+    const rows = gPlayers.map(gp => {
+      const p = players.find(x => x.id === gp.player_id);
+      if (!p) return '';
+      const name = `${p.first_name} ${p.last_name}`;
+      return `<div style="display:flex; align-items:center; gap:.6rem; padding:.3rem 0; border-bottom:1px solid var(--line); font-size:.92rem;">
+        ${gp.is_marker ? '<span title="Marker" style="font-size:.8rem;">✎</span>' : '<span style="width:1rem;"></span>'}
+        <span>${name}</span>
+      </div>`;
+    }).filter(Boolean).join('');
+
+    return `
+      <div style="background:var(--paper); border:1px solid var(--line); border-left:4px solid var(--brass); border-radius:var(--radius); padding:.9rem 1.1rem; margin-bottom:.7rem;">
+        <div style="display:flex; align-items:baseline; gap:.8rem; margin-bottom:.5rem;">
+          <span style="font-family:var(--mono); font-size:1.3rem; font-weight:700; color:var(--ink);">${g.tee_time}</span>
+          <span style="font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Group ${idx+1}</span>
+        </div>
+        ${rows || '<p class="muted" style="font-size:.85rem;">No players assigned</p>'}
+      </div>`;
+  }).join('');
+
+  return `
+    <p style="font-family:var(--mono); font-size:.75rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin-bottom:.9rem;">
+      ${ev.name} &nbsp;·&nbsp; ${fmtDate(ev.date)}
+    </p>
+    ${cards}
+    <p style="font-family:var(--mono); font-size:.7rem; color:var(--text-muted); margin-top:.5rem;">✎ = marker</p>`;
 }
 
 /* ===================== leaderboard section ===================== */
