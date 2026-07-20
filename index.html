@@ -4180,6 +4180,22 @@ function trophySvg(baseName){
     <rect x="20" y="39" width="20" height="5" rx="1" fill="${d}"/>
     <rect x="40" y="39" width="20" height="5" rx="1" fill="${d}"/>
     <rect x="16" y="46" width="48" height="8" rx="1.5" fill="${dd}"/></svg>`;
+  if (n.includes('captain') || n.includes('memoriam')) {
+    if (n.includes('memoriam')) return `<svg viewBox="0 0 80 80" aria-hidden="true">
+      <circle cx="40" cy="22" r="12" fill="none" stroke="${b}" stroke-width="3.5"/>
+      <line x1="40" y1="34" x2="40" y2="54" stroke="${b}" stroke-width="3.5"/>
+      <line x1="28" y1="44" x2="52" y2="44" stroke="${b}" stroke-width="3.5"/>
+      <line x1="32" y1="67" x2="48" y2="67" stroke="${b}" stroke-width="3"/>
+      <line x1="36" y1="54" x2="36" y2="67" stroke="${b}" stroke-width="3"/>
+      <line x1="44" y1="54" x2="44" y2="67" stroke="${b}" stroke-width="3"/></svg>`;
+    /* captain — armband/crest icon */
+    return `<svg viewBox="0 0 80 80" aria-hidden="true">
+      <circle cx="40" cy="24" r="14" fill="${b}"/>
+      <circle cx="40" cy="24" r="9" fill="${l}"/>
+      <path d="M40 17 l2.2 4.5 h4.9 l-3.8 3.1 l1.5 4.9 l-4.8 -3 l-4.8 3 l1.5 -4.9 l-3.8 -3.1 h4.9 z" fill="${d}"/>
+      <path d="M24 42 h32 v4 a16 16 0 0 1 -32 0 z" fill="${b}"/>
+      <rect x="24" y="38" width="32" height="5" rx="1" fill="${d}"/></svg>`;
+  }
   return `<svg viewBox="0 0 80 80" aria-hidden="true">
     <path d="M27 12 h26 v15 a13 13 0 0 1 -26 0 z" fill="${b}"/>
     <rect x="36" y="40" width="8" height="10" fill="${b}"/>
@@ -4258,9 +4274,72 @@ function renderHonours(){
       ${trophySvg(name)}
       <h3>${name}</h3>
       <div class="trophy-count">${groups[name].length} winner${groups[name].length===1?'':'s'}</div>
-    </div>`).join('') || '<p class="muted">No trophies recorded yet.</p>';
+    </div>`).join('');
 
-  if (expandedTrophy && groups[expandedTrophy]){
+  /* Captains tile */
+  const captainsTileSelected = expandedTrophy === '__captains__';
+  shelf.innerHTML += `
+    <div class="trophy-card ${captainsTileSelected ? 'selected' : ''}" role="button" tabindex="0"
+         onclick="toggleTrophy('__captains__')"
+         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); toggleTrophy('__captains__');}">
+      ${trophySvg('Captain')}
+      <h3>Captains</h3>
+      <div class="trophy-count">${captains.filter(h => h.title.toLowerCase()==='captain').length} captains</div>
+    </div>`;
+
+  /* In Memoriam tile — only if there are archived players */
+  const archived = players.filter(p => p.active === false);
+  const memTileSelected = expandedTrophy === '__memoriam__';
+  if (archived.length){
+    shelf.innerHTML += `
+      <div class="trophy-card ${memTileSelected ? 'selected' : ''}" role="button" tabindex="0"
+           onclick="toggleTrophy('__memoriam__')"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); toggleTrophy('__memoriam__');}">
+        ${trophySvg('Memoriam')}
+        <h3>In Memoriam</h3>
+        <div class="trophy-count">${archived.length} member${archived.length===1?'':'s'}</div>
+      </div>`;
+  }
+
+  if (!groupNames.length && !captains.length && !archived.length){
+    shelf.innerHTML = '<p class="muted">No trophies recorded yet.</p>';
+  }
+
+  if (expandedTrophy === '__captains__'){
+    /* group by year, show Captain + Vice-Captain together */
+    const years = [...new Set(captains.map(h => h.year))].sort((a,b) => a - b);
+    winnersPanel.innerHTML = `
+      <div class="trophy-winners">
+        <h3>Captains &amp; Vice-Captains</h3>
+        <ol>
+          ${years.map(yr => {
+            const cap = captains.find(h => h.year === yr && h.title.toLowerCase() === 'captain');
+            const vc  = captains.find(h => h.year === yr && h.title.toLowerCase() === 'vice-captain');
+            return `<li>
+              <span class="tw-year">${yr}</span>
+              <span class="tw-name">${cap ? cap.winner : '—'}</span>
+              ${vc ? `<span class="tw-course" style="font-size:.78rem;">VC: ${vc.winner}</span>` : ''}
+            </li>`;
+          }).join('')}
+        </ol>
+      </div>`;
+  } else if (expandedTrophy === '__memoriam__'){
+    const archived = [...players].filter(p => p.active === false)
+      .sort((a,b) => a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name));
+    winnersPanel.innerHTML = `
+      <div class="trophy-winners">
+        <h3>In Memoriam</h3>
+        <p style="font-size:.85rem; color:rgba(255,255,255,.55); margin:.3rem 0 1rem; max-width:38ch; line-height:1.6;">
+          Players who were members of Gytte Lane Golf Society and are no longer with us.
+        </p>
+        <ol style="columns:2; gap:1.4rem;">
+          ${archived.map(p => `
+            <li style="break-inside:avoid;">
+              <span class="tw-name">${p.first_name} ${p.last_name}</span>
+            </li>`).join('')}
+        </ol>
+      </div>`;
+  } else if (expandedTrophy && groups[expandedTrophy]){
     const list = [...groups[expandedTrophy]].sort((a,b) => a.year - b.year);
     winnersPanel.innerHTML = `
       <div class="trophy-winners">
