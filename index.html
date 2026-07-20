@@ -1187,7 +1187,6 @@
     <div id="trophy-winners-panel"></div>
 
     <div id="add-honour-slot" style="margin-top:1.4rem;"></div>
-    <div id="player-archive-slot"></div>
   </section>
 
   <!-- ============ ACCOUNTS ============ -->
@@ -2433,7 +2432,7 @@ async function initAuth(){
     renderCoursesPanel();
     renderAccounts();
     renderGroupings();
-    renderPlayerArchive();
+  
   });
 }
 
@@ -3265,7 +3264,7 @@ async function savePlayerEdit(id){
   if (p) Object.assign(p, { first_name, last_name, email, handicap, active });
   editingPlayerIds.delete(id);
   renderPlayers();
-  renderPlayerArchive();
+
 }
 
 async function deletePlayer(id){
@@ -3278,7 +3277,7 @@ async function deletePlayer(id){
   players = players.filter(x => x.id !== id);
   editingPlayerIds.delete(id);
   renderPlayers();
-  renderPlayerArchive();
+
 }
 
 function openAddPlayer(){
@@ -4359,26 +4358,7 @@ function renderHonours(){
   }
 
   renderAddHonourSlot();
-  renderPlayerArchive();
-}
 
-function renderPlayerArchive(){
-  const slot = document.getElementById('player-archive-slot');
-  if (!slot) return;
-  const archived = [...players]
-    .filter(p => p.active === false)
-    .sort((a,b) => a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name));
-  if (!archived.length){ slot.innerHTML = ''; return; }
-  slot.innerHTML = `
-    <div class="player-archive">
-      <h3 class="mini-title">In Memoriam</h3>
-      <p style="font-size:.88rem; color:var(--text-muted); margin:.4rem 0 0; max-width:48ch; line-height:1.6;">
-        Players who were members of Gytte Lane Golf Society and are no longer with us.
-      </p>
-      <div class="player-archive-grid">
-        ${archived.map(p => `<span class="player-archive-name">${p.first_name} ${p.last_name}</span>`).join('')}
-      </div>
-    </div>`;
 }
 
 function toggleTrophy(name){
