@@ -896,8 +896,7 @@
   .winner-name{font-weight:600; color:var(--ink);}
 
   /* ---------- results: scorecard cards + crest watermark ---------- */
-  #sec-results{position:relative;}
-  .results-crest-watermark{
+  /* ---------- scorecard (live scores) ---------- */
     position:absolute; top:180px; left:50%; transform:translateX(-50%);
     width:min(420px, 80vw); opacity:.05; pointer-events:none; z-index:0;
   }
@@ -1024,10 +1023,6 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="21" r="1" fill="currentColor"/><circle cx="20" cy="21" r="1" fill="currentColor"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
       Shop
     </button>
-    <button class="tab-btn" role="tab" data-section="results" aria-selected="false">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
-      Results
-    </button>
     <button class="tab-btn" role="tab" data-section="rules" aria-selected="false">
       <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="4,17 10,11 4,5" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="12" y1="19" x2="20" y2="19" stroke="currentColor" stroke-width="1.8"/></svg>
       Rules
@@ -1153,15 +1148,6 @@
     </div>
   </section>
 
-  <!-- ============ RESULTS ============ -->
-  <section class="section" id="sec-results" data-section="results">
-    <img class="results-crest-watermark" id="results-crest-watermark" alt="" aria-hidden="true">
-    <p class="eyebrow">Past fixtures</p>
-    <h2 class="section-title">Results</h2>
-    <div id="results-cards" style="position:relative; z-index:1;"></div>
-    <div id="add-result-slot" style="margin-top:.8rem; position:relative; z-index:1;"></div>
-  </section>
-
   <!-- ============ LIVE SCORES ============ -->
   <section class="section" id="sec-scores" data-section="scores">
     <p class="eyebrow">Stableford</p>
@@ -1227,9 +1213,9 @@
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
         Live Scores
       </button>
-      <button class="bn-tab" data-section="results" onclick="goTo('results'); setBottomNav('results');">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
-        Results
+      <button class="bn-tab" data-section="halloffame" onclick="goTo('halloffame'); setBottomNav('halloffame');">
+        <svg viewBox="0 0 24 24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
+        Hall of Fame
       </button>
       <button class="bn-tab" id="bn-more" onclick="openMoreDrawer();">
         <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none"/></svg>
@@ -1254,9 +1240,6 @@
       </button>
       <button class="md-item" onclick="goTo('news'); closeMoreDrawer(); setBottomNav('news');">
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>News
-      </button>
-      <button class="md-item" onclick="goTo('results'); closeMoreDrawer(); setBottomNav('results');">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>Results
       </button>
       <button class="md-item" onclick="goTo('scores'); closeMoreDrawer(); setBottomNav('scores');">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>Live Scores
@@ -1323,7 +1306,6 @@ let events = [];
 let committee = [];
 let gallery = [];
 let news = [];
-let results = [];
 let rules = [];
 let honours = [];
 let allScorecards = [];
@@ -1346,7 +1328,7 @@ const DATA_CACHE_KEY = 'glgs-data-cache';
 function saveDataSnapshot(){
   try {
     localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({
-      events, committee, gallery, news, results, players, signups, rules, honours, allScorecards, allHoleScores, courses, courseRatings, savedAt: Date.now()
+      events, committee, gallery, news, players, signups, rules, honours, allScorecards, allHoleScores, courses, courseRatings, savedAt: Date.now()
     }));
   } catch(e){ console.warn('Could not save offline snapshot:', e); }
 }
@@ -1360,7 +1342,6 @@ function restoreDataSnapshot(){
     committee = snap.committee || [];
     gallery = snap.gallery || [];
     news = snap.news || [];
-    results = snap.results || [];
     players = snap.players || [];
     signups = snap.signups || [];
     rules = snap.rules || [];
@@ -1396,7 +1377,6 @@ async function loadData(){
       db.from('committee').select('*').order('sort_order'),
       db.from('gallery').select('*'),
       db.from('news').select('*'),
-      db.from('results').select('*'),
     ]);
   } catch (netErr){
     /* Network completely unavailable (offline) — fall back to the last snapshot */
@@ -1411,7 +1391,7 @@ async function loadData(){
     return;
   }
 
-  const errs = [evRes, coRes, gaRes, neRes, reRes].map(r => r.error).filter(Boolean);
+  const errs = [evRes, coRes, gaRes, neRes].map(r => r.error).filter(Boolean);
   if (errs.length){
     console.error('Supabase load error(s):', errs);
     if (restoreDataSnapshot()) return;
@@ -1427,7 +1407,6 @@ async function loadData(){
   committee = coRes.data || [];
   gallery = gaRes.data.map(g => ({ ...g, eventId: g.event_id })) || [];
   news = neRes.data.map(n => ({ ...n, eventId: n.event_id })) || [];
-  results = reRes.data.map(r => ({ ...r, eventId: r.event_id, runnerUp: r.runner_up, thirdPlace: r.third_place })) || [];
 
   /* players/signups are loaded separately — if the sign-up migration hasn't
      been run yet in Supabase, these tables won't exist. We don't want that
@@ -1584,7 +1563,6 @@ function renderEvents(filter){
   const filtered = sorted.filter(e => currentEventFilter === 'all' || e.status === currentEventFilter);
   list.innerHTML = filtered.map(e => {
     const p = fmtDateParts(e.date);
-    const hasResult = results.some(r => r.eventId === e.id);
     const hasGallery = gallery.some(g => g.eventId === e.id);
     const isExpanded = expandedEventId === e.id;
     const signedUpCount = signupsForEvent(e.id).length;
@@ -1616,7 +1594,6 @@ function renderEvents(filter){
           <div class="event-links">
             <span class="status-pill ${e.status}">${e.status}</span>
             <span class="signup-count-pill">${signedUpCount} signed up</span>
-            ${hasResult ? `<a href="#" onclick="event.stopPropagation(); goTo('results'); return false;">View result</a>` : ''}
             ${hasGallery ? `<a href="#" onclick="event.stopPropagation(); goTo('gallery'); return false;">View gallery</a>` : ''}
           </div>
         </article>
@@ -1774,7 +1751,7 @@ function eventDetailHtml(e){
       ${e.status === 'past' ? (() => {
         const fullScores = eventFullScores(e.id);
         const played = fullScores.length || attendees.length;
-        const winner = results.find(r => r.eventId === e.id);
+        const winner = ev && ev.trophy ? honours.find(h => h.title && h.title.startsWith(ev.trophy) && h.year === new Date(ev.date+'T00:00:00').getFullYear()) : null;
         const course = courseById(e.course_id);
         const mapsUrl = (e.course || course) ? googleMapsUrl(e.course || (course && course.name), e.postcode || (course && course.postcode)) : null;
         const avg = course ? courseAvgRating(course.id) : null;
@@ -1792,9 +1769,7 @@ function eventDetailHtml(e){
             ${course ? `<div style="margin:.3rem 0 .6rem;">${starsHtml(avg, cnt)}</div>` : ''}
             <div style="display:flex; gap:1.4rem; flex-wrap:wrap; margin:.5rem 0 .8rem; font-size:.92rem;">
               <span><strong>${played}</strong> <span style="color:var(--text-muted);">player${played===1?'':'s'} took part</span></span>
-              ${winner && winner.winner ? `<span>🥇 <strong>${winner.winner}</strong></span>` : ''}
-              ${winner && winner.runnerUp ? `<span>🥈 <strong>${winner.runnerUp}</strong></span>` : ''}
-              ${winner && winner.thirdPlace ? `<span>🥉 <strong>${winner.thirdPlace}</strong></span>` : ''}
+              ${winner ? `<span>🥇 <strong>${winner.winner}</strong></span>` : ''}
             </div>
             ${attendees.length ? `
               <details style="margin-top:.4rem;">
@@ -2082,29 +2057,20 @@ async function saveFullScores(eventId){
   if (scored.length){
     const nm = x => x.player.first_name + ' ' + x.player.last_name;
     const winner = scored[0] ? nm(scored[0]) : '';
-    const runnerUp = scored[1] ? nm(scored[1]) : '';
-    const thirdPlace = scored[2] ? nm(scored[2]) : '';
-    const score = scored.slice(0,3).map(x => `${x.player.last_name} ${x.total}pts`).join(' / ');
-    const existing = results.find(r => r.eventId === eventId);
-    try {
-      if (existing){
-        const { error } = await db.from('results').update({ winner, runner_up: runnerUp, third_place: thirdPlace, score }).eq('id', existing.id);
-        if (error) throw error;
-        Object.assign(existing, { winner, runnerUp, thirdPlace, score });
-      } else {
-        const { data, error } = await db.from('results').insert({ event_id: eventId, winner, runner_up: runnerUp, third_place: thirdPlace, score }).select().single();
-        if (error) throw error;
-        if (data) results.push({ ...data, eventId, runnerUp: data.runner_up, thirdPlace: data.third_place });
+    const ev = eventById(eventId);
+    if (winner && ev && ev.trophy){
+      try {
+        await syncHonourForEvent(eventId, winner);
+        setStatus('Saved & published to Hall of Fame!', 'success');
+      } catch(err){
+        console.error(err);
+        setStatus('Scores saved, but Hall of Fame update failed — try again.', 'error');
+        return;
       }
-      renderResults();
-      renderPlayers();
-      await syncHonourForEvent(eventId, winner);
-      setStatus('Saved & published!', 'success');
-    } catch(err){
-      console.error(err);
-      setStatus('Scores saved, but publishing the result failed — try again.', 'error');
-      return;
+    } else {
+      setStatus('Saved. (Set a trophy on this event to publish to Hall of Fame)', 'success');
     }
+    renderPlayers();
   } else {
     setStatus('Saved.', 'success');
     renderPlayers();
@@ -2426,7 +2392,7 @@ async function initAuth(){
     renderPlayers();
     renderEvents();
     renderNews();
-    renderResults();
+  
     renderRules();
     renderHonours();
     renderCoursesPanel();
@@ -2929,199 +2895,6 @@ async function addNewNews(){
 }
 
 /* ===================== render: results ===================== */
-const editingResultIds = new Set();
-
-function playerSelectHtml(id, currentValue){
-  const sorted = [...players].sort((a,b) => a.first_name.localeCompare(b.first_name));
-  const names = sorted.map(p => `${p.first_name} ${p.last_name}`);
-  /* keep legacy values (e.g. pairs like "Whitlock & Carr") selectable so nothing breaks */
-  const legacy = currentValue && !names.includes(currentValue)
-    ? `<option value="${currentValue.replace(/"/g,'&quot;')}" selected>${currentValue} (as entered)</option>` : '';
-  return `
-    <select id="${id}">
-      <option value="">—</option>
-      ${legacy}
-      ${names.map(n => `<option value="${n.replace(/"/g,'&quot;')}" ${currentValue===n?'selected':''}>${n}</option>`).join('')}
-    </select>`;
-}
-
-function resultEditFormHtml(r){
-  const sortedEvents = [...events].sort((a,b) => new Date(b.date) - new Date(a.date));
-  return `
-    <div class="edit-form">
-      <h4>Edit result</h4>
-      <div class="edit-form-grid">
-        <div class="full">
-          <label>Event</label>
-          <select id="rf-event-${r.id}">
-            <option value="" ${!r.eventId?'selected':''}>— Select fixture —</option>
-            ${sortedEvents.map(e => `<option value="${e.id}" ${r.eventId===e.id?'selected':''}>${e.name} — ${e.course || 'TBC'} (${fmtDate(e.date)})</option>`).join('')}
-          </select>
-        </div>
-        <div>
-          <label>Winner</label>
-          ${playerSelectHtml('rf-winner-' + r.id, r.winner || '')}
-        </div>
-        <div>
-          <label>Runner-up</label>
-          ${playerSelectHtml('rf-runner-' + r.id, r.runnerUp || '')}
-        </div>
-        <div>
-          <label>3rd place</label>
-          ${playerSelectHtml('rf-third-' + r.id, r.thirdPlace || '')}
-        </div>
-      </div>
-      <div class="edit-form-actions">
-        <button class="btn brass" onclick="saveResult(${r.id})">Save</button>
-        <button class="btn ghost" onclick="toggleResultEdit(${r.id})">Cancel</button>
-        <div class="edit-status" id="rf-status-${r.id}"></div>
-        <button class="delete-btn" onclick="deleteResult(${r.id})">Delete</button>
-      </div>
-    </div>`;
-}
-
-function renderResults(){
-  const container = document.getElementById('results-cards');
-  if (!container) return;
-
-  /* watermark uses the real crest from the header */
-  const wm = document.getElementById('results-crest-watermark');
-  const crestImg = document.querySelector('.crest img');
-  if (wm && crestImg && !wm.src) wm.src = crestImg.src;
-
-  const sorted = [...results].sort((a,b) => {
-    const evA = eventById(a.eventId); const evB = eventById(b.eventId);
-    return new Date(evB ? evB.date : 0) - new Date(evA ? evA.date : 0);
-  });
-
-  container.innerHTML = sorted.map(r => {
-    const ev = eventById(r.eventId);
-    if (editingResultIds.has(r.id)){
-      return `<div class="scorecard">${resultEditFormHtml(r)}</div>`;
-    }
-    const meta = ev ? [ev.course, fmtDate(ev.date), ev.format].filter(Boolean).join(' · ') : '';
-
-    const places = [];
-    places.push(`
-      <div class="sc-place first">
-        <div class="ribbon"></div>
-        <div style="flex:1;">
-          <div class="p-label">Winner</div>
-          <div class="p-name">${r.winner || 'TBC'}</div>
-        </div>
-      </div>`);
-    if (r.runnerUp) places.push(`
-      <div class="sc-place second">
-        <div class="ribbon"></div>
-        <div style="flex:1;">
-          <div class="p-label">Runner-up</div>
-          <div class="p-name">${r.runnerUp}</div>
-        </div>
-      </div>`);
-    if (r.thirdPlace) places.push(`
-      <div class="sc-place third">
-        <div class="ribbon"></div>
-        <div style="flex:1;">
-          <div class="p-label">3rd Place</div>
-          <div class="p-name">${r.thirdPlace}</div>
-        </div>
-      </div>`);
-
-    const fullScores = ev ? eventFullScores(ev.id) : [];
-    const isExpanded = ev && expandedResultScores.has(ev.id);
-
-    return `
-      <div class="scorecard">
-        <div class="sc-stamp">Result</div>
-        <div class="sc-head">
-          <h3>${ev ? `<a href="#" onclick="goTo('events',{highlightEvent:'${ev.id}'}); return false;">${ev.name}</a>` : 'Fixture'}</h3>
-          ${meta ? `<div class="sc-meta">${meta}</div>` : ''}
-        </div>
-        <div class="sc-podium">${places.join('')}</div>
-        ${isExpanded ? `
-        <div style="border-top:1px solid var(--line); padding:.8rem 1.2rem; background:var(--stone);">
-          <ol style="list-style:none; margin:0; padding:0; max-width:360px; margin:0 auto;">
-            ${fullScores.map((x, i) => `
-              <li style="display:flex; gap:.8rem; align-items:baseline; padding:.3rem 0; ${i < fullScores.length-1 ? 'border-bottom:1px solid var(--line);' : ''} font-size:.9rem;">
-                <span style="font-family:var(--mono); color:var(--text-muted); min-width:1.6rem;">${i+1}</span>
-                <span style="color:var(--ink); font-weight:${i===0?'600':'400'};">${x.player.first_name} ${x.player.last_name}</span>
-                <span style="font-family:var(--mono); margin-left:auto; color:var(--brass);">${x.total} pts</span>
-              </li>`).join('')}
-          </ol>
-        </div>` : ''}
-        <div class="sc-foot">
-          <span>${r.score || ''}</span>
-          <span>
-            ${fullScores.length > 3 ? `<button class="committee-edit-btn" onclick="toggleResultScores('${ev.id}')">${isExpanded ? 'Hide' : 'Full'} scores (${fullScores.length})</button> ` : ''}
-            ${ev ? `<a href="#" onclick="goTo('events',{highlightEvent:'${ev.id}'}); return false;">View fixture →</a>` : ''}
-            ${isLoggedIn ? ` <button class="committee-edit-btn" onclick="toggleResultEdit(${r.id})">Edit</button>` : ''}
-          </span>
-        </div>
-      </div>`;
-  }).join('') || '<p class="muted" style="position:relative; z-index:1;">No results recorded yet.</p>';
-
-  const addSlot = document.getElementById('add-result-slot');
-  if (addSlot) addSlot.innerHTML = isLoggedIn
-    ? `<button class="add-item-btn" onclick="addResult()">+ Add result</button>` : '';
-}
-
-const expandedResultScores = new Set();
-function toggleResultScores(eventId){
-  if (expandedResultScores.has(eventId)) expandedResultScores.delete(eventId);
-  else expandedResultScores.add(eventId);
-  renderResults();
-}
-
-function toggleResultEdit(id){
-  if (editingResultIds.has(id)) editingResultIds.delete(id);
-  else editingResultIds.add(id);
-  renderResults();
-}
-
-async function saveResult(id){
-  const setStatus = (msg, kind) => {
-    const el = document.getElementById('rf-status-' + id);
-    if (el){ el.textContent = msg; el.className = 'edit-status ' + kind; }
-  };
-  if (!db){ setStatus('Not connected.', 'error'); return; }
-  const payload = {
-    event_id: gv('rf-event-' + id),
-    winner: gv('rf-winner-' + id) || null,
-    runner_up: gv('rf-runner-' + id) || null,
-    third_place: gv('rf-third-' + id) || null,
-  };
-  if (!payload.event_id){ setStatus('Please select a fixture.', 'error'); return; }
-  setStatus('Saving\u2026', 'loading');
-  const { error } = await db.from('results').update(payload).eq('id', id);
-  if (error){ console.error(error); setStatus('Save failed.', 'error'); return; }
-  const r = results.find(x => x.id === id);
-  if (r){ Object.assign(r, payload); r.eventId = payload.event_id; r.runnerUp = payload.runner_up; r.thirdPlace = payload.third_place; }
-  editingResultIds.delete(id);
-  renderResults();
-  await syncHonourForEvent(payload.event_id, payload.winner);
-}
-
-async function deleteResult(id){
-  if (!confirm('Delete this result? This cannot be undone.')) return;
-  if (!db) return;
-  const { error } = await db.from('results').delete().eq('id', id);
-  if (error){ console.error(error); alert('Delete failed.'); return; }
-  results = results.filter(r => r.id !== id);
-  editingResultIds.delete(id);
-  renderResults();
-}
-
-async function addResult(){
-  if (!db) return;
-  if (!events.length){ alert('Please add a fixture first before adding a result.'); return; }
-  const payload = { event_id: null, winner: '', runner_up: '', third_place: '', score: '' };
-  const { data, error } = await db.from('results').insert(payload).select().single();
-  if (error){ console.error(error); alert('Could not add result. Please try again.'); return; }
-  results.push({ ...data, eventId: data.event_id, runnerUp: data.runner_up, thirdPlace: data.third_place });
-  editingResultIds.add(data.id);
-  renderResults();
-}
-
 /* ===================== render: players ===================== */
 function eventsAttendedCount(playerId){
   /* union of past-fixture sign-ups and any event with a recorded score */
@@ -3981,33 +3754,12 @@ async function finaliseScores(eventId){
     const name = e.player ? e.player.first_name + ' ' + e.player.last_name : 'Unknown';
     return `${i+1}. ${name} — ${e.total} pts`;
   }).join('\n');
-  const trophyNote = ev && ev.trophy ? `\n\nThe winner will also be added to the Hall of Fame (${ev.trophy}).` : '';
-  if (!confirm(`Add these results for "${ev ? ev.name : 'this fixture'}"?\n\n${summary}\n\nThis will create or update the result on the Results page.${trophyNote}`)) return;
+  const trophyNote = ev && ev.trophy ? `\n\nThe winner will be added to the Hall of Fame (${ev.trophy}).` : '';
+  if (!confirm(`Finalise scores for "${ev ? ev.name : 'this fixture'}"?\n\n${summary}${trophyNote}`)) return;
 
   const winner = top[0] ? (top[0].player ? top[0].player.first_name + ' ' + top[0].player.last_name : '') : '';
-  const runnerUp = top[1] ? (top[1].player ? top[1].player.first_name + ' ' + top[1].player.last_name : '') : '';
-  const thirdPlace = top[2] ? (top[2].player ? top[2].player.first_name + ' ' + top[2].player.last_name : '') : '';
-  const score = top.map((e, i) => {
-    const name = e.player ? e.player.last_name : '?';
-    return `${name} ${e.total}pts`;
-  }).join(' / ');
-
-  // Check if a result already exists for this event
-  const existing = results.find(r => r.eventId === eventId);
-  let error;
-  if (existing){
-    const res = await db.from('results').update({ winner, runner_up: runnerUp, third_place: thirdPlace, score }).eq('id', existing.id);
-    error = res.error;
-    if (!error){ existing.winner = winner; existing.runnerUp = runnerUp; existing.third_place = thirdPlace; existing.score = score; }
-  } else {
-    const res = await db.from('results').insert({ event_id: eventId, winner, runner_up: runnerUp, third_place: thirdPlace, score }).select().single();
-    error = res.error;
-    if (!error && res.data) results.push({ ...res.data, eventId, runnerUp: res.data.runner_up });
-  }
-  if (error){ console.error(error); alert('Could not save results. Please try again.'); return; }
-  renderResults();
   await syncHonourForEvent(eventId, winner);
-  alert('Results saved! Head to the Results page to see them.');
+  alert('Scores finalised! The winner has been added to the Hall of Fame.');
 }
 
 /* ===================== render: rules ===================== */
@@ -5298,7 +5050,7 @@ async function init(){
   renderGalleryFilters();
   renderGallery('all');
   renderNews();
-  renderResults();
+
   renderRules();
   renderHonours();
   renderCoursesPanel();
