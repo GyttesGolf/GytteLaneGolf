@@ -119,14 +119,71 @@
   }
   .tab-btn{
     background:none; border:none; color:var(--on-dark-muted); cursor:pointer;
-    font-family:var(--mono); font-size:.82rem; letter-spacing:.04em; text-transform:uppercase;
-    padding:.9rem 1.15rem .75rem; border-bottom:3px solid transparent; white-space:nowrap;
+    font-family:var(--mono); font-size:.62rem; letter-spacing:.04em; text-transform:uppercase;
+    padding:.55rem .8rem .5rem; border-bottom:2px solid transparent; white-space:nowrap;
     transition:color .15s, border-color .15s;
+    display:flex; flex-direction:column; align-items:center; gap:.28rem;
   }
+  .tab-btn svg{width:17px; height:17px; flex-shrink:0; transition:color .15s;}
   .tab-btn:hover{color:var(--paper);}
   .tab-btn[aria-selected="true"]{
-    color:var(--paper); font-weight:600;
+    color:var(--brass-light); font-weight:600;
     border-bottom-color:var(--brass);
+  }
+
+  /* ---------- bottom nav (mobile only) ---------- */
+  .bottom-nav{
+    display:none;
+    position:fixed; bottom:0; left:0; right:0; z-index:90;
+    background:var(--paper); border-top:1px solid var(--line);
+    padding:.35rem 0 calc(.35rem + env(safe-area-inset-bottom));
+  }
+  .bottom-nav-inner{
+    display:flex; justify-content:space-around; max-width:480px; margin:0 auto;
+  }
+  .bn-tab{
+    display:flex; flex-direction:column; align-items:center; gap:.2rem;
+    font-family:var(--mono); font-size:.6rem; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--text-muted); padding:.2rem .4rem; cursor:pointer; border:none; background:none;
+    min-width:52px;
+  }
+  .bn-tab.active{color:var(--ink);}
+  .bn-tab svg{width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.8; flex-shrink:0;}
+  .bn-tab.active svg{stroke:var(--claret);}
+
+  /* more drawer */
+  .more-drawer-backdrop{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:91;
+  }
+  .more-drawer-backdrop.open{display:block;}
+  .more-drawer{
+    position:fixed; bottom:0; left:0; right:0; z-index:92;
+    background:var(--paper); border-radius:16px 16px 0 0;
+    padding:1rem 0 calc(1rem + env(safe-area-inset-bottom));
+    transform:translateY(100%); transition:transform .28s cubic-bezier(.4,0,.2,1);
+    max-height:75vh; overflow-y:auto;
+  }
+  .more-drawer.open{transform:translateY(0);}
+  .more-drawer-handle{
+    width:36px; height:4px; background:var(--line); border-radius:2px; margin:0 auto .8rem;
+  }
+  .more-drawer-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:0;
+    padding:0 .5rem;
+  }
+  .md-item{
+    display:flex; align-items:center; gap:.8rem; padding:.85rem 1rem;
+    font-family:var(--mono); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--text); border:none; background:none; cursor:pointer; width:100%;
+    border-bottom:1px solid var(--line); text-align:left;
+  }
+  .md-item svg{width:20px; height:20px; stroke:currentColor; fill:none; stroke-width:1.8; flex-shrink:0; color:var(--claret);}
+  .md-item:hover{background:var(--stone);}
+
+  @media(max-width:700px){
+    .bottom-nav{display:block;}
+    nav.tabs{display:none;}
+    main{padding-bottom:calc(60px + env(safe-area-inset-bottom));}
   }
 
   /* ---------- committee login nav button & modal ---------- */
@@ -921,18 +978,62 @@
 
 <nav class="tabs" aria-label="Site sections">
   <div class="tabs-inner" id="tab-list" role="tablist">
-    <button class="tab-btn" role="tab" data-section="home" aria-selected="true">Home</button>
-    <button class="tab-btn" role="tab" data-section="events" aria-selected="false">Events</button>
-    <button class="tab-btn" role="tab" data-section="committee" aria-selected="false">Committee</button>
-    <button class="tab-btn" role="tab" data-section="players" aria-selected="false">Players</button>
-    <button class="tab-btn" role="tab" data-section="gallery" aria-selected="false">Gallery</button>
-    <button class="tab-btn" role="tab" data-section="news" aria-selected="false">News</button>
-    <button class="tab-btn" role="tab" data-section="shop" aria-selected="false">Shop</button>
-    <button class="tab-btn" role="tab" data-section="results" aria-selected="false">Results</button>
-    <button class="tab-btn" role="tab" data-section="scores" aria-selected="false">Live Scores</button>
-    <button class="tab-btn" role="tab" data-section="rules" aria-selected="false">Rules</button>
-    <button class="tab-btn" role="tab" data-section="halloffame" aria-selected="false">Hall of Fame</button>
-    <button class="tab-btn" role="tab" data-section="accounts" aria-selected="false">Accounts</button>
+    <button class="tab-btn" role="tab" data-section="home" aria-selected="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" fill="none" stroke="currentColor" stroke-width="1.8"/><polyline points="9,21 9,12 15,12 15,21" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      Home
+    </button>
+    <button class="tab-btn" role="tab" data-section="events" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" stroke-width="1.8"/><line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="1.8"/><line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="1.8"/></svg>
+      Events
+    </button>
+    <button class="tab-btn" role="tab" data-section="groupings" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="17" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 20c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      Groupings
+    </button>
+    <button class="tab-btn" role="tab" data-section="leaderboard" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="3,17 9,11 13,15 21,7" fill="none" stroke="currentColor" stroke-width="1.8"/><polyline points="17,7 21,7 21,11" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      Leaderboard
+    </button>
+    <button class="tab-btn" role="tab" data-section="committee" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      Committee
+    </button>
+    <button class="tab-btn" role="tab" data-section="players" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      Players
+    </button>
+    <button class="tab-btn" role="tab" data-section="gallery" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><polyline points="21,15 16,10 5,21" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      Gallery
+    </button>
+    <button class="tab-btn" role="tab" data-section="news" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="1.8"/><polyline points="14,2 14,8 20,8" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="1.8"/><line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="1.8"/></svg>
+      News
+    </button>
+    <button class="tab-btn" role="tab" data-section="shop" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="21" r="1" fill="currentColor"/><circle cx="20" cy="21" r="1" fill="currentColor"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      Shop
+    </button>
+    <button class="tab-btn" role="tab" data-section="results" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      Results
+    </button>
+    <button class="tab-btn" role="tab" data-section="scores" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.8"/><polyline points="12,6 12,12 16,14" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      Live Scores
+    </button>
+    <button class="tab-btn" role="tab" data-section="rules" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="4,17 10,11 4,5" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="12" y1="19" x2="20" y2="19" stroke="currentColor" stroke-width="1.8"/></svg>
+      Rules
+    </button>
+    <button class="tab-btn" role="tab" data-section="halloffame" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      Hall of Fame
+    </button>
+    <button class="tab-btn" role="tab" data-section="accounts" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="1" x2="12" y2="23" stroke="currentColor" stroke-width="1.8"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      Accounts
+    </button>
     <button class="nav-lock-btn" id="nav-lock-btn" onclick="toggleLoginModal()" aria-label="Committee login">
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
       <span id="nav-lock-label">Committee</span>
@@ -1090,7 +1191,85 @@
     <div id="accounts-content"></div>
   </section>
 
+  <!-- ============ GROUPINGS ============ -->
+  <section class="section" id="sec-groupings" data-section="groupings">
+    <p class="eyebrow">Match day</p>
+    <h2 class="section-title">Starting Sheet</h2>
+    <div id="groupings-content"></div>
+  </section>
+
+  <!-- ============ LEADERBOARD ============ -->
+  <section class="section" id="sec-leaderboard" data-section="leaderboard">
+    <p class="eyebrow">Match day</p>
+    <h2 class="section-title">Leaderboard</h2>
+    <div id="leaderboard-content"></div>
+  </section>
+
   <!-- ============ COMMITTEE LOGIN MODAL ============ -->
+
+  <!-- ============ BOTTOM NAV (mobile) ============ -->
+  <nav class="bottom-nav" aria-label="Main navigation">
+    <div class="bottom-nav-inner">
+      <button class="bn-tab active" data-section="home" onclick="goTo('home'); setBottomNav('home');">
+        <svg viewBox="0 0 24 24"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/><polyline points="9,21 9,12 15,12 15,21"/></svg>
+        Home
+      </button>
+      <button class="bn-tab" data-section="events" onclick="goTo('events'); setBottomNav('events');">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Events
+      </button>
+      <button class="bn-tab" data-section="groupings" onclick="goTo('groupings'); setBottomNav('groupings');">
+        <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="3"/><circle cx="17" cy="7" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6"/></svg>
+        Groupings
+      </button>
+      <button class="bn-tab" data-section="leaderboard" onclick="goTo('leaderboard'); setBottomNav('leaderboard');">
+        <svg viewBox="0 0 24 24"><polyline points="3,17 9,11 13,15 21,7"/><polyline points="17,7 21,7 21,11"/></svg>
+        Leaderboard
+      </button>
+      <button class="bn-tab" id="bn-more" onclick="openMoreDrawer();">
+        <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none"/></svg>
+        More
+      </button>
+    </div>
+  </nav>
+
+  <!-- ============ MORE DRAWER ============ -->
+  <div class="more-drawer-backdrop" id="more-drawer-backdrop" onclick="closeMoreDrawer()"></div>
+  <div class="more-drawer" id="more-drawer" role="dialog" aria-label="More pages">
+    <div class="more-drawer-handle"></div>
+    <div class="more-drawer-grid">
+      <button class="md-item" onclick="goTo('committee'); closeMoreDrawer(); setBottomNav('committee');">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>Committee
+      </button>
+      <button class="md-item" onclick="goTo('players'); closeMoreDrawer(); setBottomNav('players');">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Players
+      </button>
+      <button class="md-item" onclick="goTo('gallery'); closeMoreDrawer(); setBottomNav('gallery');">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none"/><polyline points="21,15 16,10 5,21"/></svg>Gallery
+      </button>
+      <button class="md-item" onclick="goTo('news'); closeMoreDrawer(); setBottomNav('news');">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>News
+      </button>
+      <button class="md-item" onclick="goTo('results'); closeMoreDrawer(); setBottomNav('results');">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>Results
+      </button>
+      <button class="md-item" onclick="goTo('scores'); closeMoreDrawer(); setBottomNav('scores');">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>Live Scores
+      </button>
+      <button class="md-item" onclick="goTo('shop'); closeMoreDrawer(); setBottomNav('shop');">
+        <svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1" fill="currentColor" stroke="none"/><circle cx="20" cy="21" r="1" fill="currentColor" stroke="none"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>Shop
+      </button>
+      <button class="md-item" onclick="goTo('rules'); closeMoreDrawer(); setBottomNav('rules');">
+        <svg viewBox="0 0 24 24"><polyline points="4,17 10,11 4,5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>Rules
+      </button>
+      <button class="md-item" onclick="goTo('halloffame'); closeMoreDrawer(); setBottomNav('halloffame');">
+        <svg viewBox="0 0 24 24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>Hall of Fame
+      </button>
+      <button class="md-item" onclick="goTo('accounts'); closeMoreDrawer(); setBottomNav('accounts');">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Accounts
+      </button>
+    </div>
+  </div>
   <div class="login-modal-backdrop" id="login-modal-backdrop" style="display:none;" onclick="handleBackdropClick(event)">
     <div class="login-modal" id="login-modal">
       <button class="login-modal-close" onclick="closeLoginModal()" aria-label="Close">&times;</button>
@@ -1149,7 +1328,9 @@ let courseRatings = [];
 let ratingState = {};
 let eventPayments = [];
 let expenditures = [];
-let editingExpenditureIds = new Set(); // { eventId: { playerId, stars } }
+let editingExpenditureIds = new Set();
+let matchGroups = [];       // all groups across events
+let matchGroupPlayers = []; // all group_players records // { eventId: { playerId, stars } }
 let players = [];
 let signups = [];
 let expandedEventId = null;
@@ -1311,7 +1492,19 @@ async function loadData(){
     courseRatings = [];
   }
 
-  /* payments + expenditures (committee only — load silently) */
+  /* groups + group_players (public, for the starting sheet) */
+  try {
+    const [grRes, gpRes] = await Promise.all([
+      db.from('groups').select('*').order('tee_time'),
+      db.from('group_players').select('*'),
+    ]);
+    matchGroups = grRes.data || [];
+    matchGroupPlayers = gpRes.data || [];
+  } catch(err){
+    console.warn('Groups not available yet (run add-groups.sql):', err);
+    matchGroups = [];
+    matchGroupPlayers = [];
+  }
   if (isLoggedIn || db){
     try {
       const [pmRes, exRes] = await Promise.all([
@@ -1360,6 +1553,9 @@ function goTo(sectionName, opts){
     setTimeout(() => eventsMapInstance.invalidateSize(), 0);
   }
   if (sectionName === 'scores') openLiveScores();
+  if (sectionName === 'groupings') renderGroupings();
+  if (sectionName === 'leaderboard') renderLeaderboardSection();
+  setBottomNav(sectionName);
 }
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => goTo(btn.dataset.section));
@@ -2226,6 +2422,7 @@ async function initAuth(){
     renderHonours();
     renderCoursesPanel();
     renderAccounts();
+    renderGroupings();
   });
 }
 
@@ -4633,6 +4830,184 @@ async function downloadAccountsPdf(year){
   doc.save(`GLGS-Accounts-${yr}.pdf`);
 }
 
+/* ===================== bottom nav ===================== */
+function setBottomNav(section){
+  const mainSections = ['home','events','groupings','leaderboard'];
+  document.querySelectorAll('.bn-tab[data-section]').forEach(b => {
+    b.classList.toggle('active', b.dataset.section === section);
+  });
+  const moreBtn = document.getElementById('bn-more');
+  if (moreBtn) moreBtn.classList.toggle('active', !mainSections.includes(section));
+}
+function openMoreDrawer(){
+  document.getElementById('more-drawer')?.classList.add('open');
+  document.getElementById('more-drawer-backdrop')?.classList.add('open');
+}
+function closeMoreDrawer(){
+  document.getElementById('more-drawer')?.classList.remove('open');
+  document.getElementById('more-drawer-backdrop')?.classList.remove('open');
+}
+
+/* ===================== groupings ===================== */
+let groupingsEventId = null;
+let editingGroupId = null;
+
+function renderGroupings(){
+  const el = document.getElementById('groupings-content');
+  if (!el) return;
+
+  /* pick the most relevant event — next upcoming with groups, else most recent */
+  const upcomingWithGroups = events
+    .filter(e => e.status === 'upcoming' && matchGroups.some(g => g.event_id === e.id))
+    .sort((a,b) => new Date(a.date) - new Date(b.date));
+  const upcoming = events.filter(e => e.status === 'upcoming').sort((a,b) => new Date(a.date) - new Date(b.date));
+  if (!groupingsEventId){
+    const best = upcomingWithGroups[0] || upcoming[0] || events.sort((a,b) => new Date(b.date) - new Date(a.date))[0];
+    if (best) groupingsEventId = best.id;
+  }
+
+  /* event selector */
+  const sortedEvents = [...events].sort((a,b) => new Date(b.date) - new Date(a.date));
+  const eventSelector = `
+    <div style="margin-bottom:1.2rem;">
+      <select style="font-family:var(--body); font-size:.9rem; padding:.5rem .65rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--paper); width:100%; max-width:400px;"
+        onchange="groupingsEventId=this.value; renderGroupings();">
+        ${sortedEvents.map(e => `<option value="${e.id}" ${e.id===groupingsEventId?'selected':''}>${e.name} — ${fmtDate(e.date)}</option>`).join('')}
+      </select>
+    </div>`;
+
+  const ev = events.find(e => e.id === groupingsEventId);
+  if (!ev){ el.innerHTML = eventSelector + '<p class="muted">No events found.</p>'; return; }
+
+  const evGroups = matchGroups.filter(g => g.event_id === groupingsEventId).sort((a,b) => a.tee_time.localeCompare(b.tee_time));
+
+  const groupCards = evGroups.map((g, idx) => {
+    const gPlayers = matchGroupPlayers.filter(gp => gp.group_id === g.id);
+    const marker = gPlayers.find(gp => gp.is_marker);
+    const isEditing = editingGroupId === g.id;
+
+    const playerNames = gPlayers.map(gp => {
+      const p = players.find(x => x.id === gp.player_id);
+      if (!p) return '';
+      const name = `${p.first_name} ${p.last_name}`;
+      return gp.is_marker ? `<strong>${name} ✎</strong>` : name;
+    }).filter(Boolean);
+
+    const editForm = (isLoggedIn && isEditing) ? `
+      <div class="edit-form" style="margin-top:.8rem;" onclick="event.stopPropagation()">
+        <h4>Edit group</h4>
+        <div class="edit-form-grid">
+          <div><label>Tee time</label><input type="time" id="eg-time-${g.id}" value="${g.tee_time}"></div>
+          <div class="full">
+            <label>Players (select all in this group)</label>
+            <select id="eg-players-${g.id}" multiple style="height:140px; width:100%; font-family:var(--body); font-size:.88rem; padding:.3rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone);">
+              ${[...players].sort((a,b) => a.first_name.localeCompare(b.first_name)).map(p =>
+                `<option value="${p.id}" ${gPlayers.some(gp => gp.player_id===p.id)?'selected':''}>${p.first_name} ${p.last_name}</option>`
+              ).join('')}
+            </select>
+          </div>
+          <div class="full">
+            <label>Marker</label>
+            <select id="eg-marker-${g.id}">
+              <option value="">— Select marker —</option>
+              ${[...players].sort((a,b) => a.first_name.localeCompare(b.first_name)).map(p =>
+                `<option value="${p.id}" ${marker?.player_id===p.id?'selected':''}>${p.first_name} ${p.last_name}</option>`
+              ).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="edit-form-actions">
+          <button class="btn brass" onclick="saveGroup(${g.id})">Save</button>
+          <button class="btn ghost" onclick="editingGroupId=null; renderGroupings();">Cancel</button>
+          <div class="edit-status" id="eg-status-${g.id}"></div>
+          <button class="delete-btn" onclick="deleteGroup(${g.id})">Delete group</button>
+        </div>
+      </div>` : '';
+
+    return `
+      <div style="background:var(--paper); border:1px solid var(--line); border-left:4px solid var(--brass); border-radius:var(--radius); padding:1rem 1.2rem; margin-bottom:.8rem;">
+        <div style="display:flex; align-items:baseline; gap:1rem; margin-bottom:.6rem; flex-wrap:wrap;">
+          <span style="font-family:var(--mono); font-size:1.4rem; font-weight:700; color:var(--ink);">${g.tee_time}</span>
+          <span style="font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Group ${idx+1}</span>
+          ${isLoggedIn ? `<button class="committee-edit-btn" style="margin-left:auto;" onclick="editingGroupId=${isEditing?null:g.id}; renderGroupings();">${isEditing?'Cancel':'Edit'}</button>` : ''}
+        </div>
+        <ul style="list-style:none; margin:0; padding:0;">
+          ${playerNames.map(n => `<li style="padding:.25rem 0; font-size:.95rem; border-bottom:1px solid var(--line);">${n}</li>`).join('') || '<li class="muted">No players assigned</li>'}
+        </ul>
+        ${marker ? `<p style="font-family:var(--mono); font-size:.7rem; color:var(--text-muted); margin-top:.5rem; text-transform:uppercase; letter-spacing:.05em;">✎ = marker</p>` : ''}
+        ${editForm}
+      </div>`;
+  }).join('');
+
+  const addGroupBtn = isLoggedIn ? `
+    <button class="add-item-btn" onclick="addGroup('${groupingsEventId}')">+ Add group</button>` : '';
+
+  el.innerHTML = `
+    ${eventSelector}
+    <h3 style="font-family:var(--mono); font-size:.8rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin-bottom:1rem;">
+      ${ev.name} &nbsp;·&nbsp; ${fmtDate(ev.date)}${ev.course ? ' &nbsp;·&nbsp; ' + ev.course : ''}
+    </h3>
+    ${evGroups.length ? groupCards : `<p class="muted">No groups set up yet${isLoggedIn ? ' — add one below' : '.'}.</p>`}
+    ${addGroupBtn}`;
+}
+
+async function addGroup(eventId){
+  if (!db) return;
+  const { data, error } = await db.from('groups').insert({ event_id: eventId, tee_time: '09:00', group_number: matchGroups.filter(g => g.event_id === eventId).length + 1 }).select().single();
+  if (error){ console.error(error); alert('Could not add group.'); return; }
+  matchGroups.push(data);
+  editingGroupId = data.id;
+  renderGroupings();
+}
+
+async function saveGroup(groupId){
+  const setStatus = (msg, kind) => { const el = document.getElementById('eg-status-'+groupId); if(el){el.textContent=msg; el.className='edit-status '+(kind||'');} };
+  if (!db){ setStatus('Not connected.','error'); return; }
+  const teeTime = document.getElementById('eg-time-'+groupId)?.value || '09:00';
+  const sel = document.getElementById('eg-players-'+groupId);
+  const markerId = document.getElementById('eg-marker-'+groupId)?.value;
+  const selectedIds = sel ? [...sel.selectedOptions].map(o => Number(o.value)) : [];
+  setStatus('Saving\u2026','loading');
+
+  const { error: te } = await db.from('groups').update({ tee_time: teeTime }).eq('id', groupId);
+  if (te){ console.error(te); setStatus('Save failed.','error'); return; }
+  const g = matchGroups.find(x => x.id === groupId); if(g) g.tee_time = teeTime;
+
+  await db.from('group_players').delete().eq('group_id', groupId);
+  matchGroupPlayers = matchGroupPlayers.filter(gp => gp.group_id !== groupId);
+
+  if (selectedIds.length){
+    const rows = selectedIds.map(pid => ({ group_id: groupId, player_id: pid, is_marker: Number(markerId) === pid }));
+    const { data: newGPs, error: ge } = await db.from('group_players').insert(rows).select();
+    if (ge){ console.error(ge); setStatus('Players save failed.','error'); return; }
+    if (newGPs) matchGroupPlayers.push(...newGPs);
+  }
+
+  editingGroupId = null;
+  setStatus('');
+  renderGroupings();
+}
+
+async function deleteGroup(groupId){
+  if (!confirm('Delete this group?')) return;
+  if (!db) return;
+  await db.from('group_players').delete().eq('group_id', groupId);
+  await db.from('groups').delete().eq('id', groupId);
+  matchGroups = matchGroups.filter(g => g.id !== groupId);
+  matchGroupPlayers = matchGroupPlayers.filter(gp => gp.group_id !== groupId);
+  editingGroupId = null;
+  renderGroupings();
+}
+
+/* ===================== leaderboard section ===================== */
+function renderLeaderboardSection(){
+  const el = document.getElementById('leaderboard-content');
+  if (!el) return;
+  /* reuse the live scores leaderboard view */
+  const html = renderLeaderboardView ? renderLeaderboardView() : '<p class="muted">Live scoring not active.</p>';
+  el.innerHTML = html;
+}
+
 /* ===================== init ===================== */
 async function init(){
   /* Offline support — keeps a copy of the page on the device so it opens
@@ -4660,6 +5035,7 @@ async function init(){
   renderHonours();
   renderCoursesPanel();
   renderAccounts();
+  renderGroupings();
   renderHome();
 }
 init();
