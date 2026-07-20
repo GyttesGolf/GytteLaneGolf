@@ -383,11 +383,12 @@
     margin-top:.25rem; line-height:1.5;
   }
   .event-detail-info{
-    background:var(--stone); border-radius:var(--radius); padding:.8rem 1rem;
-    margin-bottom:1rem; display:grid; grid-template-columns:auto 1fr; gap:.3rem .9rem;
+    background:var(--stone); border-radius:var(--radius); padding:.9rem 1.1rem;
+    margin-bottom:1rem; display:flex; flex-wrap:wrap; gap:.6rem 2rem;
   }
-  .edi-label{font-family:var(--mono); font-size:.74rem; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); white-space:nowrap; padding:.1rem 0;}
-  .edi-value{font-size:.9rem; color:var(--text); padding:.1rem 0;}
+  .edi-row{display:flex; flex-direction:column; gap:.15rem; min-width:120px;}
+  .edi-label{font-family:var(--mono); font-size:.65rem; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted);}
+  .edi-value{font-size:.95rem; color:var(--text); font-weight:500;}
 
   /* ---------- payments ---------- */
   .payment-row{
@@ -3527,12 +3528,16 @@ function renderSetupView(){
   const canStart = scoringPlayerIds.length >= 1;
   return `
     <div class="score-setup">
-      <h3>Select players in your group</h3>
+      <div style="display:flex; align-items:center; gap:.8rem; margin-bottom:.9rem; flex-wrap:wrap;">
+        <h3 style="flex:1; margin:0;">Select your group</h3>
+        <button class="btn brass" style="padding:.7rem 1.2rem; font-size:.85rem;" ${canStart?'':'disabled'} onclick="startScoring()">
+          ${canStart ? '▶ Start / Resume' : '▶ Start scoring'}
+        </button>
+      </div>
+      ${canStart ? `<p style="font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:var(--bracken); margin:0 0 .7rem;">${scoringPlayerIds.length} player${scoringPlayerIds.length===1?'':'s'} selected</p>` : ''}
       <input class="player-search" placeholder="Search players…" value="${playerSearchTerm}"
         oninput="playerSearchTerm=this.value; renderLiveScores();">
       <div class="player-pick-list">${list || '<p class="muted">No players found.</p>'}</div>
-      <p style="font-size:.85rem; color:var(--text-muted); margin:0 0 .9rem;">${scoringPlayerIds.length} selected</p>
-      <button class="btn brass" ${canStart?'':'disabled'} onclick="startScoring()">Start / resume scoring →</button>
     </div>`;
 }
 
@@ -3632,7 +3637,8 @@ function renderEntryView(){
       </div>
       ${rows}
       <div class="hole-entry-actions">
-        <button class="btn ghost" onclick="setLiveSubView('leaderboard')">View leaderboard</button>
+        <button class="btn ghost" onclick="setLiveSubView('groupings')">👥 Groupings</button>
+        <button class="btn ghost" onclick="setLiveSubView('leaderboard')">🏆 Leaderboard</button>
         <button class="btn ghost" onclick="setLiveSubView('setup')">Change group</button>
       </div>
     </div>`;
