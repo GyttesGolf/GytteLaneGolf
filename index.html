@@ -682,11 +682,12 @@
   .wa-share-btn svg{width:15px; height:15px; fill:currentColor;}
 
   /* ---------- live scores ---------- */
-  .scores-sub-tabs{display:flex; gap:.5rem; margin-bottom:1.4rem; flex-wrap:wrap;}
+  .scores-sub-tabs{display:grid; grid-template-columns:1fr 1fr; gap:.5rem; margin-bottom:1.2rem;}
   .scores-sub-tab{
-    font-family:var(--mono); font-size:.8rem; text-transform:uppercase; letter-spacing:.04em;
-    padding:.55rem 1.1rem; border-radius:999px; border:1px solid var(--line);
-    background:transparent; color:var(--text-muted); cursor:pointer; transition:all .15s;
+    font-family:var(--mono); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em;
+    padding:.8rem .6rem; border-radius:var(--radius); border:1.5px solid var(--line);
+    background:var(--paper); color:var(--text-muted); cursor:pointer; transition:all .15s;
+    text-align:center;
   }
   .scores-sub-tab.active{background:var(--ink); color:var(--paper); border-color:var(--ink);}
 
@@ -1222,9 +1223,9 @@
         <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="3"/><circle cx="17" cy="7" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6"/></svg>
         Groupings
       </button>
-      <button class="bn-tab" data-section="leaderboard" onclick="goTo('leaderboard'); setBottomNav('leaderboard');">
-        <svg viewBox="0 0 24 24"><polyline points="3,17 9,11 13,15 21,7"/><polyline points="17,7 21,7 21,11"/></svg>
-        Leaderboard
+      <button class="bn-tab" data-section="scores" onclick="goTo('scores'); setBottomNav('scores');">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+        Live Scores
       </button>
       <button class="bn-tab" id="bn-more" onclick="openMoreDrawer();">
         <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none"/></svg>
@@ -1553,8 +1554,8 @@ function goTo(sectionName, opts){
     setTimeout(() => eventsMapInstance.invalidateSize(), 0);
   }
   if (sectionName === 'scores') openLiveScores();
+  if (sectionName === 'leaderboard'){ goTo('scores'); return; }
   if (sectionName === 'groupings') renderGroupings();
-  if (sectionName === 'leaderboard') renderLeaderboardSection();
   setBottomNav(sectionName);
 }
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -3447,7 +3448,7 @@ function renderLiveScores(){
   const subTabs = `
     <div class="scores-sub-tabs">
       <button class="scores-sub-tab ${liveSubView==='leaderboard'?'active':''}" onclick="setLiveSubView('leaderboard')">🏆 Leaderboard</button>
-      <button class="scores-sub-tab ${liveSubView==='setup'?'active':''}" onclick="setLiveSubView('setup')">⛳ Enter scores</button>
+      <button class="scores-sub-tab ${liveSubView==='setup'||liveSubView==='entry'?'active':''}" onclick="setLiveSubView('setup')">⛳ Enter Scores</button>
     </div>`;
 
   const eventSelector = `
