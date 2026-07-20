@@ -634,6 +634,16 @@
   }
   .captains-board .board-rule{height:1px; background:var(--brass); margin:0 1.4rem 1rem; opacity:.7;}
   .captains-board ol{list-style:none; margin:0; padding:0;}
+  /* ---------- player archive ---------- */
+  .player-archive{
+    margin-top:2.4rem; padding-top:2rem; border-top:1px solid var(--line);
+  }
+  .player-archive-grid{
+    display:flex; flex-wrap:wrap; gap:.3rem 1.4rem; margin-top:.9rem;
+  }
+  .player-archive-name{
+    font-family:var(--display); font-size:.95rem; color:var(--text-muted); padding:.15rem 0;
+  }
   .captains-board li{
     display:flex; align-items:center; gap:.6rem; padding:.35rem .4rem; font-size:.95rem; flex-wrap:wrap;
   }
@@ -1179,6 +1189,7 @@
     <h3 class="mini-title" id="past-captains" style="margin-top:2.4rem;">Past Captains</h3>
     <div class="captains-board" id="captains-board"></div>
     <div id="add-honour-slot" style="margin-top:1.4rem;"></div>
+    <div id="player-archive-slot"></div>
   </section>
 
   <!-- ============ ACCOUNTS ============ -->
@@ -2424,6 +2435,7 @@ async function initAuth(){
     renderCoursesPanel();
     renderAccounts();
     renderGroupings();
+    renderPlayerArchive();
   });
 }
 
@@ -3158,7 +3170,7 @@ function renderPlayers(){
       : 'Tap a player\u2019s name to see their scores. Handicap and membership status are editable by committee members only.';
   }
 
-  const sorted = [...players].sort((a,b) => a.first_name.localeCompare(b.first_name));
+  const sorted = [...players].filter(p => p.active !== false).sort((a,b) => a.first_name.localeCompare(b.first_name));
   document.getElementById('players-body').innerHTML = sorted.map(p => {
     const attended = eventsAttendedCount(p.id);
     const isPaid = p.membership_paid_year === currentYear;
@@ -3190,6 +3202,10 @@ function renderPlayers(){
               <div><label>Last name</label><input id="ep-lname-${p.id}" value="${p.last_name.replace(/"/g,'&quot;')}"></div>
               <div><label>Email (optional)</label><input type="email" id="ep-email-${p.id}" value="${(p.email||'').replace(/"/g,'&quot;')}"></div>
               <div><label>Handicap</label><input type="number" step="0.1" id="ep-hcap-${p.id}" value="${p.handicap ?? ''}"></div>
+              <div class="full" style="display:flex; align-items:center; gap:.7rem; padding:.4rem 0;">
+                <input type="checkbox" id="ep-active-${p.id}" ${p.active !== false ? 'checked' : ''} style="width:18px; height:18px; accent-color:var(--bracken);">
+                <label for="ep-active-${p.id}" style="font-size:.9rem; cursor:pointer;">Active member (uncheck to move to archive)</label>
+              </div>
             </div>
             <div class="edit-form-actions">
               <button class="btn brass" onclick="savePlayerEdit(${p.id})">Save</button>
@@ -3242,14 +3258,16 @@ async function savePlayerEdit(id){
   const last_name  = (document.getElementById('ep-lname-'+id)?.value||'').trim();
   const email      = (document.getElementById('ep-email-'+id)?.value||'').trim()||null;
   const handicap   = document.getElementById('ep-hcap-'+id)?.value !== '' ? Number(document.getElementById('ep-hcap-'+id)?.value) : null;
+  const active     = document.getElementById('ep-active-'+id)?.checked !== false;
   if (!first_name || !last_name){ setStatus('First and last name are required.','error'); return; }
   setStatus('Saving\u2026','loading');
-  const { error } = await db.from('players').update({ first_name, last_name, email, handicap }).eq('id', id);
+  const { error } = await db.from('players').update({ first_name, last_name, email, handicap, active }).eq('id', id);
   if (error){ console.error(error); setStatus('Save failed.','error'); return; }
   const p = players.find(x => x.id === id);
-  if (p) Object.assign(p, { first_name, last_name, email, handicap });
+  if (p) Object.assign(p, { first_name, last_name, email, handicap, active });
   editingPlayerIds.delete(id);
   renderPlayers();
+  renderPlayerArchive();
 }
 
 async function deletePlayer(id){
@@ -3262,6 +3280,7 @@ async function deletePlayer(id){
   players = players.filter(x => x.id !== id);
   editingPlayerIds.delete(id);
   renderPlayers();
+  renderPlayerArchive();
 }
 
 function openAddPlayer(){
@@ -4283,6 +4302,26 @@ function renderHonours(){
     </ol>`;
 
   renderAddHonourSlot();
+  renderPlayerArchive();
+}
+
+function renderPlayerArchive(){
+  const slot = document.getElementById('player-archive-slot');
+  if (!slot) return;
+  const archived = [...players]
+    .filter(p => p.active === false)
+    .sort((a,b) => a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name));
+  if (!archived.length){ slot.innerHTML = ''; return; }
+  slot.innerHTML = `
+    <div class="player-archive">
+      <h3 class="mini-title">In Memoriam</h3>
+      <p style="font-size:.88rem; color:var(--text-muted); margin:.4rem 0 0; max-width:48ch; line-height:1.6;">
+        Players who were members of Gytte Lane Golf Society and are no longer with us.
+      </p>
+      <div class="player-archive-grid">
+        ${archived.map(p => `<span class="player-archive-name">${p.first_name} ${p.last_name}</span>`).join('')}
+      </div>
+    </div>`;
 }
 
 function toggleTrophy(name){
