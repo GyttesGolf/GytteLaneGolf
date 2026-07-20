@@ -533,7 +533,12 @@
   .add-item-btn:hover{border-color:var(--brass); color:var(--ink);}
 
   /* ---------- courses panel ---------- */
-  .courses-panel{margin-top:2rem; padding-top:1.8rem; border-top:1px solid var(--line);}
+  .courses-panel{margin-top:0;}
+  .events-page-layout{display:grid; grid-template-columns:1fr; gap:2rem;}
+  .courses-col{min-width:0;}
+  @media(min-width:860px){
+    .events-page-layout{grid-template-columns:1fr 320px; align-items:start;}
+  }
   .courses-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:.9rem; margin-top:1rem;}
   .course-card{
     background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
@@ -1087,16 +1092,24 @@
 
   <!-- ============ EVENTS ============ -->
   <section class="section" id="sec-events" data-section="events">
-    <p class="eyebrow">Fixtures</p>
-    <h2 class="section-title">Events</h2>
-    <div class="filter-row" role="group" aria-label="Filter events">
-      <button class="chip" data-filter="all" aria-pressed="false">All</button>
-      <button class="chip" data-filter="upcoming" aria-pressed="true">Upcoming</button>
-      <button class="chip" data-filter="past" aria-pressed="false">Past</button>
+    <div class="events-page-layout">
+      <div class="events-col">
+        <p class="eyebrow">Fixtures</p>
+        <h2 class="section-title">Events</h2>
+        <div class="filter-row" role="group" aria-label="Filter events">
+          <button class="chip" data-filter="all" aria-pressed="false">All</button>
+          <button class="chip" data-filter="upcoming" aria-pressed="true">Upcoming</button>
+          <button class="chip" data-filter="past" aria-pressed="false">Past</button>
+        </div>
+        <div class="event-list" id="event-list"></div>
+        <div id="add-event-slot"></div>
+      </div>
+      <div class="courses-col">
+        <p class="eyebrow">Venues</p>
+        <h2 class="section-title">Course Ratings</h2>
+        <div id="courses-panel"></div>
+      </div>
     </div>
-    <div class="event-list" id="event-list"></div>
-    <div id="add-event-slot"></div>
-    <div id="courses-panel"></div>
   </section>
 
   <!-- ============ COMMITTEE ============ -->
@@ -4510,10 +4523,9 @@ function renderCoursesPanel(){
 
   panel.innerHTML = `
     <div class="courses-panel">
-      <h3 class="mini-title">Course library</h3>
-      <p style="font-size:.88rem; color:var(--text-muted); margin:.2rem 0 .8rem;">Ranked by member rating. Click a course name to open in Google Maps.</p>
-      <div class="courses-grid">${cards || '<p class="muted">No courses in the library yet.</p>'}</div>
-      ${isLoggedIn ? `<button class="add-item-btn" style="margin-top:1rem;" onclick="openAddCourseForm()">+ Add course to library</button>
+      <p style="font-size:.85rem; color:var(--text-muted); margin:0 0 .8rem;">Ranked by member rating. Click a name to open in Google Maps.</p>
+      <div class="courses-grid">${cards || '<p class="muted">No courses yet.</p>'}</div>
+      ${isLoggedIn ? `<button class="add-item-btn" style="margin-top:.8rem;" onclick="openAddCourseForm()">+ Add course</button>
       <div id="add-course-panel"></div>` : ''}
     </div>`;
 }
@@ -4955,8 +4967,9 @@ async function saveGroup(groupId){
   if (!db){ setStatus('Not connected.','error'); return; }
   const teeTime = document.getElementById('eg-time-'+groupId)?.value || '09:00';
   const sel = document.getElementById('eg-players-'+groupId);
-  const markerId = document.getElementById('eg-marker-'+groupId)?.value;
+  const markerId = null;
   const selectedIds = sel ? [...sel.selectedOptions].map(o => Number(o.value)) : [];
+  if (selectedIds.length > 4){ setStatus('Maximum 4 players per group.','error'); return; }
   setStatus('Saving\u2026','loading');
 
   const { error: te } = await db.from('groups').update({ tee_time: teeTime }).eq('id', groupId);
@@ -5012,7 +5025,7 @@ function renderGroupingsInScores(){
         <div class="edit-form-grid">
           <div><label>Tee time</label><input type="time" id="eg-time-${g.id}" value="${g.tee_time}"></div>
           <div class="full">
-            <label>Players</label>
+            <label>Players <span style="font-family:var(--mono); font-size:.7rem; color:var(--text-muted); font-weight:normal;">(max 4)</span></label>
             <select id="eg-players-${g.id}" multiple style="height:130px; width:100%; font-family:var(--body); font-size:.88rem; padding:.3rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone);">
               ${[...players].filter(p => p.active !== false).sort((a,b) => a.first_name.localeCompare(b.first_name)).map(p =>
                 `<option value="${p.id}" ${gPlayers.some(gp => gp.player_id===p.id)?'selected':''}>${p.first_name} ${p.last_name}</option>`
