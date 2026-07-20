@@ -1068,7 +1068,7 @@
     <div class="leaders-section">
       <h3 class="mini-title"><span id="leaders-year">2026</span> Captain &amp; Vice-Captain</h3>
       <div class="leaders-row" id="leaders-row"></div>
-      <p style="margin:.9rem 0 0;"><a href="#" onclick="goTo('halloffame'); setTimeout(() => { const el = document.getElementById('past-captains'); if (el) el.scrollIntoView({behavior:'smooth'}); }, 100); return false;">Past captains &rarr;</a></p>
+      <p style="margin:.9rem 0 0;"><a href="#" onclick="goTo('halloffame'); setTimeout(() => { toggleTrophy('__captains__'); }, 100); return false;">Past captains &rarr;</a></p>
     </div>
 
     <div class="map-section">
@@ -1186,8 +1186,6 @@
     <div class="trophy-shelf" id="trophy-shelf"></div>
     <div id="trophy-winners-panel"></div>
 
-    <h3 class="mini-title" id="past-captains" style="margin-top:2.4rem;">Past Captains</h3>
-    <div class="captains-board" id="captains-board"></div>
     <div id="add-honour-slot" style="margin-top:1.4rem;"></div>
     <div id="player-archive-slot"></div>
   </section>
@@ -4246,8 +4244,7 @@ function honourEditFormHtml(h){
 function renderHonours(){
   const shelf = document.getElementById('trophy-shelf');
   const winnersPanel = document.getElementById('trophy-winners-panel');
-  const captainsBoard = document.getElementById('captains-board');
-  if (!shelf || !winnersPanel || !captainsBoard) return;
+  if (!shelf || !winnersPanel) return;
 
   const isCaptainEntry = h => ['captain','vice-captain'].includes((h.title||'').trim().toLowerCase());
   const trophies = honours.filter(h => !isCaptainEntry(h));
@@ -4360,25 +4357,6 @@ function renderHonours(){
   } else {
     winnersPanel.innerHTML = '';
   }
-
-  captainsBoard.innerHTML = `
-    <p class="board-title">Past Captains &amp; Vice-Captains</p>
-    <div class="board-rule"></div>
-    <ol>
-      ${captains.map(h => {
-        if (editingHonourIds.has(h.id)) return `<li style="display:block;">${honourEditFormHtml(h)}</li>`;
-        const isVC = (h.title||'').trim().toLowerCase() === 'vice-captain';
-        const badge = isVC
-          ? `<span style="font-family:var(--mono); font-size:.6rem; text-transform:uppercase; letter-spacing:.07em; background:rgba(184,134,47,.25); color:var(--brass-light); padding:.15rem .5rem; border-radius:999px; margin-left:.5rem;">Vice-Captain</span>`
-          : `<span style="font-family:var(--mono); font-size:.6rem; text-transform:uppercase; letter-spacing:.07em; background:rgba(255,255,255,.12); color:rgba(255,255,255,.55); padding:.15rem .5rem; border-radius:999px; margin-left:.5rem;">Captain</span>`;
-        return `<li>
-          <span class="tw-year">${h.year}</span>
-          <span class="tw-name">${h.winner}</span>
-          ${badge}
-          ${isLoggedIn ? `<button class="committee-edit-btn" onclick="toggleHonourEdit(${h.id})">Edit</button>` : ''}
-        </li>`;
-      }).join('') || '<li><span class="tw-name" style="opacity:.6;">No captains recorded yet.</span></li>'}
-    </ol>`;
 
   renderAddHonourSlot();
   renderPlayerArchive();
