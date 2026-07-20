@@ -180,6 +180,9 @@
   .md-item svg{width:20px; height:20px; stroke:currentColor; fill:none; stroke-width:1.8; flex-shrink:0; color:var(--claret);}
   .md-item:hover{background:var(--stone);}
 
+  .committee-only-tab{ display:none !important; }
+  .committee-logged-in .committee-only-tab{ display:flex !important; }
+
   @media(max-width:700px){
     .bottom-nav{display:block;}
     nav.tabs{display:none;}
@@ -1023,7 +1026,7 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
       Hall of Fame
     </button>
-    <button class="tab-btn" role="tab" data-section="accounts" aria-selected="false">
+    <button class="tab-btn committee-only-tab" role="tab" data-section="accounts" aria-selected="false">
       <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="1" x2="12" y2="23" stroke="currentColor" stroke-width="1.8"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
       Accounts
     </button>
@@ -1105,10 +1108,11 @@
     <table class="results-table" id="players-table">
       <caption>Handicap and membership status are kept up to date by the committee. Membership status resets automatically each new year.</caption>
       <thead>
-        <tr><th>Name</th><th>Events attended</th><th>Handicap</th><th id="membership-col-header">Membership paid</th></tr>
+        <tr><th>Name</th><th>Events attended</th><th>Handicap</th><th id="membership-col-header">Membership paid</th>${'<th></th>'}</tr>
       </thead>
       <tbody id="players-body"></tbody>
     </table>
+    <div id="players-add-slot" style="margin-top:.8rem;"></div>
   </section>
 
   <!-- ============ GALLERY ============ -->
@@ -1258,7 +1262,7 @@
       <button class="md-item" onclick="goTo('halloffame'); closeMoreDrawer(); setBottomNav('halloffame');">
         <svg viewBox="0 0 24 24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>Hall of Fame
       </button>
-      <button class="md-item" onclick="goTo('accounts'); closeMoreDrawer(); setBottomNav('accounts');">
+      <button class="md-item committee-only-tab" onclick="goTo('accounts'); closeMoreDrawer(); setBottomNav('accounts');">
         <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Accounts
       </button>
     </div>
@@ -2322,9 +2326,13 @@ function updateNavLock(){
   if (isLoggedIn){
     btn.classList.add('logged-in');
     label.textContent = 'Logged in';
+    document.querySelector('nav.tabs')?.classList.add('committee-logged-in');
+    document.getElementById('more-drawer')?.classList.add('committee-logged-in');
   } else {
     btn.classList.remove('logged-in');
     label.textContent = 'Committee';
+    document.querySelector('nav.tabs')?.classList.remove('committee-logged-in');
+    document.getElementById('more-drawer')?.classList.remove('committee-logged-in');
   }
 }
 
@@ -3135,6 +3143,8 @@ function togglePlayerHistory(playerId){
   renderPlayers();
 }
 
+const editingPlayerIds = new Set();
+
 function renderPlayers(){
   const currentYear = new Date().getFullYear();
 
@@ -3144,7 +3154,7 @@ function renderPlayers(){
   const note = document.getElementById('players-login-note');
   if (note){
     note.innerHTML = isLoggedIn
-      ? 'Logged in \u2014 you can update handicaps and membership status below. Tap a player\u2019s name to see their scores.'
+      ? 'Logged in \u2014 you can edit, add and remove players below. Tap a name to see their score history.'
       : 'Tap a player\u2019s name to see their scores. Handicap and membership status are editable by committee members only.';
   }
 
@@ -3154,6 +3164,7 @@ function renderPlayers(){
     const isPaid = p.membership_paid_year === currentYear;
     const history = playerScoreHistory(p.id);
     const isExpanded = expandedPlayerIds.has(p.id);
+    const isEditing = editingPlayerIds.has(p.id);
 
     const handicapCell = isLoggedIn
       ? `<input class="handicap-input" type="number" step="0.1" value="${p.handicap ?? ''}"
@@ -3169,9 +3180,30 @@ function renderPlayers(){
       ? `<a href="#" onclick="togglePlayerHistory(${p.id}); return false;" style="font-weight:500;">${p.first_name} ${p.last_name} <span style="font-family:var(--mono); font-size:.7rem;">${isExpanded ? '\u25B4' : '\u25BE'}</span></a>`
       : `${p.first_name} ${p.last_name}`;
 
+    const editRow = isLoggedIn && isEditing ? `
+      <tr>
+        <td colspan="5" style="padding:.6rem 1rem; background:var(--paper);">
+          <div class="edit-form" style="max-width:480px;">
+            <h4>Edit player</h4>
+            <div class="edit-form-grid">
+              <div><label>First name</label><input id="ep-fname-${p.id}" value="${p.first_name.replace(/"/g,'&quot;')}"></div>
+              <div><label>Last name</label><input id="ep-lname-${p.id}" value="${p.last_name.replace(/"/g,'&quot;')}"></div>
+              <div><label>Email (optional)</label><input type="email" id="ep-email-${p.id}" value="${(p.email||'').replace(/"/g,'&quot;')}"></div>
+              <div><label>Handicap</label><input type="number" step="0.1" id="ep-hcap-${p.id}" value="${p.handicap ?? ''}"></div>
+            </div>
+            <div class="edit-form-actions">
+              <button class="btn brass" onclick="savePlayerEdit(${p.id})">Save</button>
+              <button class="btn ghost" onclick="togglePlayerEdit(${p.id})">Cancel</button>
+              <div class="edit-status" id="ep-status-${p.id}"></div>
+              <button class="delete-btn" onclick="deletePlayer(${p.id})">Delete player</button>
+            </div>
+          </div>
+        </td>
+      </tr>` : '';
+
     const historyRow = isExpanded && history.length ? `
       <tr>
-        <td colspan="4" style="background:var(--paper); padding:.8rem 1rem;">
+        <td colspan="${isLoggedIn?5:4}" style="background:var(--paper); padding:.8rem 1rem;">
           <div style="font-family:var(--mono); font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); margin-bottom:.5rem;">Score history</div>
           ${history.map(h => `
             <div style="display:flex; gap:.9rem; align-items:baseline; padding:.25rem 0; font-size:.9rem; border-bottom:1px solid var(--line);">
@@ -3188,8 +3220,85 @@ function renderPlayers(){
         <td>${attended}</td>
         <td>${handicapCell}</td>
         <td>${membershipCell}</td>
-      </tr>${historyRow}`;
+        ${isLoggedIn ? `<td><button class="committee-edit-btn" onclick="togglePlayerEdit(${p.id})">${isEditing?'Cancel':'Edit'}</button></td>` : ''}
+      </tr>${editRow}${historyRow}`;
   }).join('');
+
+  /* add player button */
+  const addSlot = document.getElementById('players-add-slot');
+  if (addSlot) addSlot.innerHTML = isLoggedIn
+    ? `<button class="add-item-btn" onclick="openAddPlayer()">+ Add player</button><div id="add-player-form"></div>` : '';
+}
+
+function togglePlayerEdit(id){
+  if (editingPlayerIds.has(id)) editingPlayerIds.delete(id); else editingPlayerIds.add(id);
+  renderPlayers();
+}
+
+async function savePlayerEdit(id){
+  const setStatus = (msg, kind) => { const el = document.getElementById('ep-status-'+id); if(el){el.textContent=msg; el.className='edit-status '+(kind||'');} };
+  if (!db){ setStatus('Not connected.','error'); return; }
+  const first_name = (document.getElementById('ep-fname-'+id)?.value||'').trim();
+  const last_name  = (document.getElementById('ep-lname-'+id)?.value||'').trim();
+  const email      = (document.getElementById('ep-email-'+id)?.value||'').trim()||null;
+  const handicap   = document.getElementById('ep-hcap-'+id)?.value !== '' ? Number(document.getElementById('ep-hcap-'+id)?.value) : null;
+  if (!first_name || !last_name){ setStatus('First and last name are required.','error'); return; }
+  setStatus('Saving\u2026','loading');
+  const { error } = await db.from('players').update({ first_name, last_name, email, handicap }).eq('id', id);
+  if (error){ console.error(error); setStatus('Save failed.','error'); return; }
+  const p = players.find(x => x.id === id);
+  if (p) Object.assign(p, { first_name, last_name, email, handicap });
+  editingPlayerIds.delete(id);
+  renderPlayers();
+}
+
+async function deletePlayer(id){
+  const p = players.find(x => x.id === id);
+  if (!p) return;
+  if (!confirm(`Delete ${p.first_name} ${p.last_name}? This cannot be undone and will remove all their scores and sign-ups.`)) return;
+  if (!db) return;
+  const { error } = await db.from('players').delete().eq('id', id);
+  if (error){ console.error(error); alert('Delete failed — they may have linked scores or sign-ups.'); return; }
+  players = players.filter(x => x.id !== id);
+  editingPlayerIds.delete(id);
+  renderPlayers();
+}
+
+function openAddPlayer(){
+  const form = document.getElementById('add-player-form');
+  if (!form) return;
+  form.innerHTML = `
+    <div class="edit-form" style="max-width:480px; margin-top:.8rem;">
+      <h4>Add player</h4>
+      <div class="edit-form-grid">
+        <div><label>First name</label><input id="np-fname" placeholder="First name"></div>
+        <div><label>Last name</label><input id="np-lname" placeholder="Last name"></div>
+        <div><label>Email (optional)</label><input type="email" id="np-email" placeholder="email@example.com"></div>
+        <div><label>Handicap (optional)</label><input type="number" step="0.1" id="np-hcap" placeholder="e.g. 18"></div>
+      </div>
+      <div class="edit-form-actions">
+        <button class="btn brass" onclick="saveNewPlayer()">Add player</button>
+        <button class="btn ghost" onclick="document.getElementById('add-player-form').innerHTML=''">Cancel</button>
+        <div class="edit-status" id="np-status"></div>
+      </div>
+    </div>`;
+  setTimeout(() => { document.getElementById('np-fname')?.focus(); }, 50);
+}
+
+async function saveNewPlayer(){
+  const setStatus = (msg, kind) => { const el = document.getElementById('np-status'); if(el){el.textContent=msg; el.className='edit-status '+(kind||'');} };
+  if (!db){ setStatus('Not connected.','error'); return; }
+  const first_name = (document.getElementById('np-fname')?.value||'').trim();
+  const last_name  = (document.getElementById('np-lname')?.value||'').trim();
+  const email      = (document.getElementById('np-email')?.value||'').trim()||null;
+  const handicap   = document.getElementById('np-hcap')?.value !== '' ? Number(document.getElementById('np-hcap')?.value) : null;
+  if (!first_name || !last_name){ setStatus('First and last name are required.','error'); return; }
+  setStatus('Saving\u2026','loading');
+  const { data, error } = await db.from('players').insert({ first_name, last_name, email, handicap }).select().single();
+  if (error){ console.error(error); setStatus('Save failed.','error'); return; }
+  if (data) players.push(data);
+  document.getElementById('add-player-form').innerHTML = '';
+  renderPlayers();
 }
 
 async function updatePlayerHandicap(playerId, rawValue){
