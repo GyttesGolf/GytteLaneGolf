@@ -3340,7 +3340,7 @@ let holeScores = [];
 let liveEventId = null;
 let scoringPlayerIds = [];
 let currentHole = 1;
-let liveSubView = 'leaderboard'; // 'leaderboard' | 'setup' | 'entry'
+let liveSubView = 'setup'; // 'setup' | 'entry' | 'leaderboard' | 'groupings'
 let liveChannel = null;
 let liveScoresReady = false; // true once tables confirmed to exist
 
@@ -3439,9 +3439,9 @@ function renderLiveScores(){
 
   const subTabs = `
     <div class="scores-sub-tabs">
-      <button class="scores-sub-tab ${liveSubView==='groupings'?'active':''}" onclick="setLiveSubView('groupings')">👥 Groupings</button>
-      <button class="scores-sub-tab ${liveSubView==='leaderboard'?'active':''}" onclick="setLiveSubView('leaderboard')">🏆 Leaderboard</button>
       <button class="scores-sub-tab ${liveSubView==='setup'||liveSubView==='entry'?'active':''}" onclick="setLiveSubView('setup')">⛳ Enter Scores</button>
+      <button class="scores-sub-tab ${liveSubView==='leaderboard'?'active':''}" onclick="setLiveSubView('leaderboard')">🏆 Leaderboard</button>
+      <button class="scores-sub-tab ${liveSubView==='groupings'?'active':''}" onclick="setLiveSubView('groupings')">👥 Groupings</button>
     </div>`;
 
   const eventSelector = `
