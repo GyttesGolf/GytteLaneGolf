@@ -3094,14 +3094,13 @@ async function savePlayerEdit(id){
 async function deletePlayer(id){
   const p = players.find(x => x.id === id);
   if (!p) return;
-  if (!confirm(`Delete ${p.first_name} ${p.last_name}? This cannot be undone and will remove all their scores and sign-ups.`)) return;
+  if (!confirm(`Permanently delete ${p.first_name} ${p.last_name}? This will remove them and all their sign-ups, scores and payment records. Cannot be undone.`)) return;
   if (!db) return;
   const { error } = await db.from('players').delete().eq('id', id);
-  if (error){ console.error(error); alert('Delete failed — they may have linked scores or sign-ups.'); return; }
+  if (error){ console.error(error); alert('Delete failed — please try again.'); return; }
   players = players.filter(x => x.id !== id);
   editingPlayerIds.delete(id);
   renderPlayers();
-
 }
 
 function openAddPlayer(){
