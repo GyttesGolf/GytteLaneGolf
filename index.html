@@ -1632,6 +1632,7 @@ function eventDetailHtml(e){
   const attendees = signupsForEvent(e.id);
   const isEditing = editingEventIds.has(e.id);
   const playerOptions = [...players]
+    .filter(p => p.active !== false)
     .sort((a,b) => a.first_name.localeCompare(b.first_name))
     .map(p => `<option value="${p.id}">${p.first_name} ${p.last_name}</option>`)
     .join('');
@@ -3509,11 +3510,54 @@ function committeeLeaderboardHtml(lb, showFinalise){
 /* --- setup view --- */
 let playerSearchTerm = '';
 function renderSetupView(){
+  const evGroups = matchGroups
+    .filter(g => g.event_id === liveEventId)
+    .sort((a,b) => a.tee_time.localeCompare(b.tee_time));
+
+  /* if groups exist — show them as tappable cards */
+  if (evGroups.length){
+    const cards = evGroups.map((g, idx) => {
+      const gPlayers = matchGroupPlayers.filter(gp => gp.group_id === g.id);
+      const playerNames = gPlayers.map(gp => {
+        const p = players.find(x => x.id === gp.player_id);
+        return p ? `${p.first_name} ${p.last_name}` : null;
+      }).filter(Boolean);
+
+      const isSelected = gPlayers.length && gPlayers.every(gp => scoringPlayerIds.includes(gp.player_id))
+        && scoringPlayerIds.length === gPlayers.length;
+
+      return `
+        <div style="background:var(--paper); border:2px solid ${isSelected ? 'var(--brass)' : 'var(--line)'}; border-radius:var(--radius);
+          padding:1rem 1.2rem; margin-bottom:.7rem; cursor:pointer;"
+          onclick="selectGroupForScoring(${g.id})">
+          <div style="display:flex; align-items:baseline; gap:.8rem; margin-bottom:.5rem;">
+            <span style="font-family:var(--mono); font-size:1.2rem; font-weight:700; color:var(--ink);">${g.tee_time}</span>
+            <span style="font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Group ${idx+1}</span>
+            ${isSelected ? `<span style="margin-left:auto; font-family:var(--mono); font-size:.7rem; color:var(--brass); font-weight:600;">✓ Selected</span>` : ''}
+          </div>
+          <div style="font-size:.9rem; color:var(--text);">
+            ${playerNames.join(', ') || '<span style="color:var(--text-muted);">No players assigned</span>'}
+          </div>
+        </div>`;
+    }).join('');
+
+    const canStart = scoringPlayerIds.length >= 1;
+    return `
+      <div class="score-setup">
+        <div style="display:flex; align-items:center; gap:.8rem; margin-bottom:.9rem; flex-wrap:wrap;">
+          <h3 style="flex:1; margin:0;">Select your group</h3>
+          <button class="btn brass" style="padding:.7rem 1.2rem; font-size:.85rem;" ${canStart?'':'disabled'} onclick="startScoring()">
+            ▶ Start / Resume
+          </button>
+        </div>
+        ${canStart ? `<p style="font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:var(--bracken); margin:0 0 .7rem;">${scoringPlayerIds.length} player${scoringPlayerIds.length===1?'':'s'} selected</p>` : ''}
+        ${cards}
+      </div>`;
+  }
+
+  /* fallback — no groups set up, manual player selection */
   const filtered = [...players]
-    .filter(p => {
-      const name = (p.first_name + ' ' + p.last_name).toLowerCase();
-      return name.includes(playerSearchTerm.toLowerCase());
-    })
+    .filter(p => p.active !== false && (p.first_name + ' ' + p.last_name).toLowerCase().includes(playerSearchTerm.toLowerCase()))
     .sort((a,b) => a.first_name.localeCompare(b.first_name));
 
   const list = filtered.map(p => {
@@ -3531,14 +3575,22 @@ function renderSetupView(){
       <div style="display:flex; align-items:center; gap:.8rem; margin-bottom:.9rem; flex-wrap:wrap;">
         <h3 style="flex:1; margin:0;">Select your group</h3>
         <button class="btn brass" style="padding:.7rem 1.2rem; font-size:.85rem;" ${canStart?'':'disabled'} onclick="startScoring()">
-          ${canStart ? '▶ Start / Resume' : '▶ Start scoring'}
+          ▶ Start / Resume
         </button>
       </div>
-      ${canStart ? `<p style="font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:var(--bracken); margin:0 0 .7rem;">${scoringPlayerIds.length} player${scoringPlayerIds.length===1?'':'s'} selected</p>` : ''}
+      ${canStart ? `<p style="font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:var(--bracken); margin:0 0 .7rem;">${scoringPlayerIds.length} selected</p>` : ''}
+      <p class="muted" style="font-size:.82rem; margin-bottom:.7rem;">No groups set up yet — select players manually below.</p>
       <input class="player-search" placeholder="Search players…" value="${playerSearchTerm}"
         oninput="playerSearchTerm=this.value; renderLiveScores();">
       <div class="player-pick-list">${list || '<p class="muted">No players found.</p>'}</div>
     </div>`;
+}
+
+function selectGroupForScoring(groupId){
+  const gPlayers = matchGroupPlayers.filter(gp => gp.group_id === groupId);
+  const ids = gPlayers.map(gp => gp.player_id).filter(id => players.find(p => p.id === id && p.active !== false));
+  scoringPlayerIds = ids;
+  renderLiveScores();
 }
 
 function toggleScoringPlayer(playerId){
@@ -4168,7 +4220,7 @@ async function deleteHonour(id){
 }
 
 function honourPlayerSelectHtml(inputId){
-  const sorted = [...players].sort((a,b) => a.first_name.localeCompare(b.first_name));
+  const sorted = [...players].filter(p => p.active !== false).sort((a,b) => a.first_name.localeCompare(b.first_name));
   return `
     <select id="${inputId}">
       <option value="">— Select player —</option>
@@ -4915,7 +4967,7 @@ async function saveGroup(groupId){
   matchGroupPlayers = matchGroupPlayers.filter(gp => gp.group_id !== groupId);
 
   if (selectedIds.length){
-    const rows = selectedIds.map(pid => ({ group_id: groupId, player_id: pid, is_marker: Number(markerId) === pid }));
+    const rows = selectedIds.map(pid => ({ group_id: groupId, player_id: pid, is_marker: false }));
     const { data: newGPs, error: ge } = await db.from('group_players').insert(rows).select();
     if (ge){ console.error(ge); setStatus('Players save failed.','error'); return; }
     if (newGPs) matchGroupPlayers.push(...newGPs);
@@ -4945,14 +4997,12 @@ function renderGroupingsInScores(){
 
   const cards = evGroups.map((g, idx) => {
     const gPlayers = matchGroupPlayers.filter(gp => gp.group_id === g.id);
-    const marker = gPlayers.find(gp => gp.is_marker);
     const isEditing = editingGroupId === g.id;
 
     const rows = gPlayers.map(gp => {
       const p = players.find(x => x.id === gp.player_id);
       if (!p) return '';
       return `<div style="display:flex; align-items:center; gap:.6rem; padding:.3rem 0; border-bottom:1px solid var(--line); font-size:.92rem;">
-        ${gp.is_marker ? '<span title="Marker" style="font-size:.8rem; color:var(--brass);">✎</span>' : '<span style="width:1rem;"></span>'}
         <span>${p.first_name} ${p.last_name}</span>
       </div>`;
     }).filter(Boolean).join('');
@@ -4964,17 +5014,8 @@ function renderGroupingsInScores(){
           <div class="full">
             <label>Players</label>
             <select id="eg-players-${g.id}" multiple style="height:130px; width:100%; font-family:var(--body); font-size:.88rem; padding:.3rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone);">
-              ${[...players].sort((a,b) => a.first_name.localeCompare(b.first_name)).map(p =>
+              ${[...players].filter(p => p.active !== false).sort((a,b) => a.first_name.localeCompare(b.first_name)).map(p =>
                 `<option value="${p.id}" ${gPlayers.some(gp => gp.player_id===p.id)?'selected':''}>${p.first_name} ${p.last_name}</option>`
-              ).join('')}
-            </select>
-          </div>
-          <div class="full">
-            <label>Marker</label>
-            <select id="eg-marker-${g.id}">
-              <option value="">— Select marker —</option>
-              ${[...players].sort((a,b) => a.first_name.localeCompare(b.first_name)).map(p =>
-                `<option value="${p.id}" ${marker?.player_id===p.id?'selected':''}>${p.first_name} ${p.last_name}</option>`
               ).join('')}
             </select>
           </div>
@@ -5010,7 +5051,6 @@ function renderGroupingsInScores(){
     </p>
     ${emptyMsg}
     ${cards}
-    ${evGroups.length ? `<p style="font-family:var(--mono); font-size:.7rem; color:var(--text-muted); margin-bottom:.6rem;">✎ = marker</p>` : ''}
     ${addBtn}`;
 }
 
