@@ -5000,38 +5000,86 @@ function renderGroupingsInScores(){
 
   const evGroups = matchGroups.filter(g => g.event_id === liveEventId).sort((a,b) => a.tee_time.localeCompare(b.tee_time));
 
-  if (!evGroups.length){
-    return `<p class="muted">No groups set up for ${ev.name} yet.${isLoggedIn ? ' Go to the Groupings page to add them.' : ''}</p>`;
-  }
-
   const cards = evGroups.map((g, idx) => {
     const gPlayers = matchGroupPlayers.filter(gp => gp.group_id === g.id);
+    const marker = gPlayers.find(gp => gp.is_marker);
+    const isEditing = editingGroupId === g.id;
+
     const rows = gPlayers.map(gp => {
       const p = players.find(x => x.id === gp.player_id);
       if (!p) return '';
-      const name = `${p.first_name} ${p.last_name}`;
       return `<div style="display:flex; align-items:center; gap:.6rem; padding:.3rem 0; border-bottom:1px solid var(--line); font-size:.92rem;">
-        ${gp.is_marker ? '<span title="Marker" style="font-size:.8rem;">✎</span>' : '<span style="width:1rem;"></span>'}
-        <span>${name}</span>
+        ${gp.is_marker ? '<span title="Marker" style="font-size:.8rem; color:var(--brass);">✎</span>' : '<span style="width:1rem;"></span>'}
+        <span>${p.first_name} ${p.last_name}</span>
       </div>`;
     }).filter(Boolean).join('');
 
+    const editForm = isLoggedIn && isEditing ? `
+      <div class="edit-form" style="margin-top:.8rem;" onclick="event.stopPropagation()">
+        <div class="edit-form-grid">
+          <div><label>Tee time</label><input type="time" id="eg-time-${g.id}" value="${g.tee_time}"></div>
+          <div class="full">
+            <label>Players</label>
+            <select id="eg-players-${g.id}" multiple style="height:130px; width:100%; font-family:var(--body); font-size:.88rem; padding:.3rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone);">
+              ${[...players].sort((a,b) => a.first_name.localeCompare(b.first_name)).map(p =>
+                `<option value="${p.id}" ${gPlayers.some(gp => gp.player_id===p.id)?'selected':''}>${p.first_name} ${p.last_name}</option>`
+              ).join('')}
+            </select>
+          </div>
+          <div class="full">
+            <label>Marker</label>
+            <select id="eg-marker-${g.id}">
+              <option value="">— Select marker —</option>
+              ${[...players].sort((a,b) => a.first_name.localeCompare(b.first_name)).map(p =>
+                `<option value="${p.id}" ${marker?.player_id===p.id?'selected':''}>${p.first_name} ${p.last_name}</option>`
+              ).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="edit-form-actions">
+          <button class="btn brass" onclick="saveGroup(${g.id})">Save</button>
+          <button class="btn ghost" onclick="editingGroupId=null; setLiveSubView('groupings');">Cancel</button>
+          <div class="edit-status" id="eg-status-${g.id}"></div>
+          <button class="delete-btn" onclick="deleteGroup(${g.id})">Delete</button>
+        </div>
+      </div>` : '';
+
     return `
       <div style="background:var(--paper); border:1px solid var(--line); border-left:4px solid var(--brass); border-radius:var(--radius); padding:.9rem 1.1rem; margin-bottom:.7rem;">
-        <div style="display:flex; align-items:baseline; gap:.8rem; margin-bottom:.5rem;">
+        <div style="display:flex; align-items:baseline; gap:.8rem; margin-bottom:.5rem; flex-wrap:wrap;">
           <span style="font-family:var(--mono); font-size:1.3rem; font-weight:700; color:var(--ink);">${g.tee_time}</span>
           <span style="font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Group ${idx+1}</span>
+          ${isLoggedIn ? `<button class="committee-edit-btn" style="margin-left:auto;" onclick="editingGroupId=${isEditing?null:g.id}; setLiveSubView('groupings');">${isEditing?'Cancel':'Edit'}</button>` : ''}
         </div>
         ${rows || '<p class="muted" style="font-size:.85rem;">No players assigned</p>'}
+        ${editForm}
       </div>`;
   }).join('');
 
+  const addBtn = isLoggedIn ? `
+    <button class="add-item-btn" style="margin-top:.4rem;" onclick="addGroupFromScores('${liveEventId}')">+ Add group</button>` : '';
+
+  const emptyMsg = evGroups.length ? '' : `<p class="muted">No groups set up yet${isLoggedIn ? ' — add one below.' : '.'}</p>`;
+
   return `
     <p style="font-family:var(--mono); font-size:.75rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin-bottom:.9rem;">
-      ${ev.name} &nbsp;·&nbsp; ${fmtDate(ev.date)}
+      ${ev.name} &nbsp;·&nbsp; ${fmtDate(ev.date)}${ev.course ? ' &nbsp;·&nbsp; ' + ev.course : ''}
     </p>
+    ${emptyMsg}
     ${cards}
-    <p style="font-family:var(--mono); font-size:.7rem; color:var(--text-muted); margin-top:.5rem;">✎ = marker</p>`;
+    ${evGroups.length ? `<p style="font-family:var(--mono); font-size:.7rem; color:var(--text-muted); margin-bottom:.6rem;">✎ = marker</p>` : ''}
+    ${addBtn}`;
+}
+
+async function addGroupFromScores(eventId){
+  if (!db) return;
+  const { data, error } = await db.from('groups')
+    .insert({ event_id: eventId, tee_time: '09:00', group_number: matchGroups.filter(g => g.event_id === eventId).length + 1 })
+    .select().single();
+  if (error){ console.error(error); alert('Could not add group.'); return; }
+  matchGroups.push(data);
+  editingGroupId = data.id;
+  setLiveSubView('groupings');
 }
 
 /* ===================== leaderboard section ===================== */
