@@ -1284,6 +1284,14 @@
       <div id="login-modal-content"></div>
     </div>
   </div>
+  <!-- ============ LIGHTBOX ============ -->
+  <div id="lightbox" style="display:none; position:fixed; inset:0; z-index:200; background:rgba(0,0,0,.92); flex-direction:column; align-items:center; justify-content:center;" onclick="closeLightbox()">
+    <button onclick="closeLightbox()" style="position:absolute; top:1rem; right:1.2rem; background:none; border:none; color:#fff; font-size:2rem; cursor:pointer; line-height:1; z-index:201;">&times;</button>
+    <button id="lb-prev" onclick="event.stopPropagation(); lightboxNav(-1)" style="position:absolute; left:.8rem; top:50%; transform:translateY(-50%); background:rgba(255,255,255,.15); border:none; color:#fff; font-size:1.8rem; cursor:pointer; border-radius:50%; width:44px; height:44px; z-index:201;">‹</button>
+    <button id="lb-next" onclick="event.stopPropagation(); lightboxNav(1)" style="position:absolute; right:.8rem; top:50%; transform:translateY(-50%); background:rgba(255,255,255,.15); border:none; color:#fff; font-size:1.8rem; cursor:pointer; border-radius:50%; width:44px; height:44px; z-index:201;">›</button>
+    <img id="lb-img" src="" alt="" style="max-width:calc(100vw - 100px); max-height:calc(100vh - 120px); object-fit:contain; border-radius:4px;" onclick="event.stopPropagation()">
+    <div id="lb-caption" style="color:#fff; text-align:center; padding:.8rem 1rem; font-family:var(--body); max-width:600px;"></div>
+  </div>
 
 </main>
 
@@ -2536,7 +2544,7 @@ function galleryTileHtml(g, opts){
   const mediaHtml = g.media_url
     ? (g.type === 'video'
         ? `<video class="tile-media-real" src="${g.media_url}" controls></video>`
-        : `<img class="tile-media-real" src="${g.media_url}" alt="${g.caption || ''}">`)
+        : `<img class="tile-media-real" src="${g.media_url}" alt="${g.caption || ''}" style="cursor:zoom-in;" onclick="openLightbox('${g.id}')">`)
     : `<div class="tile-media ${g.type === 'video' ? 'video' : ''}"></div>`;
 
   const uploadBlock = (isLoggedIn && !opts.compact) ? `
@@ -5166,6 +5174,54 @@ function renderLeaderboardSection(){
   const html = renderLeaderboardView ? renderLeaderboardView() : '<p class="muted">Live scoring not active.</p>';
   el.innerHTML = html;
 }
+
+/* ===================== lightbox ===================== */
+let lightboxIndex = 0;
+let lightboxItems = [];
+
+function openLightbox(galleryId){
+  lightboxItems = gallery.filter(g => g.type !== 'video' && g.media_url);
+  lightboxIndex = lightboxItems.findIndex(g => g.id === galleryId);
+  if (lightboxIndex < 0) return;
+  showLightboxItem();
+  const lb = document.getElementById('lightbox');
+  if (lb){ lb.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+}
+
+function showLightboxItem(){
+  const g = lightboxItems[lightboxIndex];
+  if (!g) return;
+  const img = document.getElementById('lb-img');
+  const cap = document.getElementById('lb-caption');
+  if (img) img.src = g.media_url;
+  if (cap){
+    const ev = eventById(g.eventId);
+    cap.innerHTML = `<strong>${g.caption||''}</strong>${g.description ? '<br><span style="font-size:.88rem; opacity:.75;">'+g.description+'</span>' : ''}${ev ? '<br><span style="font-size:.8rem; opacity:.55;">'+ev.name+'</span>' : ''}`;
+  }
+  document.getElementById('lb-prev').style.visibility = lightboxIndex > 0 ? 'visible' : 'hidden';
+  document.getElementById('lb-next').style.visibility = lightboxIndex < lightboxItems.length-1 ? 'visible' : 'hidden';
+}
+
+function lightboxNav(dir){
+  lightboxIndex = Math.max(0, Math.min(lightboxItems.length-1, lightboxIndex + dir));
+  showLightboxItem();
+}
+
+function closeLightbox(){
+  const lb = document.getElementById('lightbox');
+  if (lb){ lb.style.display = 'none'; document.body.style.overflow = ''; }
+  const img = document.getElementById('lb-img');
+  if (img) img.src = '';
+}
+
+/* keyboard navigation */
+document.addEventListener('keydown', e => {
+  const lb = document.getElementById('lightbox');
+  if (!lb || lb.style.display === 'none') return;
+  if (e.key === 'ArrowLeft') lightboxNav(-1);
+  else if (e.key === 'ArrowRight') lightboxNav(1);
+  else if (e.key === 'Escape') closeLightbox();
+});
 
 /* ===================== init ===================== */
 async function init(){
