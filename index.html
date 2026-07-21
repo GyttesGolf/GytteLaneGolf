@@ -1788,9 +1788,13 @@ function eventDetailHtml(e){
         const ratingBlock = course ? starPickerHtml(course.id, e.id) : '';
         const fee = parseFloat((e.cost||'').replace(/[^0-9.]/g,'')) || 0;
         const eventPlayers = attendees.length ? attendees : (eventFullScores(e.id).map(x => x.player).filter(Boolean));
-        const paidIds = new Set(eventPayments.filter(p => p.event_id === e.id && p.paid).map(p => p.player_id));
-        const totalCollected = paidIds.size * fee;
-        const totalExpected = eventPlayers.length * fee;
+        const playerPayments = eventPlayers.map(p => ({
+          p,
+          rec: eventPayments.find(x => x.event_id === e.id && x.player_id === p.id)
+        }));
+        const totalCollected = playerPayments.reduce((s, {rec}) => s + (rec && rec.paid ? Number(rec.amount||0) : 0), 0);
+        const totalExpected = playerPayments.reduce((s, {rec}) => s + Number(rec ? (rec.amount||fee) : fee), 0);
+        const paidCount = playerPayments.filter(({rec}) => rec && rec.paid).length;
         return `
           <div class="attendee-list" style="margin-top:.8rem;">
             <h4>Event summary</h4>
@@ -1807,22 +1811,28 @@ function eventDetailHtml(e){
                 </summary>
                 <ul style="margin-top:.6rem;">${attendees.map(p => `<li>${p.first_name} ${p.last_name}</li>`).join('')}</ul>
               </details>` : ''}
-            ${isLoggedIn && fee && eventPlayers.length ? `
+            ${isLoggedIn && eventPlayers.length ? `
                 <div class="edit-form" style="margin-top:.8rem;">
-                  <h4>Payment tracking — £${fee.toFixed(2)} per player</h4>
+                  <h4>Payment tracking${fee ? ` — default £${fee.toFixed(2)}` : ''}</h4>
                   <div>
-                    ${eventPlayers.map(p => {
-                      const isPaid = paidIds.has(p.id);
+                    ${playerPayments.map(({p, rec}) => {
+                      const isPaid = rec && rec.paid;
+                      const amount = rec ? Number(rec.amount||fee) : fee;
                       return `<div class="payment-row ${isPaid?'paid':''}">
-                        <input type="checkbox" ${isPaid?'checked':''} onchange="togglePayment('${e.id}',${p.id},${fee},this.checked)">
+                        <input type="checkbox" ${isPaid?'checked':''} onchange="togglePayment('${e.id}',${p.id},document.getElementById('pay-amt-${e.id}-${p.id}').value,this.checked)">
                         <span class="pay-name">${p.first_name} ${p.last_name}</span>
-                        <span class="pay-amount">${isPaid?'£'+fee.toFixed(2):'—'}</span>
+                        <div style="display:flex; align-items:center; gap:.3rem; margin-left:auto;">
+                          <span style="font-family:var(--mono); font-size:.8rem; color:var(--text-muted);">£</span>
+                          <input id="pay-amt-${e.id}-${p.id}" type="number" step="0.01" min="0" value="${amount.toFixed(2)}"
+                            style="width:4.5rem; font-family:var(--mono); font-size:.82rem; padding:.25rem .4rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone); text-align:right;"
+                            onchange="updatePaymentAmount('${e.id}',${p.id},this.value)">
+                        </div>
                       </div>`;
                     }).join('')}
                   </div>
                   <div class="payment-summary">
-                    <span class="ps-total">✓ Collected: £${totalCollected.toFixed(2)} (${paidIds.size} players)</span>
-                    ${paidIds.size < eventPlayers.length ? `<span class="ps-outstanding">Outstanding: £${(totalExpected-totalCollected).toFixed(2)} (${eventPlayers.length-paidIds.size} players)</span>` : ''}
+                    <span class="ps-total">✓ Collected: £${totalCollected.toFixed(2)} (${paidCount} players)</span>
+                    ${paidCount < eventPlayers.length ? `<span class="ps-outstanding">Outstanding: £${(totalExpected-totalCollected).toFixed(2)} (${eventPlayers.length-paidCount} players)</span>` : ''}
                   </div>
                 </div>` : ''}
             ${ratingBlock}
@@ -1866,22 +1876,43 @@ function eventDetailHtml(e){
               ? '<ul>' + attendees.map(p => `<li>${p.first_name} ${p.last_name}</li>`).join('') + '</ul>'
               : '<p class="muted">No one signed up yet — be the first.</p>'}
           </div>
-          ${isLoggedIn && fee && signedUp.length ? `
+          ${isLoggedIn && signedUp.length ? `
             <div class="edit-form" style="margin-top:.8rem;">
-              <h4>Payment tracking — £${fee.toFixed(2)} per player</h4>
+              <h4>Payment tracking${fee ? ` — default £${fee.toFixed(2)}` : ''}</h4>
               <div>
                 ${signedUp.map(p => {
-                  const isPaid = paidIds.has(p.id);
+                  const rec = eventPayments.find(x => x.event_id === e.id && x.player_id === p.id);
+                  const isPaid = rec && rec.paid;
+                  const amount = rec ? Number(rec.amount||fee) : fee;
                   return `<div class="payment-row ${isPaid?'paid':''}">
-                    <input type="checkbox" ${isPaid?'checked':''} onchange="togglePayment('${e.id}',${p.id},${fee},this.checked)">
+                    <input type="checkbox" ${isPaid?'checked':''} onchange="togglePayment('${e.id}',${p.id},document.getElementById('pay-amt-${e.id}-${p.id}').value,this.checked)">
                     <span class="pay-name">${p.first_name} ${p.last_name}</span>
-                    <span class="pay-amount">${isPaid?'£'+fee.toFixed(2):'—'}</span>
+                    <div style="display:flex; align-items:center; gap:.3rem; margin-left:auto;">
+                      <span style="font-family:var(--mono); font-size:.8rem; color:var(--text-muted);">£</span>
+                      <input id="pay-amt-${e.id}-${p.id}" type="number" step="0.01" min="0" value="${amount.toFixed(2)}"
+                        style="width:4.5rem; font-family:var(--mono); font-size:.82rem; padding:.25rem .4rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone); text-align:right;"
+                        onchange="updatePaymentAmount('${e.id}',${p.id},this.value)">
+                    </div>
                   </div>`;
                 }).join('')}
               </div>
               <div class="payment-summary">
-                <span class="ps-total">✓ Collected: £${totalCollected.toFixed(2)} (${paidIds.size} players)</span>
-                ${paidIds.size < signedUp.length ? `<span class="ps-outstanding">Outstanding: £${(totalExpected-totalCollected).toFixed(2)} (${signedUp.length-paidIds.size} players)</span>` : ''}
+                ${(() => {
+                  const collected = signedUp.reduce((s,p) => {
+                    const rec = eventPayments.find(x => x.event_id === e.id && x.player_id === p.id);
+                    return s + (rec && rec.paid ? Number(rec.amount||fee) : 0);
+                  }, 0);
+                  const paidCnt = signedUp.filter(p => {
+                    const rec = eventPayments.find(x => x.event_id === e.id && x.player_id === p.id);
+                    return rec && rec.paid;
+                  }).length;
+                  const expected = signedUp.reduce((s,p) => {
+                    const rec = eventPayments.find(x => x.event_id === e.id && x.player_id === p.id);
+                    return s + Number(rec ? (rec.amount||fee) : fee);
+                  }, 0);
+                  return `<span class="ps-total">✓ Collected: £${collected.toFixed(2)} (${paidCnt} players)</span>
+                    ${paidCnt < signedUp.length ? `<span class="ps-outstanding">Outstanding: £${(expected-collected).toFixed(2)} (${signedUp.length-paidCnt} players)</span>` : ''}`;
+                })()}
               </div>
             </div>` : ''}`;
       })()}
@@ -4676,13 +4707,17 @@ async function saveNewCourseLibrary(){
 }
 
 /* ===================== payments ===================== */
-async function togglePayment(eventId, playerId, amount, paid){
+async function togglePayment(eventId, playerId, amountOrEl, paid){
   if (!db) return;
+  const amount = parseFloat(typeof amountOrEl === 'string' && amountOrEl.includes('pay-amt')
+    ? (document.getElementById(amountOrEl)?.value || 0)
+    : amountOrEl) || 0;
   const existing = eventPayments.find(p => p.event_id === eventId && p.player_id === playerId);
   if (existing){
-    const { error } = await db.from('event_payments').update({ paid, paid_date: paid ? new Date().toISOString().slice(0,10) : null }).eq('id', existing.id);
+    const { error } = await db.from('event_payments').update({ paid, amount, paid_date: paid ? new Date().toISOString().slice(0,10) : null }).eq('id', existing.id);
     if (error){ console.error(error); return; }
     existing.paid = paid;
+    existing.amount = amount;
     existing.paid_date = paid ? new Date().toISOString().slice(0,10) : null;
   } else {
     const { data, error } = await db.from('event_payments').insert({ event_id: eventId, player_id: playerId, amount, paid, paid_date: paid ? new Date().toISOString().slice(0,10) : null }).select().single();
@@ -4690,6 +4725,19 @@ async function togglePayment(eventId, playerId, amount, paid){
     if (data) eventPayments.push(data);
   }
   renderEvents();
+}
+
+async function updatePaymentAmount(eventId, playerId, value){
+  if (!db) return;
+  const amount = parseFloat(value) || 0;
+  const existing = eventPayments.find(p => p.event_id === eventId && p.player_id === playerId);
+  if (existing){
+    await db.from('event_payments').update({ amount }).eq('id', existing.id);
+    existing.amount = amount;
+  } else {
+    const { data } = await db.from('event_payments').insert({ event_id: eventId, player_id: playerId, amount, paid: false }).select().single();
+    if (data) eventPayments.push(data);
+  }
 }
 
 /* ===================== accounts ===================== */
@@ -4719,8 +4767,16 @@ function renderAccounts(){
     const paidList = eventPayments.filter(p => p.event_id === e.id && p.paid);
     const total = paidList.reduce((s,p) => s + Number(p.amount||0), 0);
     if (total === 0) return null;
-    return { label: e.name, sub: `${paidList.length} players @ ${e.cost||'?'}`, amount: total };
+    return { label: e.name, sub: `${paidList.length} players · actual collected`, amount: total };
   }).filter(Boolean);
+
+  /* membership income — £10 per member paid in this year */
+  const MEMBERSHIP_FEE = 10;
+  const membersPaid = players.filter(p => p.membership_paid_year === accountsYear);
+  const membershipTotal = membersPaid.length * MEMBERSHIP_FEE;
+  if (membersPaid.length){
+    incomeRows.push({ label: 'Annual Membership', sub: `${membersPaid.length} members × £${MEMBERSHIP_FEE}`, amount: membershipTotal });
+  }
   const totalIncome = incomeRows.reduce((s,r) => s + r.amount, 0);
 
   /* expenditure for this year */
@@ -4889,6 +4945,8 @@ async function downloadAccountsPdf(year){
     const total = paidList.reduce((s,p) => s + Number(p.amount||0), 0);
     return total > 0 ? { label: e.name, sub: `${paidList.length} @ ${e.cost||'?'}`, amount: total } : null;
   }).filter(Boolean);
+  const membersPaidPdf = players.filter(p => p.membership_paid_year === yr);
+  if (membersPaidPdf.length) incomeRows.push({ label: 'Annual Membership', sub: `${membersPaidPdf.length} members × £10`, amount: membersPaidPdf.length * 10 });
   const totalIncome = incomeRows.reduce((s,r) => s + r.amount, 0);
   const yearExp = expenditures.filter(x => x.year === yr);
   const totalExp = yearExp.reduce((s,x) => s + Number(x.amount||0), 0);
