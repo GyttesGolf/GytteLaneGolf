@@ -2619,7 +2619,7 @@ function renderGalleryFilters(){
   });
 }
 let galleryAddFormOpen = false;
-let galleryAddFile = null;
+let galleryBulkQueue = []; // array of { file, title, desc, eventId, preview, status }
 
 function renderGallery(filterId){
   currentGalleryFilter = filterId || currentGalleryFilter || 'all';
@@ -2628,7 +2628,7 @@ function renderGallery(filterId){
 
   const slot = document.getElementById('gallery-add-slot');
   if (!slot) return;
-  if (!isLoggedIn){ slot.innerHTML = ''; galleryAddFormOpen = false; galleryAddFile = null; return; }
+  if (!isLoggedIn){ slot.innerHTML = ''; galleryAddFormOpen = false; galleryBulkQueue = []; return; }
 
   if (!galleryAddFormOpen){
     slot.innerHTML = `<button class="add-item-btn" style="max-width:480px;" onclick="openGalleryAddForm()">+ Add to gallery</button>`;
@@ -2637,97 +2637,129 @@ function renderGallery(filterId){
 
   const eventOpts = [...events].sort((a,b) => new Date(b.date) - new Date(a.date))
     .map(e => `<option value="${e.id}">${e.name} (${fmtDate(e.date)})</option>`).join('');
-  const fileLabel = galleryAddFile ? `\u2713 ${galleryAddFile.name}` : 'Tap to choose a photo or video';
+
+  const queueHtml = galleryBulkQueue.map((item, i) => {
+    const statusBadge = item.status === 'done'
+      ? `<span style="color:var(--bracken); font-family:var(--mono); font-size:.72rem;">✓ Uploaded</span>`
+      : item.status === 'error'
+      ? `<span style="color:var(--claret); font-family:var(--mono); font-size:.72rem;">✗ Failed</span>`
+      : item.status === 'uploading'
+      ? `<span style="color:var(--brass); font-family:var(--mono); font-size:.72rem;">Uploading…</span>`
+      : '';
+
+    return `
+      <div style="display:grid; grid-template-columns:72px 1fr; gap:.8rem; padding:.9rem; background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); margin-bottom:.6rem; opacity:${item.status==='done'?.6:1};">
+        <div style="width:72px; height:72px; border-radius:4px; overflow:hidden; background:var(--stone); flex-shrink:0;">
+          ${item.preview ? `<img src="${item.preview}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">🎥</div>`}
+        </div>
+        <div style="min-width:0;">
+          <div style="display:flex; align-items:center; gap:.5rem; margin-bottom:.4rem;">
+            <span style="font-size:.8rem; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${item.file.name}</span>
+            ${statusBadge}
+            ${item.status !== 'done' && item.status !== 'uploading' ? `<button onclick="removeBulkItem(${i})" style="border:none; background:none; cursor:pointer; color:var(--text-muted); font-size:1rem; padding:0; flex-shrink:0;">✕</button>` : ''}
+          </div>
+          <input type="text" placeholder="Title (required)" value="${item.title||''}"
+            oninput="galleryBulkQueue[${i}].title=this.value"
+            style="width:100%; font-family:var(--body); font-size:.85rem; padding:.4rem .6rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone); margin-bottom:.3rem; box-sizing:border-box;" ${item.status==='done'?'disabled':''}>
+          <input type="text" placeholder="Caption (optional)"  value="${item.desc||''}"
+            oninput="galleryBulkQueue[${i}].desc=this.value"
+            style="width:100%; font-family:var(--body); font-size:.85rem; padding:.4rem .6rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone); margin-bottom:.3rem; box-sizing:border-box;" ${item.status==='done'?'disabled':''}>
+          <select onchange="galleryBulkQueue[${i}].eventId=this.value"
+            style="width:100%; font-family:var(--body); font-size:.85rem; padding:.4rem .6rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone); box-sizing:border-box;" ${item.status==='done'?'disabled':''}>
+            <option value="">No linked event</option>
+            ${eventOpts.replace(`value="${item.eventId||''}"`, `value="${item.eventId||''}" selected`)}
+          </select>
+        </div>
+      </div>`;
+  }).join('');
+
+  const pendingCount = galleryBulkQueue.filter(x => x.status !== 'done').length;
 
   slot.innerHTML = `
     <div class="gallery-add-form">
-      <h3>Add to gallery</h3>
-      <label class="file-pick-area ${galleryAddFile ? 'has-file' : ''}">
-        ${fileLabel}
-        <input type="file" accept="image/*,video/*" onchange="galleryAddFilePicked(this)">
-      </label>
-      <div id="gallery-add-preview"></div>
-      <label>Title</label>
-      <input type="text" id="ga-title" placeholder="e.g. Prize presentation">
-      <label>Description (optional)</label>
-      <textarea id="ga-desc" placeholder="A bit more detail about the moment…"></textarea>
-      <label>Linked event (optional)</label>
-      <select id="ga-event">
-        <option value="">None</option>
-        ${eventOpts}
-      </select>
-      <div class="edit-form-actions" style="margin-top:.4rem;">
-        <button class="btn brass" onclick="submitGalleryAdd()">Add to gallery</button>
-        <button class="btn ghost" onclick="closeGalleryAddForm()">Cancel</button>
+      <div style="display:flex; align-items:center; gap:.8rem; margin-bottom:1rem; flex-wrap:wrap;">
+        <h3 style="margin:0; flex:1;">Add to gallery</h3>
+        <label style="cursor:pointer; font-family:var(--mono); font-size:.78rem; text-transform:uppercase; letter-spacing:.05em; padding:.55rem 1rem; border:1.5px solid var(--ink); border-radius:var(--radius); color:var(--ink);">
+          + Add photos
+          <input type="file" accept="image/*,video/*" multiple style="display:none;" onchange="galleryBulkFilePicked(this)">
+        </label>
+      </div>
+      ${galleryBulkQueue.length ? queueHtml : '<p class="muted" style="margin-bottom:.8rem;">No photos selected yet — tap "Add photos" to choose one or more.</p>'}
+      <div class="edit-form-actions" style="margin-top:.6rem;">
+        ${pendingCount > 0 ? `<button class="btn brass" onclick="submitBulkGallery()">Upload ${pendingCount} photo${pendingCount===1?'':'s'}</button>` : ''}
+        <button class="btn ghost" onclick="closeGalleryAddForm()">Close</button>
         <div class="edit-status" id="ga-status"></div>
       </div>
     </div>`;
-
-  if (galleryAddFile && galleryAddFile.type.startsWith('image/')){
-    const previewEl = document.getElementById('gallery-add-preview');
-    const reader = new FileReader();
-    reader.onload = e => { previewEl.innerHTML = `<img class="gallery-preview-img" src="${e.target.result}" alt="Preview">`; };
-    reader.readAsDataURL(galleryAddFile);
-  }
 }
 
 function openGalleryAddForm(){ galleryAddFormOpen = true; renderGallery(); }
-function closeGalleryAddForm(){ galleryAddFormOpen = false; galleryAddFile = null; renderGallery(); }
+function closeGalleryAddForm(){ galleryAddFormOpen = false; galleryBulkQueue = []; renderGallery(); }
 
-function galleryAddFilePicked(inputEl){
-  const file = inputEl.files && inputEl.files[0];
-  if (!file) return;
-  // preserve title/desc the user may have typed before re-render
-  const title = gv('ga-title'); const desc = gv('ga-desc'); const evId = gv('ga-event');
-  galleryAddFile = file;
+function galleryBulkFilePicked(inputEl){
+  const files = [...(inputEl.files || [])];
+  files.forEach(file => {
+    const item = { file, title: '', desc: '', eventId: '', preview: null, status: 'pending' };
+    if (file.type.startsWith('image/')){
+      const reader = new FileReader();
+      reader.onload = e => { item.preview = e.target.result; renderGallery(); };
+      reader.readAsDataURL(file);
+    }
+    galleryBulkQueue.push(item);
+  });
   renderGallery();
-  setTimeout(() => {
-    const t = document.getElementById('ga-title'); if (t) t.value = title;
-    const d = document.getElementById('ga-desc'); if (d) d.value = desc;
-    const e = document.getElementById('ga-event'); if (e) e.value = evId;
-  }, 0);
 }
 
-async function submitGalleryAdd(){
+function removeBulkItem(i){
+  galleryBulkQueue.splice(i, 1);
+  renderGallery();
+}
+
+async function submitBulkGallery(){
   const statusEl = document.getElementById('ga-status');
-  const setStatus = (msg, kind) => { if(statusEl){ statusEl.textContent = msg; statusEl.className = 'edit-status ' + kind; } };
-
+  const setStatus = (msg, kind) => { if(statusEl){ statusEl.textContent = msg; statusEl.className = 'edit-status '+(kind||''); } };
   if (!db){ setStatus('Not connected.', 'error'); return; }
-  if (!galleryAddFile){ setStatus('Please choose a photo or video first.', 'error'); return; }
-  const title = gv('ga-title');
-  if (!title){ setStatus('Please add a title.', 'error'); return; }
 
-  const isVideo = galleryAddFile.type.startsWith('video/');
-  const maxSize = isVideo ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
-  if (galleryAddFile.size > maxSize){
-    setStatus(`File is too large (max ${isVideo ? '50MB' : '5MB'}).`, 'error');
-    return;
+  const pending = galleryBulkQueue.filter(x => x.status !== 'done');
+  const missing = pending.filter(x => !x.title.trim());
+  if (missing.length){ setStatus(`Please add a title to all ${missing.length} photo${missing.length===1?'':'s'}.`, 'error'); return; }
+
+  let uploaded = 0;
+  for (let i = 0; i < galleryBulkQueue.length; i++){
+    const item = galleryBulkQueue[i];
+    if (item.status === 'done') continue;
+
+    const maxSize = item.file.type.startsWith('video/') ? 50*1024*1024 : 5*1024*1024;
+    if (item.file.size > maxSize){ item.status = 'error'; renderGallery(); continue; }
+
+    item.status = 'uploading';
+    renderGallery();
+
+    const id = 'g-' + Date.now() + '-' + i;
+    const ext = (item.file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `gallery/${id}.${ext}`;
+    const { error: upError } = await db.storage.from('photos').upload(path, item.file, { cacheControl: '3600' });
+    if (upError){ console.error(upError); item.status = 'error'; renderGallery(); continue; }
+
+    const { data: urlData } = db.storage.from('photos').getPublicUrl(path);
+    const payload = {
+      id, type: item.file.type.startsWith('video/') ? 'video' : 'photo',
+      caption: item.title.trim(),
+      description: item.desc.trim() || null,
+      event_id: item.eventId || null,
+      media_url: urlData.publicUrl,
+    };
+    const { error: dbError } = await db.from('gallery').insert(payload);
+    if (dbError){ console.error(dbError); item.status = 'error'; renderGallery(); continue; }
+
+    gallery.push({ ...payload, eventId: payload.event_id });
+    item.status = 'done';
+    uploaded++;
+    setStatus(`Uploaded ${uploaded} of ${pending.length}…`, 'loading');
+    renderGallery();
   }
 
-  setStatus('Uploading\u2026', 'loading');
-  const id = 'g-' + Date.now();
-  const ext = (galleryAddFile.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')).toLowerCase();
-  const path = `gallery/${id}.${ext}`;
-
-  const { error: upError } = await db.storage.from('photos').upload(path, galleryAddFile, { cacheControl: '3600' });
-  if (upError){ console.error(upError); setStatus('Upload failed. Please try again.', 'error'); return; }
-
-  const { data: urlData } = db.storage.from('photos').getPublicUrl(path);
-  const payload = {
-    id,
-    type: isVideo ? 'video' : 'photo',
-    caption: title,
-    description: gv('ga-desc') || null,
-    event_id: gv('ga-event') || null,
-    media_url: urlData.publicUrl,
-  };
-  const { error: dbError } = await db.from('gallery').insert(payload);
-  if (dbError){ console.error(dbError); setStatus('Uploaded, but saving failed. Please try again.', 'error'); return; }
-
-  gallery.push({ ...payload, eventId: payload.event_id });
-  galleryAddFormOpen = false;
-  galleryAddFile = null;
-  renderGallery();
+  setStatus(`Done — ${uploaded} photo${uploaded===1?'':'s'} added.`, 'success');
   renderGalleryFilters();
   renderHome();
 }
