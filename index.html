@@ -5195,20 +5195,6 @@ function renderGroupingsInScores(){
       </div>`;
   }).join('');
 
-  const waGroupings = () => {
-    const ev = events.find(e => e.id === liveEventId);
-    const lines = [`⛳ *${ev ? ev.name : 'Starting Sheet'}*${ev ? ' — ' + fmtDate(ev.date) : ''}`];
-    evGroups.forEach((g, idx) => {
-      const gPlayers = matchGroupPlayers.filter(gp => gp.group_id === g.id);
-      const names = gPlayers.map(gp => {
-        const p = players.find(x => x.id === gp.player_id);
-        return p ? `${p.first_name} ${p.last_name}` : null;
-      }).filter(Boolean);
-      lines.push(`\n*${g.tee_time} — Group ${idx+1}*\n${names.map(n => `• ${n}`).join('\n')}`);
-    });
-    window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank', 'noopener');
-  };
-
   const addBtn = isLoggedIn ? `
     <button class="add-item-btn" style="margin-top:.4rem;" onclick="addGroupFromScores('${liveEventId}')">+ Add group</button>` : '';
 
@@ -5221,10 +5207,25 @@ function renderGroupingsInScores(){
     ${emptyMsg}
     ${cards}
     ${evGroups.length ? `
-      <button class="wa-share-btn" style="margin-top:.6rem;" onclick="(${waGroupings.toString()})()">
+      <button class="wa-share-btn" style="margin-top:.6rem;" onclick="shareGroupingsWhatsApp()">
         ${WA_ICON} Share groupings on WhatsApp
       </button>` : ''}
     ${addBtn}`;
+}
+
+function shareGroupingsWhatsApp(){
+  const ev = events.find(e => e.id === liveEventId);
+  const evGroups = matchGroups.filter(g => g.event_id === liveEventId).sort((a,b) => a.tee_time.localeCompare(b.tee_time));
+  const lines = [`⛳ *${ev ? ev.name : 'Starting Sheet'}*${ev ? ' — ' + fmtDate(ev.date) : ''}`];
+  evGroups.forEach((g, idx) => {
+    const gPlayers = matchGroupPlayers.filter(gp => gp.group_id === g.id);
+    const names = gPlayers.map(gp => {
+      const p = players.find(x => x.id === gp.player_id);
+      return p ? `${p.first_name} ${p.last_name}` : null;
+    }).filter(Boolean);
+    lines.push(`\n*${g.tee_time} — Group ${idx+1}*\n${names.map(n => `• ${n}`).join('\n')}`);
+  });
+  window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank', 'noopener');
 }
 
 async function addGroupFromScores(eventId){
