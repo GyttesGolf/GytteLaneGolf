@@ -5048,11 +5048,9 @@ function renderGroupings(){
         <div class="edit-form-grid">
           <div><label>Tee time</label><input type="time" id="eg-time-${g.id}" value="${g.tee_time}"></div>
           <div class="full">
-            <label>Players (select all in this group)</label>
+            <label>Players (select all in this group · max 4 · signed up only)</label>
             <select id="eg-players-${g.id}" multiple style="height:140px; width:100%; font-family:var(--body); font-size:.88rem; padding:.3rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone);">
-              ${[...players].sort((a,b) => a.first_name.localeCompare(b.first_name)).map(p =>
-                `<option value="${p.id}" ${gPlayers.some(gp => gp.player_id===p.id)?'selected':''}>${p.first_name} ${p.last_name}</option>`
-              ).join('')}
+              ${signupsForEvent(groupingsEventId).map(p => p && p.id ? `<option value="${p.id}" ${gPlayers.some(gp => gp.player_id===p.id)?'selected':''}>${p.first_name} ${p.last_name}</option>` : '').join('')}
             </select>
           </div>
           <div class="full">
@@ -5171,11 +5169,9 @@ function renderGroupingsInScores(){
         <div class="edit-form-grid">
           <div><label>Tee time</label><input type="time" id="eg-time-${g.id}" value="${g.tee_time}"></div>
           <div class="full">
-            <label>Players <span style="font-family:var(--mono); font-size:.7rem; color:var(--text-muted); font-weight:normal;">(max 4)</span></label>
+            <label>Players <span style="font-family:var(--mono); font-size:.7rem; color:var(--text-muted); font-weight:normal;">(max 4 · signed up only)</span></label>
             <select id="eg-players-${g.id}" multiple style="height:130px; width:100%; font-family:var(--body); font-size:.88rem; padding:.3rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone);">
-              ${[...players].filter(p => p.active !== false).sort((a,b) => a.first_name.localeCompare(b.first_name)).map(p =>
-                `<option value="${p.id}" ${gPlayers.some(gp => gp.player_id===p.id)?'selected':''}>${p.first_name} ${p.last_name}</option>`
-              ).join('')}
+              ${signupsForEvent(liveEventId).map(p => p && p.id ? `<option value="${p.id}" ${gPlayers.some(gp => gp.player_id===p.id)?'selected':''}>${p.first_name} ${p.last_name}</option>` : '').join('')}
             </select>
           </div>
         </div>
@@ -5199,6 +5195,20 @@ function renderGroupingsInScores(){
       </div>`;
   }).join('');
 
+  const waGroupings = () => {
+    const ev = events.find(e => e.id === liveEventId);
+    const lines = [`⛳ *${ev ? ev.name : 'Starting Sheet'}*${ev ? ' — ' + fmtDate(ev.date) : ''}`];
+    evGroups.forEach((g, idx) => {
+      const gPlayers = matchGroupPlayers.filter(gp => gp.group_id === g.id);
+      const names = gPlayers.map(gp => {
+        const p = players.find(x => x.id === gp.player_id);
+        return p ? `${p.first_name} ${p.last_name}` : null;
+      }).filter(Boolean);
+      lines.push(`\n*${g.tee_time} — Group ${idx+1}*\n${names.map(n => `• ${n}`).join('\n')}`);
+    });
+    window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank', 'noopener');
+  };
+
   const addBtn = isLoggedIn ? `
     <button class="add-item-btn" style="margin-top:.4rem;" onclick="addGroupFromScores('${liveEventId}')">+ Add group</button>` : '';
 
@@ -5210,6 +5220,10 @@ function renderGroupingsInScores(){
     </p>
     ${emptyMsg}
     ${cards}
+    ${evGroups.length ? `
+      <button class="wa-share-btn" style="margin-top:.6rem;" onclick="(${waGroupings.toString()})()">
+        ${WA_ICON} Share groupings on WhatsApp
+      </button>` : ''}
     ${addBtn}`;
 }
 
