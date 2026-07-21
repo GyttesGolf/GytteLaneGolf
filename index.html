@@ -2796,8 +2796,22 @@ async function saveGalleryItem(galleryId){
 async function deleteGalleryItem(galleryId){
   if (!confirm('Delete this gallery item? This cannot be undone.')) return;
   if (!db) return;
+  const item = gallery.find(g => g.id === galleryId);
+
+  /* delete from database first */
   const { error } = await db.from('gallery').delete().eq('id', galleryId);
-  if (error){ console.error(error); alert('Delete failed. Please try again.'); return; }
+  if (error){ console.error(error); alert('Delete failed — check you are logged in as committee.'); return; }
+
+  /* also remove the file from Storage if we can derive the path */
+  if (item && item.media_url){
+    try {
+      const url = new URL(item.media_url);
+      /* path is everything after /object/public/photos/ */
+      const match = url.pathname.match(/\/object\/public\/photos\/(.+)/);
+      if (match) await db.storage.from('photos').remove([match[1]]);
+    } catch(e){ console.warn('Could not delete file from storage:', e); }
+  }
+
   gallery = gallery.filter(g => g.id !== galleryId);
   editingGalleryIds.delete(galleryId);
   renderGallery();
