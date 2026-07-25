@@ -4664,10 +4664,12 @@ async function submitRating(courseId, eventId){
 /* courses panel */
 const editingCourseIds = new Set();
 
+let expandedRatingCourseId = null;
+
 function renderCoursesPanel(){
   const panel = document.getElementById('courses-panel');
   if (!panel) return;
-  if (!courses.length && !isLoggedIn){ panel.innerHTML = ''; return; }
+  if (!courses.length){ panel.innerHTML = isLoggedIn ? `<div class="courses-panel"><p class="muted">No courses yet.</p><button class="add-item-btn" style="margin-top:.8rem;" onclick="openAddCourseForm()">+ Add course</button><div id="add-course-panel"></div></div>` : ''; return; }
 
   const sorted = [...courses].sort((a,b) => {
     const ra = courseAvgRating(a.id) || 0, rb = courseAvgRating(b.id) || 0;
@@ -4678,7 +4680,7 @@ function renderCoursesPanel(){
     const avg = courseAvgRating(c.id); const cnt = courseRatingCount(c.id);
     const played = timesPlayed(c.id);
     const isEditing = editingCourseIds.has(c.id);
-    const ratingOpen = expandedRatingCourseId === c.id;
+    const ratingOpen = expandedRatingCourseId === String(c.id);
     const mapsUrl = googleMapsUrl(c.name, c.postcode);
 
     const starsRow = avg !== null
