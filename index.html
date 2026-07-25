@@ -4696,7 +4696,7 @@ function renderCoursesPanel(){
     const starBtns = [1,2,3,4,5].map(i =>
       `<button class="star-btn ${i <= pendingStars ? 'lit' : ''}"
         onmouseenter="previewStars('${ratingKey}',${i})"
-        onmouseleave="previewStars('${ratingKey}',${pendingStars})"
+        onmouseleave="previewStars('${ratingKey}',(ratingState['${ratingKey}']||{}).stars||0)"
         onclick="selectStars('${c.id}','${ratingKey}',${i})">★</button>`
     ).join('');
 
