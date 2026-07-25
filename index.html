@@ -4479,6 +4479,33 @@ async function saveNewHonour(){
   renderHonours();
 }
 
+async function submitCourseRating(courseId, key){
+  const setStatus = (msg, kind) => {
+    const el = document.getElementById('rate-status-' + key);
+    if (el){ el.textContent = msg; el.className = 'rate-status ' + (kind||''); }
+  };
+  const state = ratingState[key] || {};
+  if (!state.playerId){ setStatus('Please select your name first.', 'error'); return; }
+  if (!state.stars){ setStatus('Please select a star rating.', 'error'); return; }
+  if (!db){ setStatus('Not connected.', 'error'); return; }
+
+  /* use event_id = null for course-level ratings (not tied to a specific event) */
+  const existing = courseRatings.find(r => r.course_id == courseId && !r.event_id && r.player_id == state.playerId);
+  setStatus('Saving\u2026');
+  if (existing){
+    const { error } = await db.from('course_ratings').update({ stars: state.stars }).eq('id', existing.id);
+    if (error){ console.error(error); setStatus('Save failed.', 'error'); return; }
+    existing.stars = state.stars;
+  } else {
+    const { data, error } = await db.from('course_ratings').insert({ course_id: Number(courseId), event_id: null, player_id: Number(state.playerId), stars: state.stars }).select().single();
+    if (error){ console.error(error); setStatus('Save failed.', 'error'); return; }
+    if (data) courseRatings.push(data);
+  }
+  ratingState[key] = {};
+  setStatus('Thanks! ⭐', 'success');
+  renderCoursesPanel();
+}
+
 /* ===================== courses & ratings ===================== */
 function courseById(id){ return courses.find(c => c.id === Number(id)); }
 function googleMapsUrl(name, postcode){
@@ -4580,10 +4607,10 @@ function previewStars(eventId, count){
   });
 }
 
-function selectStars(courseId, eventId, stars){
-  ratingState[eventId] = ratingState[eventId] || {};
-  ratingState[eventId].stars = stars;
-  previewStars(eventId, stars);
+function selectStars(courseId, key, stars){
+  ratingState[key] = ratingState[key] || {};
+  ratingState[key].stars = stars;
+  previewStars(key, stars);
 }
 
 async function submitRating(courseId, eventId){
@@ -4646,12 +4673,35 @@ function renderCoursesPanel(){
         </div>
       </div>` : '';
 
+    const ratingKey = 'course-' + c.id;
+    const ratingStateC = ratingState[ratingKey] || {};
+    const pendingStars = ratingStateC.stars || 0;
+    const pid = ratingStateC.playerId || '';
+    const playerOpts = [...players].filter(p => p.active !== false).sort((a,b) => a.first_name.localeCompare(b.first_name))
+      .map(p => `<option value="${p.id}" ${pid==p.id?'selected':''}>${p.first_name} ${p.last_name}</option>`).join('');
+    const starBtns = [1,2,3,4,5].map(i =>
+      `<button class="star-btn ${i <= pendingStars ? 'lit' : ''}"
+        onmouseenter="previewStars('${ratingKey}',${i})"
+        onmouseleave="previewStars('${ratingKey}',${pendingStars})"
+        onclick="selectStars('${c.id}','${ratingKey}',${i})">★</button>`
+    ).join('');
+
     return `
       <div class="course-card">
         <h4><a href="${mapsUrl}" target="_blank" rel="noopener" style="color:var(--ink); text-decoration:none;">${c.name} ↗</a></h4>
         ${c.postcode ? `<div class="course-postcode">${c.postcode}</div>` : ''}
         <div style="margin:.4rem 0;">${starsHtml(avg, cnt)}</div>
         <div class="course-played">${played} event${played===1?'':'s'} played here</div>
+        <div class="rate-block">
+          <h5>Rate this course</h5>
+          <select class="rate-select" onchange="ratingState['${ratingKey}']=(ratingState['${ratingKey}']||{}); ratingState['${ratingKey}'].playerId=this.value; renderCoursesPanel();">
+            <option value="">— Select your name —</option>
+            ${playerOpts}
+          </select>
+          <div class="star-picker" id="star-picker-${ratingKey}">${starBtns}</div>
+          <button class="btn brass" style="padding:.45rem 1rem; font-size:.82rem;" onclick="submitCourseRating('${c.id}','${ratingKey}')">Submit rating</button>
+          <div class="rate-status" id="rate-status-${ratingKey}"></div>
+        </div>
         ${isLoggedIn ? `<button class="committee-edit-btn" style="margin-top:.5rem;" onclick="toggleCourseEdit(${c.id})">${isEditing?'Cancel':'Edit'}</button>` : ''}
         ${editForm}
       </div>`;
