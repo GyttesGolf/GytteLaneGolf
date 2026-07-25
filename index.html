@@ -539,14 +539,36 @@
   @media(min-width:860px){
     .events-page-layout{grid-template-columns:1fr 320px; align-items:start;}
   }
-  .courses-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:.9rem; margin-top:1rem;}
-  .course-card{
-    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
-    padding:1rem 1.1rem; position:relative;
+  .course-list{display:flex; flex-direction:column;}
+  .course-row{
+    display:flex; align-items:center; gap:.8rem; padding:.65rem 0;
+    border-bottom:1px solid var(--line);
   }
-  .course-card h4{font-family:var(--display); font-size:1.05rem; margin:0 0 .2rem; color:var(--ink);}
-  .course-card .course-postcode{font-family:var(--mono); font-size:.72rem; color:var(--text-muted); margin-bottom:.5rem;}
-  .course-card .course-played{font-family:var(--mono); font-size:.7rem; color:var(--text-muted); margin-top:.4rem;}
+  .course-row:last-child{border-bottom:none;}
+  .course-row-info{flex:1; min-width:0;}
+  .course-row-name{
+    font-family:var(--display); font-size:.95rem; font-weight:700; color:var(--ink);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-decoration:none;
+  }
+  .course-row-name:hover{text-decoration:underline;}
+  .course-row-stars{font-family:var(--mono); font-size:.75rem; color:var(--brass);}
+  .course-row-stars .star-empty{color:var(--line);}
+  .course-row-none{font-family:var(--mono); font-size:.7rem; color:var(--text-muted);}
+  .course-rate-btn{
+    flex-shrink:0; font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.05em;
+    padding:.35rem .7rem; border:1.5px solid var(--line); border-radius:999px;
+    background:transparent; color:var(--text-muted); cursor:pointer; white-space:nowrap;
+    transition:border-color .15s, color .15s;
+  }
+  .course-rate-btn.open{border-color:var(--brass); color:var(--ink);}
+  .course-rate-form{
+    background:var(--paper); border-radius:var(--radius); padding:.8rem;
+    margin:.2rem 0 .4rem; border:1px solid var(--line);
+  }
+  .course-rate-form select{
+    width:100%; font-family:var(--body); font-size:.85rem; padding:.4rem .6rem;
+    border:1px solid var(--line); border-radius:var(--radius); background:var(--stone); margin-bottom:.5rem;
+  }
   .star-display{display:flex; align-items:center; gap:.3rem;}
   .star-display .stars{color:var(--brass); font-size:1rem; letter-spacing:.05em;}
   .star-display .star-empty{color:var(--line); font-size:1rem;}
@@ -4652,26 +4674,16 @@ function renderCoursesPanel(){
     return rb - ra || a.name.localeCompare(b.name);
   });
 
-  const cards = sorted.map(c => {
+  const rows = sorted.map(c => {
     const avg = courseAvgRating(c.id); const cnt = courseRatingCount(c.id);
     const played = timesPlayed(c.id);
     const isEditing = editingCourseIds.has(c.id);
+    const ratingOpen = expandedRatingCourseId === c.id;
     const mapsUrl = googleMapsUrl(c.name, c.postcode);
 
-    const editForm = (isLoggedIn && isEditing) ? `
-      <div class="edit-form" style="margin-top:.7rem;">
-        <h4>Edit course</h4>
-        <div class="edit-form-grid">
-          <div class="full"><label>Name</label><input id="cc-name-${c.id}" value="${c.name.replace(/"/g,'&quot;')}"></div>
-          <div class="full"><label>Postcode</label><input id="cc-postcode-${c.id}" value="${(c.postcode||'').replace(/"/g,'&quot;')}"></div>
-        </div>
-        <div class="edit-form-actions">
-          <button class="btn brass" onclick="saveCourse(${c.id})">Save</button>
-          <button class="btn ghost" onclick="toggleCourseEdit(${c.id})">Cancel</button>
-          <div class="edit-status" id="cc-status-${c.id}"></div>
-          <button class="delete-btn" onclick="deleteCourse(${c.id})">Delete</button>
-        </div>
-      </div>` : '';
+    const starsRow = avg !== null
+      ? `<div class="course-row-stars">${[1,2,3,4,5].map(i => `<span class="${i <= Math.round(avg) ? '' : 'star-empty'}">★</span>`).join('')} <span style="color:var(--text-muted); font-size:.68rem;">${avg.toFixed(1)} (${cnt})</span></div>`
+      : `<div class="course-row-none">No ratings yet · ${played} event${played===1?'':'s'}</div>`;
 
     const ratingKey = 'course-' + c.id;
     const ratingStateC = ratingState[ratingKey] || {};
@@ -4686,31 +4698,53 @@ function renderCoursesPanel(){
         onclick="selectStars('${c.id}','${ratingKey}',${i})">★</button>`
     ).join('');
 
-    return `
-      <div class="course-card">
-        <h4><a href="${mapsUrl}" target="_blank" rel="noopener" style="color:var(--ink); text-decoration:none;">${c.name} ↗</a></h4>
-        ${c.postcode ? `<div class="course-postcode">${c.postcode}</div>` : ''}
-        <div style="margin:.4rem 0;">${starsHtml(avg, cnt)}</div>
-        <div class="course-played">${played} event${played===1?'':'s'} played here</div>
-        <div class="rate-block">
-          <h5>Rate this course</h5>
-          <select class="rate-select" onchange="ratingState['${ratingKey}']=(ratingState['${ratingKey}']||{}); ratingState['${ratingKey}'].playerId=this.value; renderCoursesPanel();">
-            <option value="">— Select your name —</option>
-            ${playerOpts}
-          </select>
-          <div class="star-picker" id="star-picker-${ratingKey}">${starBtns}</div>
-          <button class="btn brass" style="padding:.45rem 1rem; font-size:.82rem;" onclick="submitCourseRating('${c.id}','${ratingKey}')">Submit rating</button>
-          <div class="rate-status" id="rate-status-${ratingKey}"></div>
+    const rateForm = ratingOpen ? `
+      <div class="course-rate-form">
+        <select onchange="ratingState['${ratingKey}']=(ratingState['${ratingKey}']||{}); ratingState['${ratingKey}'].playerId=this.value;">
+          <option value="">— Select your name —</option>
+          ${playerOpts}
+        </select>
+        <div class="star-picker" id="star-picker-${ratingKey}">${starBtns}</div>
+        <button class="btn brass" style="padding:.45rem 1rem; font-size:.82rem;" onclick="submitCourseRating('${c.id}','${ratingKey}')">Submit rating</button>
+        <div class="rate-status" id="rate-status-${ratingKey}"></div>
+      </div>` : '';
+
+    const editForm = (isLoggedIn && isEditing) ? `
+      <div class="edit-form" style="margin:.5rem 0;">
+        <h4>Edit course</h4>
+        <div class="edit-form-grid">
+          <div class="full"><label>Name</label><input id="cc-name-${c.id}" value="${c.name.replace(/"/g,'&quot;')}"></div>
+          <div class="full"><label>Postcode</label><input id="cc-postcode-${c.id}" value="${(c.postcode||'').replace(/"/g,'&quot;')}"></div>
         </div>
-        ${isLoggedIn ? `<button class="committee-edit-btn" style="margin-top:.5rem;" onclick="toggleCourseEdit(${c.id})">${isEditing?'Cancel':'Edit'}</button>` : ''}
+        <div class="edit-form-actions">
+          <button class="btn brass" onclick="saveCourse(${c.id})">Save</button>
+          <button class="btn ghost" onclick="toggleCourseEdit(${c.id})">Cancel</button>
+          <div class="edit-status" id="cc-status-${c.id}"></div>
+          <button class="delete-btn" onclick="deleteCourse(${c.id})">Delete</button>
+        </div>
+      </div>` : '';
+
+    return `
+      <div class="course-row-wrap">
+        <div class="course-row">
+          <div class="course-row-info">
+            <a class="course-row-name" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation();">${c.name} ↗</a>
+            ${starsRow}
+          </div>
+          <button class="course-rate-btn ${ratingOpen?'open':''}" onclick="expandedRatingCourseId=(expandedRatingCourseId==='${c.id}'?null:'${c.id}'); renderCoursesPanel();">
+            ${ratingOpen ? 'Rate ▴' : 'Rate'}
+          </button>
+          ${isLoggedIn ? `<button class="committee-edit-btn" onclick="toggleCourseEdit(${c.id})">${isEditing?'✕':'Edit'}</button>` : ''}
+        </div>
+        ${rateForm}
         ${editForm}
       </div>`;
   }).join('');
 
   panel.innerHTML = `
     <div class="courses-panel">
-      <p style="font-size:.85rem; color:var(--text-muted); margin:0 0 .8rem;">Ranked by member rating. Click a name to open in Google Maps.</p>
-      <div class="courses-grid">${cards || '<p class="muted">No courses yet.</p>'}</div>
+      <p style="font-size:.82rem; color:var(--text-muted); margin:0 0 .6rem;">Ranked by member rating. Click a name to open in Google Maps.</p>
+      <div class="course-list">${rows || '<p class="muted">No courses yet.</p>'}</div>
       ${isLoggedIn ? `<button class="add-item-btn" style="margin-top:.8rem;" onclick="openAddCourseForm()">+ Add course</button>
       <div id="add-course-panel"></div>` : ''}
     </div>`;
