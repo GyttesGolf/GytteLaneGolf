@@ -459,11 +459,7 @@
   }
   .status-pill.upcoming{background:var(--bracken); color:var(--paper);}
   .status-pill.past{background:var(--line); color:var(--text-muted);}
-  .signup-count-pill{
-    font-family:var(--mono); font-size:.72rem; color:var(--text-muted);
-    white-space:nowrap;
-  }
-  .event-links{display:flex; flex-direction:column; gap:.3rem; align-items:flex-end; font-size:.82rem;}
+  .event-links{font-size:.82rem; margin-top:.3rem;}
 
   .event-detail{
     background:var(--paper); border:1px solid var(--brass); border-top:1px dashed var(--line);
@@ -1672,8 +1668,6 @@ function renderEvents(filter){
             })()}
           </div>
           <div class="event-links">
-            <span class="status-pill ${eventStatus(e)}">${eventStatus(e)}</span>
-            <span class="signup-count-pill">${signedUpCount} signed up</span>
             ${hasGallery ? `<a href="#" onclick="event.stopPropagation(); goTo('gallery'); return false;">View gallery</a>` : ''}
           </div>
         </article>
