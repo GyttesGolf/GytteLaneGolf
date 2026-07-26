@@ -378,10 +378,14 @@
     font-size:.8rem; color:var(--claret); text-decoration:none;
   }
   .event-main .event-address:hover{text-decoration:underline;}
-  .event-main .event-chips{
-    font-family:var(--mono); font-size:.73rem; color:var(--text-muted);
-    margin-top:.25rem; line-height:1.5;
-  }
+  .event-main .event-chips{display:flex; flex-wrap:wrap; gap:.3rem; margin-top:.4rem;}
+  .ev-chip{font-size:.7rem; font-family:var(--mono); padding:.2rem .55rem; border-radius:999px; border:0.5px solid var(--line); color:var(--text-muted); display:inline-flex; align-items:center; gap:.25rem; white-space:nowrap;}
+  .ev-chip.cost{background:#eef6ee; border-color:#a8d5a8; color:#2e6b2e;}
+  .ev-chip.time{background:#e8f0fb; border-color:#a8c0e8; color:#1a4a8a;}
+  .ev-chip.food{background:#fdf3e7; border-color:#f0c070; color:#7a4a10;}
+  .ev-chip.signups{background:var(--stone); border-color:var(--line); color:var(--text-muted);}
+  .ev-chip.signups.full{background:#fdecea; border-color:#e8a8a8; color:#8b2020;}
+  .ev-chip.signup-by{background:var(--stone); color:var(--text-muted);}
   .event-detail-info{
     background:var(--stone); border-radius:var(--radius); padding:.9rem 1.1rem;
     margin-bottom:1rem; display:flex; flex-wrap:wrap; gap:.6rem 2rem;
@@ -663,7 +667,32 @@
   .captains-board .board-rule{height:1px; background:var(--brass); margin:0 1.4rem 1rem; opacity:.7;}
   .captains-board ol{list-style:none; margin:0; padding:0;}
   /* ---------- player archive ---------- */
-  .player-archive{
+  /* ---- player card grid ---- */
+  .player-card-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:.6rem; margin-top:.8rem;}
+  .player-card{background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; cursor:pointer; transition:border-color .15s;}
+  .player-card:hover{border-color:var(--brass);}
+  .player-card.expanded{border-color:var(--claret);}
+  .pc-top{background:var(--ink); padding:.7rem .8rem;}
+  .pc-initials{width:34px; height:34px; border-radius:50%; background:rgba(227,193,115,.15); border:1.5px solid rgba(227,193,115,.4); color:var(--brass-light); font-size:.82rem; font-weight:500; display:flex; align-items:center; justify-content:center; margin-bottom:.45rem;}
+  .pc-name{font-family:var(--display); font-size:.88rem; font-weight:700; color:var(--paper); line-height:1.2; margin-bottom:.15rem;}
+  .pc-hcap{font-family:var(--mono); font-size:.7rem; color:var(--brass-light); opacity:.8;}
+  .pc-controls{display:flex; gap:.5rem; align-items:center; margin-top:.4rem;}
+  .pc-bottom{padding:.5rem .8rem;}
+  .pc-meta{font-family:var(--mono); font-size:.7rem; color:var(--text-muted); margin-bottom:.25rem;}
+  .pc-badge{font-family:var(--mono); font-size:.65rem; padding:.15rem .5rem; border-radius:999px; display:inline-block;}
+  .pc-badge.paid{background:#eef6ee; color:#2e6b2e; border:1px solid #a8d5a8;}
+  .pc-badge.unpaid{background:var(--stone); color:var(--text-muted); border:1px solid var(--line);}
+  .pc-expanded{border-top:1px solid var(--line); padding:.7rem .8rem; background:var(--stone);}
+  .pc-tabs{display:flex; gap:.3rem; margin-bottom:.6rem; flex-wrap:wrap;}
+  .pc-tab{font-family:var(--mono); font-size:.65rem; text-transform:uppercase; letter-spacing:.05em; padding:.25rem .6rem; border-radius:999px; border:1px solid var(--line); background:transparent; color:var(--text-muted); cursor:pointer;}
+  .pc-tab.active{border-color:var(--claret); color:var(--claret); background:rgba(156,44,59,.07);}
+  .pc-tab.edit-tab{margin-left:auto;}
+  .pc-row{display:flex; justify-content:space-between; align-items:baseline; padding:.28rem 0; border-bottom:1px solid var(--line); font-size:.82rem;}
+  .pc-row:last-child{border-bottom:none;}
+  .pc-row-label{color:var(--text); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .pc-row-val{font-family:var(--mono); font-size:.78rem; color:var(--claret); font-weight:600; margin-left:.5rem; flex-shrink:0;}
+
+  /* ---- player archive ---- */
     margin-top:2.4rem; padding-top:2rem; border-top:1px solid var(--line);
   }
   .player-archive-grid{
@@ -1146,13 +1175,7 @@
     <p class="eyebrow">Society members</p>
     <h2 class="section-title">Players</h2>
     <p class="players-login-note" id="players-login-note"></p>
-    <table class="results-table" id="players-table">
-      <caption>Handicap and membership status are kept up to date by the committee. Membership status resets automatically each new year.</caption>
-      <thead>
-        <tr><th>Name</th><th>Events attended</th><th>Handicap</th><th id="membership-col-header">Membership paid</th>${'<th></th>'}</tr>
-      </thead>
-      <tbody id="players-body"></tbody>
-    </table>
+    <div id="players-body"></div>
     <div id="players-add-slot" style="margin-top:.8rem;"></div>
   </section>
 
@@ -1633,12 +1656,19 @@ function renderEvents(filter){
             <div class="meta">${e.format || ''}</div>
             ${mapsUrl ? `<a class="event-address" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation();">${CAR_ICON} ${e.course}${e.postcode ? ' · ' + e.postcode : ''}</a>` : (e.course ? `<div class="meta">${e.course}</div>` : '')}
             ${(() => {
+              const fee = parseFloat((e.cost||'').replace(/[^0-9.]/g,'')) || 0;
               const chips = [];
-              if (e.meeting_time) chips.push(`⏰ Meet ${e.meeting_time}`);
-              if (e.tee_time) chips.push(`Tee ${e.tee_time}`);
-              if (e.cost) chips.push(`💰 ${e.cost}`);
-              if (e.signup_by && eventStatus(e) === 'upcoming') chips.push(`Sign up by ${fmtDateShort(e.signup_by)}`);
-              return chips.length ? `<div class="event-chips">${chips.join(' &nbsp;·&nbsp; ')}</div>` : '';
+              if (fee) chips.push(`<span class="ev-chip cost">£${fee % 1 === 0 ? fee.toFixed(0) : fee.toFixed(2)}</span>`);
+              if (e.meeting_time) chips.push(`<span class="ev-chip time">Meet ${e.meeting_time}</span>`);
+              if (e.whats_included) chips.push(`<span class="ev-chip food">Food included</span>`);
+              const maxP = e.max_players || 0;
+              if (signedUpCount > 0 || maxP > 0){
+                const full = maxP && signedUpCount >= maxP;
+                const label = maxP ? `${signedUpCount} / ${maxP} signed up` : `${signedUpCount} signed up`;
+                chips.push(`<span class="ev-chip signups ${full?'full':''}">${label}</span>`);
+              }
+              if (e.signup_by && eventStatus(e) === 'upcoming') chips.push(`<span class="ev-chip signup-by">Sign up by ${fmtDateShort(e.signup_by)}</span>`);
+              return chips.length ? `<div class="event-chips">${chips.join('')}</div>` : '';
             })()}
           </div>
           <div class="event-links">
@@ -1865,7 +1895,6 @@ function eventDetailHtml(e){
         if (e.meeting_time) details.push(['Meeting time', e.meeting_time]);
         if (e.tee_time) details.push(['First tee time', e.tee_time]);
         if (e.cost) details.push(['Cost', e.cost]);
-        if (e.whats_included) details.push(["What's included", e.whats_included]);
         if (e.max_players) details.push(['Max players', e.max_players]);
         if (e.signup_by) details.push(['Sign up by', fmtDate(e.signup_by)]);
         if (e.pay_by) details.push(['Pay by', fmtDate(e.pay_by)]);
@@ -1874,8 +1903,21 @@ function eventDetailHtml(e){
         const paidIds = new Set(eventPayments.filter(p => p.event_id === e.id && p.paid).map(p => p.player_id));
         const totalCollected = paidIds.size * fee;
         const totalExpected = signedUp.length * fee;
+        const foodPanel = e.whats_included ? `
+          <div style="background:#fdf3e7; border-radius:var(--radius); padding:.7rem 1rem; margin-bottom:.8rem; display:flex; gap:1.2rem; align-items:center;">
+            <div style="display:flex; flex-direction:column; align-items:center; gap:.25rem; flex:1; text-align:center;">
+              <span style="font-size:1.4rem;">🥓</span>
+              <span style="font-family:var(--mono); font-size:.7rem; color:#7a4a10; line-height:1.3;">Bacon roll on arrival</span>
+            </div>
+            <div style="width:1px; background:#f0c070; align-self:stretch;"></div>
+            <div style="display:flex; flex-direction:column; align-items:center; gap:.25rem; flex:1; text-align:center;">
+              <span style="font-size:1.4rem;">🍳</span>
+              <span style="font-family:var(--mono); font-size:.7rem; color:#7a4a10; line-height:1.3;">Ham, egg &amp; chips after</span>
+            </div>
+          </div>` : '';
         return `
           ${details.length ? `<div class="event-detail-info">${details.map(([k,v]) => `<div class="edi-row"><span class="edi-label">${k}</span><span class="edi-value">${v}</span></div>`).join('')}</div>` : ''}
+          ${foodPanel}
           <div class="signup-block">
             <h4>Sign up for this event</h4>
             <div class="signup-status" id="signup-status-${e.id}"></div>
@@ -3084,98 +3126,119 @@ function playerScoreHistory(playerId){
 }
 
 const expandedPlayerIds = new Set();
+const playerTabState = {}; // playerId -> 'scores' | 'courses'
+
 function togglePlayerHistory(playerId){
   if (expandedPlayerIds.has(playerId)) expandedPlayerIds.delete(playerId);
-  else expandedPlayerIds.add(playerId);
+  else { expandedPlayerIds.add(playerId); if (!playerTabState[playerId]) playerTabState[playerId] = 'scores'; }
+  renderPlayers();
+}
+
+function setPlayerTab(playerId, tab){
+  playerTabState[playerId] = tab;
   renderPlayers();
 }
 
 const editingPlayerIds = new Set();
 
+function playerCoursesHistory(playerId){
+  const evIds = new Set();
+  signups.filter(s => s.player_id === playerId).forEach(s => evIds.add(s.event_id));
+  allScorecards.filter(sc => sc.player_id === playerId && scHasScore(sc)).forEach(sc => evIds.add(sc.event_id));
+  return [...evIds].map(id => eventById(id)).filter(ev => ev && ev.course).reduce((acc, ev) => {
+    if (!acc.find(c => c.name === ev.course)) acc.push({ name: ev.course, postcode: ev.postcode });
+    return acc;
+  }, []).sort((a,b) => a.name.localeCompare(b.name));
+}
+
 function renderPlayers(){
   const currentYear = new Date().getFullYear();
-
-  const header = document.getElementById('membership-col-header');
-  if (header) header.textContent = `Membership paid (${currentYear})`;
-
   const note = document.getElementById('players-login-note');
   if (note){
     note.innerHTML = isLoggedIn
-      ? 'Logged in \u2014 you can edit, add and remove players below. Tap a name to see their score history.'
-      : 'Tap a player\u2019s name to see their scores. Handicap and membership status are editable by committee members only.';
+      ? 'Logged in \u2014 you can edit, add and remove players below. Tap a card to see scores and courses played.'
+      : 'Tap a player card to see their scores and courses played.';
   }
 
   const sorted = [...players].filter(p => p.active !== false).sort((a,b) => a.first_name.localeCompare(b.first_name));
-  document.getElementById('players-body').innerHTML = sorted.map(p => {
+  const container = document.getElementById('players-body');
+  if (!container) return;
+
+  let html = '<div class="player-card-grid">';
+  sorted.forEach(p => {
     const attended = eventsAttendedCount(p.id);
     const isPaid = p.membership_paid_year === currentYear;
     const history = playerScoreHistory(p.id);
+    const courses = playerCoursesHistory(p.id);
     const isExpanded = expandedPlayerIds.has(p.id);
     const isEditing = editingPlayerIds.has(p.id);
+    const tab = playerTabState[p.id] || 'scores';
+    const initials = (p.first_name[0]||'') + (p.last_name[0]||'');
 
-    const handicapCell = isLoggedIn
-      ? `<input class="handicap-input" type="number" step="0.1" value="${p.handicap ?? ''}"
-           onchange="updatePlayerHandicap(${p.id}, this.value)">`
-      : `<span class="handicap-readonly">${p.handicap ?? '\u2014'}</span>`;
-
-    const membershipCell = isLoggedIn
-      ? `<input class="membership-checkbox" type="checkbox" ${isPaid ? 'checked' : ''}
-           onchange="updateMembershipPaid(${p.id}, this.checked)">`
-      : `<span class="membership-pill ${isPaid ? 'paid' : 'unpaid'}">${isPaid ? 'Paid' : 'Not paid'}</span>`;
-
-    const nameCell = history.length
-      ? `<a href="#" onclick="togglePlayerHistory(${p.id}); return false;" style="font-weight:500;">${p.first_name} ${p.last_name} <span style="font-family:var(--mono); font-size:.7rem;">${isExpanded ? '\u25B4' : '\u25BE'}</span></a>`
-      : `${p.first_name} ${p.last_name}`;
-
-    const editRow = isLoggedIn && isEditing ? `
-      <tr>
-        <td colspan="5" style="padding:.6rem 1rem; background:var(--paper);">
-          <div class="edit-form" style="max-width:480px;">
-            <h4>Edit player</h4>
-            <div class="edit-form-grid">
-              <div><label>First name</label><input id="ep-fname-${p.id}" value="${p.first_name.replace(/"/g,'&quot;')}"></div>
-              <div><label>Last name</label><input id="ep-lname-${p.id}" value="${p.last_name.replace(/"/g,'&quot;')}"></div>
-              <div><label>Email (optional)</label><input type="email" id="ep-email-${p.id}" value="${(p.email||'').replace(/"/g,'&quot;')}"></div>
-              <div><label>Handicap</label><input type="number" step="0.1" id="ep-hcap-${p.id}" value="${p.handicap ?? ''}"></div>
-              <div class="full" style="display:flex; align-items:center; gap:.7rem; padding:.4rem 0;">
-                <input type="checkbox" id="ep-active-${p.id}" ${p.active !== false ? 'checked' : ''} style="width:18px; height:18px; accent-color:var(--bracken);">
-                <label for="ep-active-${p.id}" style="font-size:.9rem; cursor:pointer;">Active member (uncheck to move to archive)</label>
-              </div>
-            </div>
-            <div class="edit-form-actions">
-              <button class="btn brass" onclick="savePlayerEdit(${p.id})">Save</button>
-              <button class="btn ghost" onclick="togglePlayerEdit(${p.id})">Cancel</button>
-              <div class="edit-status" id="ep-status-${p.id}"></div>
-              <button class="delete-btn" onclick="deletePlayer(${p.id})">Delete player</button>
-            </div>
+    const editForm = isLoggedIn && isEditing ? `
+      <div class="edit-form" style="margin:.6rem 0 0;" onclick="event.stopPropagation()">
+        <div class="edit-form-grid">
+          <div><label>First name</label><input id="ep-fname-${p.id}" value="${p.first_name.replace(/"/g,'&quot;')}"></div>
+          <div><label>Last name</label><input id="ep-lname-${p.id}" value="${p.last_name.replace(/"/g,'&quot;')}"></div>
+          <div><label>Email</label><input type="email" id="ep-email-${p.id}" value="${(p.email||'').replace(/"/g,'&quot;')}"></div>
+          <div><label>Handicap</label><input type="number" step="0.1" id="ep-hcap-${p.id}" value="${p.handicap ?? ''}"></div>
+          <div class="full" style="display:flex; align-items:center; gap:.6rem;">
+            <input type="checkbox" id="ep-active-${p.id}" ${p.active !== false ? 'checked' : ''} style="width:16px; height:16px; accent-color:var(--bracken);">
+            <label for="ep-active-${p.id}" style="font-size:.85rem;">Active member</label>
           </div>
-        </td>
-      </tr>` : '';
+        </div>
+        <div class="edit-form-actions">
+          <button class="btn brass" onclick="savePlayerEdit(${p.id})">Save</button>
+          <button class="btn ghost" onclick="togglePlayerEdit(${p.id})">Cancel</button>
+          <div class="edit-status" id="ep-status-${p.id}"></div>
+          <button class="delete-btn" onclick="deletePlayer(${p.id})">Delete</button>
+        </div>
+      </div>` : '';
 
-    const historyRow = isExpanded && history.length ? `
-      <tr>
-        <td colspan="${isLoggedIn?5:4}" style="background:var(--paper); padding:.8rem 1rem;">
-          <div style="font-family:var(--mono); font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); margin-bottom:.5rem;">Score history</div>
-          ${history.map(h => `
-            <div style="display:flex; gap:.9rem; align-items:baseline; padding:.25rem 0; font-size:.9rem; border-bottom:1px solid var(--line);">
-              <span style="font-family:var(--mono); font-size:.76rem; color:var(--text-muted); min-width:5.4rem;">${fmtDate(h.ev.date)}</span>
-              <a href="#" onclick="goTo('events',{highlightEvent:'${h.ev.id}'}); return false;">${h.ev.name}</a>
-              <span style="font-family:var(--mono); font-weight:600; margin-left:auto;">${h.total} pts</span>
-            </div>`).join('')}
-        </td>
-      </tr>` : '';
+    const membershipCtrl = isLoggedIn
+      ? `<input class="membership-checkbox" type="checkbox" ${isPaid?'checked':''} onchange="updateMembershipPaid(${p.id},this.checked)" onclick="event.stopPropagation()" title="Membership paid">`
+      : '';
+    const handicapCtrl = isLoggedIn
+      ? `<input class="handicap-input" type="number" step="0.1" value="${p.handicap??''}" onchange="updatePlayerHandicap(${p.id},this.value)" onclick="event.stopPropagation()" style="width:4rem;">`
+      : '';
 
-    return `
-      <tr>
-        <td>${nameCell}</td>
-        <td>${attended}</td>
-        <td>${handicapCell}</td>
-        <td>${membershipCell}</td>
-        ${isLoggedIn ? `<td><button class="committee-edit-btn" onclick="togglePlayerEdit(${p.id})">${isEditing?'Cancel':'Edit'}</button></td>` : ''}
-      </tr>${editRow}${historyRow}`;
-  }).join('');
+    const expandedContent = isExpanded ? `
+      <div class="pc-expanded" onclick="event.stopPropagation()">
+        <div class="pc-tabs">
+          <button class="pc-tab ${tab==='scores'?'active':''}" onclick="setPlayerTab(${p.id},'scores')">Scores</button>
+          <button class="pc-tab ${tab==='courses'?'active':''}" onclick="setPlayerTab(${p.id},'courses')">Courses played</button>
+          ${isLoggedIn ? `<button class="pc-tab edit-tab" onclick="togglePlayerEdit(${p.id})">${isEditing?'Cancel':'Edit'}</button>` : ''}
+        </div>
+        ${tab==='scores' ? (history.length ? history.map(h => `
+          <div class="pc-row">
+            <span class="pc-row-label">${h.ev.name} <span style="font-family:var(--mono);font-size:.7rem;color:var(--text-muted);">${new Date(h.ev.date+'T00:00:00').getFullYear()}</span></span>
+            <span class="pc-row-val">${h.total} pts</span>
+          </div>`).join('') : '<p class="muted" style="font-size:.82rem; padding:.4rem 0;">No scores recorded yet.</p>') : ''}
+        ${tab==='courses' ? (courses.length ? courses.map(c => {
+          const url = googleMapsUrl(c.name, c.postcode);
+          return `<div class="pc-row"><a href="${url}" target="_blank" rel="noopener" style="font-size:.88rem; color:var(--claret);">${c.name}</a></div>`;
+        }).join('') : '<p class="muted" style="font-size:.82rem; padding:.4rem 0;">No courses recorded yet.</p>') : ''}
+        ${editForm}
+      </div>` : '';
 
-  /* add player button */
+    html += `
+      <div class="player-card ${isExpanded?'expanded':''}" onclick="togglePlayerHistory(${p.id})">
+        <div class="pc-top">
+          <div class="pc-initials">${initials}</div>
+          <div class="pc-name">${p.first_name} ${p.last_name}</div>
+          <div class="pc-hcap">${p.handicap != null ? 'HCP ' + p.handicap : 'No handicap'}</div>
+          ${isLoggedIn ? `<div class="pc-controls" onclick="event.stopPropagation()">${membershipCtrl}${handicapCtrl}</div>` : ''}
+        </div>
+        <div class="pc-bottom">
+          <div class="pc-meta">${attended} event${attended===1?'':'s'}</div>
+          <span class="pc-badge ${isPaid?'paid':'unpaid'}">Membership ${isPaid?'paid':'unpaid'}</span>
+        </div>
+        ${expandedContent}
+      </div>`;
+  });
+  html += '</div>';
+  container.innerHTML = html;
+
   const addSlot = document.getElementById('players-add-slot');
   if (addSlot) addSlot.innerHTML = isLoggedIn
     ? `<button class="add-item-btn" onclick="openAddPlayer()">+ Add player</button><div id="add-player-form"></div>` : '';
