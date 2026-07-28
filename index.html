@@ -1573,6 +1573,7 @@ async function loadData(){
       db.from('expenditures').select('*').order('date'),
     ]);
     eventPayments = pmRes.data || [];
+    console.log('eventPayments loaded:', eventPayments.length, 'sample:', JSON.stringify(eventPayments.slice(0,3)));
     expenditures = exRes.data || [];
   } catch(err){
     console.warn('Payments not available yet (run add-payments.sql):', err);
@@ -1876,7 +1877,7 @@ function eventDetailHtml(e){
                   <h4>Payment tracking${fee ? ` — default £${fee.toFixed(2)}` : ''}</h4>
                   <div>
                     ${playerPayments.map(({p, rec}) => {
-                      const isPaid = rec && rec.paid;
+                      const isPaid = rec && (rec.paid === true || rec.paid === 1 || rec.paid === "true");
                       const amount = rec ? Number(rec.amount||fee) : fee;
                       return `<div class="payment-row ${isPaid?'paid':''}" data-event="${e.id}" data-player="${p.id}">
                         <input type="checkbox" ${isPaid?'checked':''} onchange="togglePayment('${e.id}',${p.id},'${amount.toFixed(2)}',this.checked)">
@@ -1946,7 +1947,7 @@ function eventDetailHtml(e){
               <div>
                 ${signedUp.map(p => {
                   const rec = eventPayments.find(x => String(x.event_id) === String(e.id) && x.player_id === p.id);
-                  const isPaid = rec && rec.paid;
+                  const isPaid = rec && (rec.paid === true || rec.paid === 1 || rec.paid === "true");
                   const amount = rec ? Number(rec.amount||fee) : fee;
                   return `<div class="payment-row ${isPaid?'paid':''}" data-event="${e.id}" data-player="${p.id}">
                     <input type="checkbox" ${isPaid?'checked':''} onchange="togglePayment('${e.id}',${p.id},'${amount.toFixed(2)}',this.checked)">
@@ -5016,7 +5017,16 @@ async function togglePayment(eventId, playerId, amountOrEl, paid){
     if (error){ console.error('Insert error:', error); alert('Could not save: ' + error.message); return; }
     if (data) { eventPayments.push(data); console.log('Insert success:', data); }
   }
-  renderEvents();
+  /* update row styling directly — no full re-render to avoid checkbox loop */
+  const row = document.querySelector(`.payment-row[data-player="${playerId}"][data-event="${eventId}"]`);
+  if (row){
+    row.classList.toggle('paid', paid);
+    const flash = document.createElement('span');
+    flash.textContent = ' ✓';
+    flash.style.cssText = 'color:var(--bracken); font-family:var(--mono); font-size:.75rem; margin-left:.3rem;';
+    row.appendChild(flash);
+    setTimeout(() => flash.remove(), 1500);
+  }
 }
 
 async function updatePaymentAmount(eventId, playerId, value){
@@ -5060,7 +5070,7 @@ function renderAccounts(){
   console.log('renderAccounts — eventPayments sample:', eventPayments.slice(0,3));
   const incomeRows = yearEvents.map(e => {
     const eid = String(e.id);
-    const paidList = eventPayments.filter(p => String(p.event_id) === eid && p.paid);
+    const paidList = eventPayments.filter(p => String(p.event_id) === eid && (p.paid === true || p.paid === 1 || p.paid === "true"));
     const allPayments = eventPayments.filter(p => String(p.event_id) === eid);
     console.log(`Event ${eid} (${e.name}): allPayments=${allPayments.length} paidList=${paidList.length}`);
     const collected = paidList.reduce((s,p) => s + Number(p.amount||0), 0);
