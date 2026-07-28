@@ -1378,7 +1378,7 @@ let events = [];
 let committee = [];
 let gallery = [];
 let news = [];
-let rules = [];
+let societyId = null; // loaded from societies table on init
 let honours = [];
 let allScorecards = [];
 let allHoleScores = [];
@@ -1441,6 +1441,12 @@ async function loadData(){
        </div>`);
     return;
   }
+
+  /* load society ID first — needed for all inserts */
+  try {
+    const { data: soc } = await db.from('societies').select('id').limit(1).single();
+    if (soc) societyId = soc.id;
+  } catch(e){ console.warn('Could not load society:', e); }
 
   let evRes, coRes, gaRes, neRes, reRes;
   try {
@@ -2021,7 +2027,7 @@ async function submitSignup(eventId){
         existingByName.email = email;
       }
     } else {
-      const { data, error } = await db.from('players').insert({ first_name: fname, last_name: lname, email }).select().single();
+      const { data, error } = await db.from('players').insert({ first_name: fname, last_name: lname, email, society_id: societyId }).select().single();
       if (error){
         console.error('Insert player error:', error);
         setStatus('Something went wrong adding your details. Please try again.', 'error');
@@ -2032,7 +2038,7 @@ async function submitSignup(eventId){
     }
   }
 
-  const { error: suError } = await db.from('signups').insert({ event_id: eventId, player_id: playerId });
+  const { error: suError } = await db.from('signups').insert({ event_id: eventId, player_id: playerId, society_id: societyId });
   if (suError){
     if (suError.code === '23505'){
       setStatus('You\u2019re already signed up for this fixture.', 'notice');
@@ -2240,7 +2246,7 @@ async function saveEvent(eventId){
     } else {
       /* create a new library entry */
       const { data: newCourse } = await db.from('courses')
-        .insert({ name: courseName, postcode: coursePostcode || null })
+        .insert({ name: courseName, postcode: coursePostcode || null, society_id: societyId })
         .select().single();
       if (newCourse){
         courses.push(newCourse);
@@ -3431,7 +3437,7 @@ async function saveNewPlayer(){
   const handicap   = document.getElementById('np-hcap')?.value !== '' ? Number(document.getElementById('np-hcap')?.value) : null;
   if (!first_name || !last_name){ setStatus('First and last name are required.','error'); return; }
   setStatus('Saving\u2026','loading');
-  const { data, error } = await db.from('players').insert({ first_name, last_name, email, handicap }).select().single();
+  const { data, error } = await db.from('players').insert({ first_name, last_name, email, handicap, society_id: societyId }).select().single();
   if (error){ console.error(error); setStatus('Save failed.','error'); return; }
   if (data) players.push(data);
   document.getElementById('add-player-form').innerHTML = '';
@@ -3968,7 +3974,7 @@ async function startScoring(){
   }
   for (const pid of needCreating){
     try {
-      const { data, error } = await db.from('scorecards').insert({ event_id: liveEventId, player_id: pid }).select().single();
+      const { data, error } = await db.from('scorecards').insert({ event_id: liveEventId, player_id: pid, society_id: societyId }).select().single();
       if (error) throw error;
       if (data) scorecards.push(data);
     } catch(err){
@@ -4756,7 +4762,7 @@ async function saveNewCourseFromEvent(eventId){
   const postcode = (document.getElementById('ef-nc-postcode-' + eventId)?.value || '').trim().toUpperCase();
   if (!name){ setStatus('Course name is required.', 'error'); return; }
   setStatus('Saving\u2026', 'loading');
-  const { data, error } = await db.from('courses').insert({ name, postcode }).select().single();
+  const { data, error } = await db.from('courses').insert({ name, postcode, society_id: societyId }).select().single();
   if (error){ console.error(error); setStatus('Save failed.', 'error'); return; }
   courses.push(data);
   courses.sort((a,b) => a.name.localeCompare(b.name));
@@ -4986,7 +4992,7 @@ async function saveNewCourseLibrary(){
   const postcode = (document.getElementById('ncc-postcode')?.value||'').trim().toUpperCase()||null;
   if (!name){ setStatus('Name required.','error'); return; }
   setStatus('Saving\u2026','loading');
-  const { data, error } = await db.from('courses').insert({ name, postcode }).select().single();
+  const { data, error } = await db.from('courses').insert({ name, postcode, society_id: societyId }).select().single();
   if (error){ console.error(error); setStatus('Save failed.','error'); return; }
   courses.push(data); courses.sort((a,b) => a.name.localeCompare(b.name));
   renderCoursesPanel();
@@ -5386,7 +5392,7 @@ function renderGroupings(){
 
 async function addGroup(eventId){
   if (!db) return;
-  const { data, error } = await db.from('groups').insert({ event_id: eventId, tee_time: '09:00', group_number: matchGroups.filter(g => g.event_id === eventId).length + 1 }).select().single();
+  const { data, error } = await db.from('groups').insert({ event_id: eventId, tee_time: '09:00', group_number: matchGroups.filter(g => g.event_id === eventId).length + 1, society_id: societyId }).select().single();
   if (error){ console.error(error); alert('Could not add group.'); return; }
   matchGroups.push(data);
   editingGroupId = data.id;
