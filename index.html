@@ -2503,12 +2503,15 @@ function renderLoginModal(){
 
 async function handleHankoSession(){
   try {
-    /* get user email via Hanko REST API */
-    const emailResp = await fetch(`${HANKO_API}/emails`, { credentials: 'include' });
-    if (!emailResp.ok){ showLoginError('Could not get your email from Hanko.'); return; }
-    const emails = await emailResp.json();
-    const email = emails?.[0]?.address;
-    if (!email){ showLoginError('Could not get your email from Hanko.'); return; }
+    /* Hanko stores a JWT in a cookie called 'hanko' — decode it to get the email */
+    const hankoToken = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('hanko='));
+    if (!hankoToken){ showLoginError('No session found — please try again.'); return; }
+
+    const jwt = hankoToken.split('=')[1];
+    const payload = JSON.parse(atob(jwt.split('.')[1]));
+    const email = payload.email;
+
+    if (!email){ showLoginError('Could not get your email from session.'); return; }
 
     /* check this email belongs to a committee member */
     const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
@@ -2616,19 +2619,18 @@ async function initAuth(){
     });
   }
 
-  /* check Hanko session (passkey auth) via cookie */
+  /* check Hanko session (passkey auth) via JWT cookie */
   try {
-    const resp = await fetch(`${HANKO_API}/me`, { credentials: 'include' });
-    if (resp.ok && !isLoggedIn){
-      const me = await resp.json();
-      const emailResp = await fetch(`${HANKO_API}/emails`, { credentials: 'include' });
-      if (emailResp.ok){
-        const emails = await emailResp.json();
-        const email = emails?.[0]?.address;
-        if (email){
-          const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
-          if (player && player.is_committee) isLoggedIn = true;
-        }
+    const hankoToken = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('hanko='));
+    if (hankoToken && !isLoggedIn){
+      const jwt = hankoToken.split('=')[1];
+      const payload = JSON.parse(atob(jwt.split('.')[1]));
+      const email = payload.email;
+      const exp = payload.exp;
+      /* check token hasn't expired */
+      if (email && exp && Date.now() / 1000 < exp){
+        const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
+        if (player && player.is_committee) isLoggedIn = true;
       }
     }
   } catch(e){ console.warn('Hanko session check:', e); }
