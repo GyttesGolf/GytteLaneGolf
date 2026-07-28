@@ -1879,7 +1879,7 @@ function eventDetailHtml(e){
                       const isPaid = rec && rec.paid;
                       const amount = rec ? Number(rec.amount||fee) : fee;
                       return `<div class="payment-row ${isPaid?'paid':''}" data-event="${e.id}" data-player="${p.id}">
-                        <input type="checkbox" ${isPaid?'checked':''} onchange="togglePayment('${e.id}',${p.id},document.getElementById('pay-amt-${e.id}-${p.id}').value,this.checked)">
+                        <input type="checkbox" ${isPaid?'checked':''} onchange="togglePayment('${e.id}',${p.id},'${amount.toFixed(2)}',this.checked)">
                         <span class="pay-name">${p.first_name} ${p.last_name}</span>
                         <div style="display:flex; align-items:center; gap:.3rem; margin-left:auto;">
                           <span style="font-family:var(--mono); font-size:.8rem; color:var(--text-muted);">£</span>
@@ -1949,7 +1949,7 @@ function eventDetailHtml(e){
                   const isPaid = rec && rec.paid;
                   const amount = rec ? Number(rec.amount||fee) : fee;
                   return `<div class="payment-row ${isPaid?'paid':''}" data-event="${e.id}" data-player="${p.id}">
-                    <input type="checkbox" ${isPaid?'checked':''} onchange="togglePayment('${e.id}',${p.id},document.getElementById('pay-amt-${e.id}-${p.id}').value,this.checked)">
+                    <input type="checkbox" ${isPaid?'checked':''} onchange="togglePayment('${e.id}',${p.id},'${amount.toFixed(2)}',this.checked)">
                     <span class="pay-name">${p.first_name} ${p.last_name}</span>
                     <div style="display:flex; align-items:center; gap:.3rem; margin-left:auto;">
                       <span style="font-family:var(--mono); font-size:.8rem; color:var(--text-muted);">£</span>
@@ -4983,30 +4983,38 @@ async function saveNewCourseLibrary(){
 
 /* ===================== payments ===================== */
 async function togglePayment(eventId, playerId, amountOrEl, paid){
-  if (!db) return;
-  const amount = parseFloat(typeof amountOrEl === 'string' && amountOrEl.includes('pay-amt')
-    ? (document.getElementById(amountOrEl)?.value || 0)
-    : amountOrEl) || 0;
-  const existing = eventPayments.find(p => p.event_id === eventId && p.player_id === playerId);
+  console.log('togglePayment called:', {eventId, playerId, amountOrEl, paid, societyId});
+  console.log('eventPayments array length:', eventPayments.length);
+  console.log('db available:', !!db);
+  if (!db) { console.error('No db'); return; }
+
+  const amount = parseFloat(amountOrEl) || 0;
+  console.log('amount:', amount);
+
+  /* compare as strings since event_id may be uuid string */
+  const existing = eventPayments.find(p =>
+    String(p.event_id) === String(eventId) &&
+    String(p.player_id) === String(playerId)
+  );
+  console.log('existing record:', existing);
+
   if (existing){
-    const { error } = await db.from('event_payments').update({ paid, amount, paid_date: paid ? new Date().toISOString().slice(0,10) : null }).eq('id', existing.id);
-    if (error){ console.error(error); alert('Could not save payment — please try again.'); return; }
+    console.log('Updating existing record id:', existing.id);
+    const { error } = await db.from('event_payments')
+      .update({ paid, amount, paid_date: paid ? new Date().toISOString().slice(0,10) : null })
+      .eq('id', existing.id);
+    if (error){ console.error('Update error:', error); alert('Could not save: ' + error.message); return; }
     existing.paid = paid;
     existing.amount = amount;
     existing.paid_date = paid ? new Date().toISOString().slice(0,10) : null;
+    console.log('Update success');
   } else {
-    const { data, error } = await db.from('event_payments').insert({ event_id: eventId, player_id: playerId, amount, paid, society_id: societyId, paid_date: paid ? new Date().toISOString().slice(0,10) : null }).select().single();
-    if (error){ console.error(error); alert('Could not save payment — please try again.'); return; }
-    if (data) eventPayments.push(data);
-  }
-  /* flash a saved indicator next to the row */
-  const row = document.querySelector(`.payment-row[data-player="${playerId}"][data-event="${eventId}"]`);
-  if (row){
-    const flash = document.createElement('span');
-    flash.textContent = '✓ Saved';
-    flash.style.cssText = 'font-size:.7rem; color:var(--bracken); margin-left:.4rem; font-family:var(--mono);';
-    row.appendChild(flash);
-    setTimeout(() => flash.remove(), 1500);
+    console.log('Inserting new record, societyId:', societyId);
+    const { data, error } = await db.from('event_payments')
+      .insert({ event_id: eventId, player_id: playerId, amount, paid, society_id: societyId, paid_date: paid ? new Date().toISOString().slice(0,10) : null })
+      .select().single();
+    if (error){ console.error('Insert error:', error); alert('Could not save: ' + error.message); return; }
+    if (data) { eventPayments.push(data); console.log('Insert success:', data); }
   }
   renderEvents();
 }
