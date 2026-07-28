@@ -4993,7 +4993,7 @@ async function togglePayment(eventId, playerId, amountOrEl, paid){
     existing.amount = amount;
     existing.paid_date = paid ? new Date().toISOString().slice(0,10) : null;
   } else {
-    const { data, error } = await db.from('event_payments').insert({ event_id: eventId, player_id: playerId, amount, paid, paid_date: paid ? new Date().toISOString().slice(0,10) : null }).select().single();
+    const { data, error } = await db.from('event_payments').insert({ event_id: eventId, player_id: playerId, amount, paid, society_id: societyId, paid_date: paid ? new Date().toISOString().slice(0,10) : null }).select().single();
     if (error){ console.error(error); return; }
     if (data) eventPayments.push(data);
   }
@@ -5008,7 +5008,7 @@ async function updatePaymentAmount(eventId, playerId, value){
     await db.from('event_payments').update({ amount }).eq('id', existing.id);
     existing.amount = amount;
   } else {
-    const { data } = await db.from('event_payments').insert({ event_id: eventId, player_id: playerId, amount, paid: false }).select().single();
+    const { data } = await db.from('event_payments').insert({ event_id: eventId, player_id: playerId, amount, paid: false, society_id: societyId }).select().single();
     if (data) eventPayments.push(data);
   }
 }
