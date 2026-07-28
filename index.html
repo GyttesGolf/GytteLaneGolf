@@ -1711,6 +1711,26 @@ function signupsForEvent(eventId){
 
 const editingEventIds = new Set();
 
+function updatePaymentSummary(eventId){
+  const summary = document.querySelector(`.payment-summary[data-summary="${eventId}"]`);
+  if (!summary) return;
+  const e = eventById(eventId);
+  if (!e) return;
+  const fee = parseFloat((e.cost||'').replace(/[^0-9.]/g,'')) || 0;
+  const rows = document.querySelectorAll(`.payment-row[data-event="${eventId}"]`);
+  let collected = 0, paidCnt = 0, total = 0;
+  rows.forEach(row => {
+    const playerId = Number(row.dataset.player);
+    const rec = eventPayments.find(x => String(x.event_id) === String(eventId) && x.player_id === playerId);
+    const amt = Number(rec ? (rec.amount||fee) : fee);
+    total += amt;
+    if (isPaidRecord(rec)){ collected += amt; paidCnt++; }
+  });
+  const outstanding = total - collected;
+  summary.innerHTML = `<span class="ps-total">✓ Collected: £${collected.toFixed(2)} (${paidCnt} player${paidCnt===1?'':'s'})</span>
+    ${outstanding > 0 ? `<span class="ps-outstanding">Outstanding: £${outstanding.toFixed(2)} (${rows.length-paidCnt} players)</span>` : ''}`;
+}
+
 function isPaidRecord(rec){ return rec && (rec.paid === true || rec.paid === 1 || rec.paid === 'true'); }
 
 function eventDetailHtml(e){
@@ -1892,7 +1912,7 @@ function eventDetailHtml(e){
                       </div>`;
                     }).join('')}
                   </div>
-                  <div class="payment-summary">
+                  <div class="payment-summary" data-summary="${e.id}">
                     <span class="ps-total">✓ Collected: £${totalCollected.toFixed(2)} (${paidCount} players)</span>
                     ${paidCount < eventPlayers.length ? `<span class="ps-outstanding">Outstanding: £${(totalExpected-totalCollected).toFixed(2)} (${eventPlayers.length-paidCount} players)</span>` : ''}
                   </div>
@@ -1962,7 +1982,7 @@ function eventDetailHtml(e){
                   </div>`;
                 }).join('')}
               </div>
-              <div class="payment-summary">
+              <div class="payment-summary" data-summary="${e.id}">
                 ${(() => {
                   const collected = signedUp.reduce((s,p) => {
                     const rec = eventPayments.find(x => String(x.event_id) === String(e.id) && x.player_id === p.id);
@@ -5003,7 +5023,7 @@ async function togglePayment(eventId, playerId, amountOrEl, paid){
       .select().single();
     if (error){ console.error('Insert error:', error); alert('Could not save: ' + error.message); return; }
   }
-  /* update row styling directly — no full re-render to avoid checkbox loop */
+  /* update row styling and summary directly */
   const row = document.querySelector(`.payment-row[data-player="${playerId}"][data-event="${eventId}"]`);
   if (row){
     row.classList.toggle('paid', paid);
@@ -5013,6 +5033,7 @@ async function togglePayment(eventId, playerId, amountOrEl, paid){
     row.appendChild(flash);
     setTimeout(() => flash.remove(), 1500);
   }
+  updatePaymentSummary(eventId);
 }
 
 async function updatePaymentAmount(eventId, playerId, value){
