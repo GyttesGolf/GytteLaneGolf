@@ -5060,7 +5060,7 @@ function renderAccounts(){
   const membersPaid = players.filter(p => p.membership_paid_year === accountsYear);
   const membershipTotal = membersPaid.length * MEMBERSHIP_FEE;
   if (membersPaid.length){
-    incomeRows.push({ label: 'Annual Membership', sub: `${membersPaid.length} members × £${MEMBERSHIP_FEE}`, amount: membershipTotal });
+    incomeRows.push({ label: 'Annual Membership', sub: `${membersPaid.length} members × £${MEMBERSHIP_FEE}`, amount: membershipTotal, outstanding: 0 });
   }
   const totalIncome = incomeRows.reduce((s,r) => s + r.amount, 0);
 
