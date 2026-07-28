@@ -1863,7 +1863,11 @@ function eventDetailHtml(e){
                 <summary style="cursor:pointer; font-family:var(--mono); font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); user-select:none;">
                   Show who played (${attendees.length})
                 </summary>
-                <ul style="margin-top:.6rem;">${attendees.map(p => `<li>${p.first_name} ${p.last_name}</li>`).join('')}</ul>
+                <ul style="margin-top:.6rem;">${attendees.map(p => `
+                  <li style="display:flex; align-items:center; justify-content:space-between; gap:.5rem;">
+                    <span>${p.first_name} ${p.last_name}</span>
+                    ${isLoggedIn ? `<button class="committee-edit-btn" style="color:var(--claret); border-color:var(--claret); flex-shrink:0;" onclick="removeSignup('${e.id}',${p.id})">✕ Remove</button>` : ''}
+                  </li>`).join('')}</ul>
               </details>` : ''}
             ${isLoggedIn && eventPlayers.length ? `
                 <div class="edit-form" style="margin-top:.8rem;">
@@ -1932,7 +1936,11 @@ function eventDetailHtml(e){
           <div class="attendee-list">
             <h4>Who's playing (${attendees.length})</h4>
             ${attendees.length
-              ? '<ul>' + attendees.map(p => `<li>${p.first_name} ${p.last_name}</li>`).join('') + '</ul>'
+              ? '<ul>' + attendees.map(p => `
+                  <li style="display:flex; align-items:center; justify-content:space-between; gap:.5rem;">
+                    <span>${p.first_name} ${p.last_name}</span>
+                    ${isLoggedIn ? `<button class="committee-edit-btn" style="color:var(--claret); border-color:var(--claret); flex-shrink:0;" onclick="removeSignup('${e.id}',${p.id})">✕ Remove</button>` : ''}
+                  </li>`).join('') + '</ul>'
               : '<p class="muted">No one signed up yet — be the first.</p>'}
           </div>
           ${isLoggedIn && signedUp.length ? `
@@ -1985,6 +1993,18 @@ function eventDetailHtml(e){
 function toggleEventEdit(eventId){
   if (editingEventIds.has(eventId)) editingEventIds.delete(eventId);
   else editingEventIds.add(eventId);
+  renderEvents();
+}
+
+async function removeSignup(eventId, playerId){
+  const p = players.find(x => x.id === playerId);
+  const name = p ? `${p.first_name} ${p.last_name}` : 'this player';
+  if (!confirm(`Remove ${name} from this event?`)) return;
+  if (!db) return;
+  const { error } = await db.from('signups').delete()
+    .eq('event_id', eventId).eq('player_id', playerId);
+  if (error){ console.error(error); alert('Could not remove — please try again.'); return; }
+  signups = signups.filter(s => !(s.event_id === eventId && s.player_id === playerId));
   renderEvents();
 }
 
