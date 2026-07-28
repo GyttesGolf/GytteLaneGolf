@@ -664,31 +664,27 @@
   .captains-board .board-rule{height:1px; background:var(--brass); margin:0 1.4rem 1rem; opacity:.7;}
   .captains-board ol{list-style:none; margin:0; padding:0;}
   /* ---------- player archive ---------- */
-  /* ---- player card grid ---- */
-  .player-card-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:.6rem; margin-top:.8rem;}
-  .player-card{background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; cursor:pointer; transition:border-color .15s;}
-  .player-card:hover{border-color:var(--brass);}
-  .player-card.expanded{border-color:var(--claret);}
-  .player-card.membership-paid{border-color:var(--brass); border-width:2px;}
-  .pc-top{background:var(--ink); padding:.7rem .8rem;}
-  .pc-initials{width:34px; height:34px; border-radius:50%; background:rgba(227,193,115,.15); border:1.5px solid rgba(227,193,115,.4); color:var(--brass-light); font-size:.82rem; font-weight:500; display:flex; align-items:center; justify-content:center; margin-bottom:.45rem;}
-  .pc-name{font-family:var(--display); font-size:.88rem; font-weight:700; color:var(--paper); line-height:1.2; margin-bottom:.15rem;}
-  .pc-hcap{font-family:var(--mono); font-size:.7rem; color:var(--brass-light); opacity:.8;}
-  .pc-controls{display:flex; gap:.5rem; align-items:center; margin-top:.4rem;}
-  .pc-bottom{padding:.5rem .8rem;}
-  .pc-meta{font-family:var(--mono); font-size:.7rem; color:var(--text-muted); margin-bottom:.25rem;}
-  .pc-badge{font-family:var(--mono); font-size:.65rem; padding:.15rem .5rem; border-radius:999px; display:inline-block;}
-  .pc-badge.paid{background:#eef6ee; color:#2e6b2e; border:1px solid #a8d5a8;}
-  .pc-badge.unpaid{background:var(--stone); color:var(--text-muted); border:1px solid var(--line);}
-  .pc-expanded{border-top:1px solid var(--line); padding:.7rem .8rem; background:var(--stone);}
-  .pc-tabs{display:flex; gap:.3rem; margin-bottom:.6rem; flex-wrap:wrap;}
-  .pc-tab{font-family:var(--mono); font-size:.65rem; text-transform:uppercase; letter-spacing:.05em; padding:.25rem .6rem; border-radius:999px; border:1px solid var(--line); background:transparent; color:var(--text-muted); cursor:pointer;}
-  .pc-tab.active{border-color:var(--claret); color:var(--claret); background:rgba(156,44,59,.07);}
-  .pc-tab.edit-tab{margin-left:auto;}
-  .pc-row{display:flex; justify-content:space-between; align-items:baseline; padding:.28rem 0; border-bottom:1px solid var(--line); font-size:.82rem;}
-  .pc-row:last-child{border-bottom:none;}
-  .pc-row-label{color:var(--text); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  .pc-row-val{font-family:var(--mono); font-size:.78rem; color:var(--claret); font-weight:600; margin-left:.5rem; flex-shrink:0;}
+  /* ---- player compact list ---- */
+  .player-search-bar{display:flex;align-items:center;gap:.5rem;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:.45rem .75rem;margin-bottom:.7rem;}
+  .player-search-bar input{border:none;background:transparent;outline:none;font-size:.88rem;color:var(--text);width:100%;font-family:var(--body);}
+  .player-search-bar i{color:var(--text-muted);font-size:16px;flex-shrink:0;}
+  .player-list{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;}
+  .player-list-item{display:flex;align-items:center;gap:.7rem;padding:.55rem .8rem;border-bottom:0.5px solid var(--line);cursor:pointer;transition:background .1s;}
+  .player-list-item:last-child{border-bottom:none;}
+  .player-list-item:hover{background:var(--stone);}
+  .player-list-item.expanded{background:var(--stone);}
+  .pli-ini{width:34px;height:34px;border-radius:50%;background:var(--ink);color:var(--brass-light);font-size:.75rem;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .pli-info{flex:1;min-width:0;}
+  .pli-name{font-size:.9rem;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pli-sub{font-size:.68rem;color:var(--text-muted);font-family:var(--mono);margin-top:.05rem;}
+  .pli-right{display:flex;align-items:center;gap:.5rem;flex-shrink:0;}
+  .pli-dot{width:8px;height:8px;border-radius:50%;}
+  .pli-dot.paid{background:#4CAF50;}
+  .pli-dot.unpaid{background:var(--line);}
+  .pli-expanded{background:var(--stone);border-bottom:0.5px solid var(--line);padding:.65rem .8rem .65rem 3.4rem;}
+  .player-list-item.expanded .pli-ini{background:var(--claret);}
+  .pli-expanded .pc-tabs{margin-bottom:.55rem;}
+  .player-count{font-family:var(--mono);font-size:.72rem;color:var(--text-muted);margin-bottom:.5rem;}
 
   /* ---- player archive ---- */
     margin-top:2.4rem; padding-top:2rem; border-top:1px solid var(--line);
@@ -3139,29 +3135,44 @@ function playerCoursesHistory(playerId){
   }, []).sort((a,b) => a.name.localeCompare(b.name));
 }
 
+let playerListSearch = '';
+
 function renderPlayers(){
   const currentYear = new Date().getFullYear();
   const note = document.getElementById('players-login-note');
   if (note){
     note.innerHTML = isLoggedIn
-      ? 'Logged in \u2014 you can edit, add and remove players below. Tap a card to see scores and courses played.'
-      : 'Tap a player card to see their scores and courses played.';
+      ? 'Tap a player to see scores and courses. Edit from the expanded view.'
+      : 'Tap a player to see their scores and courses played.';
   }
 
   const sorted = [...players].filter(p => p.active !== false).sort((a,b) => a.first_name.localeCompare(b.first_name));
+  const filtered = playerListSearch
+    ? sorted.filter(p => (p.first_name + ' ' + p.last_name).toLowerCase().includes(playerListSearch.toLowerCase()))
+    : sorted;
+
   const container = document.getElementById('players-body');
   if (!container) return;
 
-  let html = '<div class="player-card-grid">';
-  sorted.forEach(p => {
-    const attended = eventsAttendedCount(p.id);
+  let html = `
+    <div class="player-search-bar">
+      <i class="ti ti-search" aria-hidden="true"></i>
+      <input type="text" placeholder="Search players\u2026" value="${playerListSearch.replace(/"/g,'&quot;')}"
+        oninput="playerListSearch=this.value; renderPlayers();" autocomplete="off">
+    </div>
+    <div class="player-count">${filtered.length} of ${sorted.length} players</div>
+    <div class="player-list">`;
+
+  filtered.forEach(p => {
     const isPaid = p.membership_paid_year === currentYear;
+    const attended = eventsAttendedCount(p.id);
     const history = playerScoreHistory(p.id);
     const courses = playerCoursesHistory(p.id);
     const isExpanded = expandedPlayerIds.has(p.id);
     const isEditing = editingPlayerIds.has(p.id);
     const tab = playerTabState[p.id] || 'scores';
     const initials = (p.first_name[0]||'') + (p.last_name[0]||'');
+    const hcap = p.handicap != null ? `HCP ${p.handicap}` : 'No HCP';
 
     const editForm = isLoggedIn && isEditing ? `
       <div class="edit-form" style="margin:.6rem 0 0;" onclick="event.stopPropagation()">
@@ -3169,9 +3180,9 @@ function renderPlayers(){
           <div><label>First name</label><input id="ep-fname-${p.id}" value="${p.first_name.replace(/"/g,'&quot;')}"></div>
           <div><label>Last name</label><input id="ep-lname-${p.id}" value="${p.last_name.replace(/"/g,'&quot;')}"></div>
           <div><label>Email</label><input type="email" id="ep-email-${p.id}" value="${(p.email||'').replace(/"/g,'&quot;')}"></div>
-          <div><label>Handicap</label><input type="number" step="0.1" id="ep-hcap-${p.id}" value="${p.handicap ?? ''}"></div>
-          <div class="full" style="display:flex; align-items:center; gap:.6rem;">
-            <input type="checkbox" id="ep-active-${p.id}" ${p.active !== false ? 'checked' : ''} style="width:16px; height:16px; accent-color:var(--bracken);">
+          <div><label>Handicap</label><input type="number" step="0.1" id="ep-hcap-${p.id}" value="${p.handicap??''}"></div>
+          <div class="full" style="display:flex;align-items:center;gap:.6rem;">
+            <input type="checkbox" id="ep-active-${p.id}" ${p.active!==false?'checked':''} style="width:16px;height:16px;accent-color:var(--bracken);">
             <label for="ep-active-${p.id}" style="font-size:.85rem;">Active member</label>
           </div>
         </div>
@@ -3183,53 +3194,48 @@ function renderPlayers(){
         </div>
       </div>` : '';
 
-    const membershipCtrl = isLoggedIn
-      ? `<input class="membership-checkbox" type="checkbox" ${isPaid?'checked':''} onchange="updateMembershipPaid(${p.id},this.checked)" onclick="event.stopPropagation()" title="Membership paid">`
-      : '';
-    const handicapCtrl = isLoggedIn
-      ? `<input class="handicap-input" type="number" step="0.1" value="${p.handicap??''}" onchange="updatePlayerHandicap(${p.id},this.value)" onclick="event.stopPropagation()" style="width:4rem;">`
-      : '';
-
     const expandedContent = isExpanded ? `
-      <div class="pc-expanded" onclick="event.stopPropagation()">
+      <div class="pli-expanded" onclick="event.stopPropagation()">
         <div class="pc-tabs">
           <button class="pc-tab ${tab==='scores'?'active':''}" onclick="setPlayerTab(${p.id},'scores')">Scores</button>
           <button class="pc-tab ${tab==='courses'?'active':''}" onclick="setPlayerTab(${p.id},'courses')">Courses played</button>
           ${isLoggedIn ? `<button class="pc-tab edit-tab" onclick="togglePlayerEdit(${p.id})">${isEditing?'Cancel':'Edit'}</button>` : ''}
+          ${isLoggedIn ? `<input class="membership-checkbox" type="checkbox" ${isPaid?'checked':''} onchange="updateMembershipPaid(${p.id},this.checked)" title="Membership paid" style="width:15px;height:15px;accent-color:var(--brass);margin-left:.3rem;">` : ''}
         </div>
         ${tab==='scores' ? (history.length ? history.map(h => `
           <div class="pc-row">
-            <span class="pc-row-label">${h.ev.name} <span style="font-family:var(--mono);font-size:.7rem;color:var(--text-muted);">${new Date(h.ev.date+'T00:00:00').getFullYear()}</span></span>
+            <span class="pc-row-label">${h.ev.name} <span style="color:var(--text-muted);font-size:.75rem;">${new Date(h.ev.date+'T00:00:00').getFullYear()}</span></span>
             <span class="pc-row-val">${h.total} pts</span>
-          </div>`).join('') : '<p class="muted" style="font-size:.82rem; padding:.4rem 0;">No scores recorded yet.</p>') : ''}
+          </div>`).join('') : '<p class="muted" style="font-size:.82rem;padding:.3rem 0;">No scores yet.</p>') : ''}
         ${tab==='courses' ? (courses.length ? courses.map(c => {
           const url = googleMapsUrl(c.name, c.postcode);
-          return `<div class="pc-row"><a href="${url}" target="_blank" rel="noopener" style="font-size:.88rem; color:var(--claret);">${c.name}</a></div>`;
-        }).join('') : '<p class="muted" style="font-size:.82rem; padding:.4rem 0;">No courses recorded yet.</p>') : ''}
+          return `<div class="pc-row"><a href="${url}" target="_blank" rel="noopener" style="font-size:.85rem;color:var(--claret);">${c.name}</a></div>`;
+        }).join('') : '<p class="muted" style="font-size:.82rem;padding:.3rem 0;">No courses yet.</p>') : ''}
         ${editForm}
       </div>` : '';
 
     html += `
-      <div class="player-card ${isExpanded?'expanded':''} ${isPaid?'membership-paid':''}" onclick="togglePlayerHistory(${p.id})">
-        <div class="pc-top">
-          <div class="pc-initials">${initials}</div>
-          <div class="pc-name">${p.first_name} ${p.last_name}</div>
-          <div class="pc-hcap">${p.handicap != null ? 'HCP ' + p.handicap : 'No handicap'}</div>
-          ${isLoggedIn ? `<div class="pc-controls" onclick="event.stopPropagation()">${membershipCtrl}${handicapCtrl}</div>` : ''}
+      <div class="player-list-item ${isExpanded?'expanded':''}" onclick="togglePlayerHistory(${p.id})">
+        <div class="pli-ini">${initials}</div>
+        <div class="pli-info">
+          <div class="pli-name">${p.first_name} ${p.last_name}</div>
+          <div class="pli-sub">${hcap} · ${attended} event${attended===1?'':'s'}</div>
         </div>
-        <div class="pc-bottom">
-          <div class="pc-meta">${attended} event${attended===1?'':'s'}</div>
-          <span class="pc-badge ${isPaid?'paid':'unpaid'}">Membership ${isPaid?'paid':'unpaid'}</span>
+        <div class="pli-right">
+          <div class="pli-dot ${isPaid?'paid':'unpaid'}" title="Membership ${isPaid?'paid':'unpaid'}"></div>
+          <i class="ti ti-chevron-${isExpanded?'up':'down'}" style="font-size:14px;color:var(--text-muted);" aria-hidden="true"></i>
         </div>
-        ${expandedContent}
-      </div>`;
+      </div>
+      ${expandedContent}`;
   });
+
   html += '</div>';
+  if (!filtered.length) html += '<p class="muted" style="margin-top:.5rem;">No players match your search.</p>';
   container.innerHTML = html;
 
   const addSlot = document.getElementById('players-add-slot');
   if (addSlot) addSlot.innerHTML = isLoggedIn
-    ? `<button class="add-item-btn" onclick="openAddPlayer()">+ Add player</button><div id="add-player-form"></div>` : '';
+    ? `<button class="add-item-btn" style="margin-top:.6rem;" onclick="openAddPlayer()">+ Add player</button><div id="add-player-form"></div>` : '';
 }
 
 function togglePlayerEdit(id){
