@@ -2005,8 +2005,9 @@ async function submitSignup(eventId){
       return;
     }
 
-    const existing = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
+    const existing = players.find(p => p.email && typeof p.email === 'string' && p.email.toLowerCase() === email.toLowerCase());
     const existingByName = !existing && players.find(p =>
+      p.first_name && p.last_name &&
       p.first_name.toLowerCase() === fname.toLowerCase() &&
       p.last_name.toLowerCase() === lname.toLowerCase()
     );
@@ -2233,7 +2234,7 @@ async function saveEvent(eventId){
 
   if (!selectedCourse && courseName && db){
     /* check if a matching course already exists in the library (case-insensitive) */
-    const existing = courses.find(c => c.name.toLowerCase() === courseName.toLowerCase());
+    const existing = courses.find(c => c.name && typeof c.name === 'string' && c.name.toLowerCase() === courseName.toLowerCase());
     if (existing){
       selectedCourse = existing;
     } else {
@@ -2539,7 +2540,7 @@ async function handleHankoSession(){
 
     if (!email){ showLoginError('Could not get your email. Please use password login.'); return; }
 
-    const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
+    const player = players.find(p => p.email && typeof p.email === 'string' && p.email.toLowerCase() === email.toLowerCase());
     console.log('Player found:', player?.first_name, 'is_committee:', player?.is_committee);
 
     if (!player || !player.is_committee){
@@ -2656,7 +2657,7 @@ async function initAuth(){
       const exp = payload.exp;
       /* check token hasn't expired */
       if (email && exp && Date.now() / 1000 < exp){
-        const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
+        const player = players.find(p => p.email && typeof p.email === 'string' && p.email.toLowerCase() === email.toLowerCase());
         if (player && player.is_committee) isLoggedIn = true;
       }
     }
