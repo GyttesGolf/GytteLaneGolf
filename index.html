@@ -3233,6 +3233,13 @@ function renderPlayers(){
   if (!filtered.length) html += '<p class="muted" style="margin-top:.5rem;">No players match your search.</p>';
   container.innerHTML = html;
 
+  /* restore focus to search input if it was active */
+  const searchInput = container.querySelector('.player-search-bar input');
+  if (searchInput && playerListSearch) {
+    searchInput.focus();
+    searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+  }
+
   const addSlot = document.getElementById('players-add-slot');
   if (addSlot) addSlot.innerHTML = isLoggedIn
     ? `<button class="add-item-btn" style="margin-top:.6rem;" onclick="openAddPlayer()">+ Add player</button><div id="add-player-form"></div>` : '';
