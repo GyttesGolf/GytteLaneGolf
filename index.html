@@ -2503,18 +2503,45 @@ function renderLoginModal(){
 
 async function handleHankoSession(){
   try {
-    /* Hanko stores a JWT in a cookie called 'hanko' — decode it to get the email */
-    const hankoToken = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('hanko='));
-    if (!hankoToken){ showLoginError('No session found — please try again.'); return; }
+    console.log('All cookies:', document.cookie);
+    const cookies = document.cookie.split(';').map(c => c.trim());
+    const hankoToken = cookies.find(c => c.startsWith('hanko='));
 
-    const jwt = hankoToken.split('=')[1];
+    if (!hankoToken){
+      console.log('No hanko cookie found');
+      showLoginError('No session found — please try again.');
+      return;
+    }
+
+    const jwt = hankoToken.split('=').slice(1).join('=');
     const payload = JSON.parse(atob(jwt.split('.')[1]));
-    const email = payload.email;
+    console.log('JWT payload:', JSON.stringify(payload));
 
-    if (!email){ showLoginError('Could not get your email from session.'); return; }
+    /* Hanko JWT may store email differently depending on version */
+    let email = null;
+    if (typeof payload.email === 'string') email = payload.email;
+    else if (payload.email?.address) email = payload.email.address;
+    else if (typeof payload.sub === 'string' && payload.sub.includes('@')) email = payload.sub;
 
-    /* check this email belongs to a committee member */
+    console.log('Extracted email:', email);
+
+    /* if no email in JWT, fetch from Hanko API using the user ID (sub) */
+    if (!email && payload.sub){
+      try {
+        const r = await fetch(`${HANKO_API}/users/${payload.sub}`, { credentials: 'include' });
+        if (r.ok){
+          const u = await r.json();
+          console.log('User from API:', JSON.stringify(u));
+          email = u.email || u.emails?.[0]?.address;
+        }
+      } catch(e){ console.warn('Could not fetch user:', e); }
+    }
+
+    if (!email){ showLoginError('Could not get your email. Please use password login.'); return; }
+
     const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
+    console.log('Player found:', player?.first_name, 'is_committee:', player?.is_committee);
+
     if (!player || !player.is_committee){
       showLoginError('This email is not registered as a committee member.');
       await fetch(`${HANKO_API}/sessions/logout`, { method: 'DELETE', credentials: 'include' });
