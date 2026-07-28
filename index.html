@@ -5055,10 +5055,14 @@ function renderAccounts(){
 
   /* income: paid event payments for this year */
   const yearEvents = events.filter(e => new Date(e.date+'T00:00:00').getFullYear() === accountsYear && eventStatus(e) === 'past');
+  console.log('renderAccounts — yearEvents:', yearEvents.map(e => ({id: e.id, name: e.name})));
+  console.log('renderAccounts — eventPayments total:', eventPayments.length);
+  console.log('renderAccounts — eventPayments sample:', eventPayments.slice(0,3));
   const incomeRows = yearEvents.map(e => {
     const eid = String(e.id);
     const paidList = eventPayments.filter(p => String(p.event_id) === eid && p.paid);
     const allPayments = eventPayments.filter(p => String(p.event_id) === eid);
+    console.log(`Event ${eid} (${e.name}): allPayments=${allPayments.length} paidList=${paidList.length}`);
     const collected = paidList.reduce((s,p) => s + Number(p.amount||0), 0);
     const fee = parseFloat((e.cost||'').replace(/[^0-9.]/g,'')) || 0;
     const signedUp = signupsForEvent(e.id).length;
