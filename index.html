@@ -13,6 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@teamhanko/hanko-elements/dist/elements.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
@@ -1361,6 +1362,7 @@
    Security policies only allow public SELECT (read), never INSERT/UPDATE/
    DELETE. The SQL provided alongside this file sets that up correctly.
    ========================================================================= */
+const HANKO_API = 'https://bd920e36-71c4-446b-9e27-619ad3f2a6d2.hanko.io';
 const SUPABASE_URL = 'https://noldemdyjbwfqxkuxmvy.supabase.co';      // e.g. https://abcdefgh.supabase.co
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vbGRlbWR5amJ3ZnF4a3V4bXZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MjYwNDEsImV4cCI6MjA5ODMwMjA0MX0.CPbGx1fZQL40Oips_TujetlW3I7AEMyige1pBv0kNcE';
 const db = (SUPABASE_URL.startsWith('http') && window.supabase)
@@ -2461,7 +2463,7 @@ function renderLoginModal(){
   if (isLoggedIn){
     content.innerHTML = `
       <h3>Committee</h3>
-      <p style="font-size:.9rem; color:var(--text-muted); margin:0 0 1rem;">You're logged in and can manage photos, handicaps and membership status.</p>
+      <p style="font-size:.9rem; color:var(--text-muted); margin:0 0 .6rem;">Logged in as committee.</p>
       <div class="btn-row">
         <button class="btn ghost" onclick="committeeLogout()">Log out</button>
         <button class="btn" onclick="closeLoginModal()">Close</button>
@@ -2469,18 +2471,68 @@ function renderLoginModal(){
   } else {
     content.innerHTML = `
       <h3>Committee login</h3>
-      <input type="text" id="modal-login-email" placeholder="Username" autocomplete="username">
-      <input type="password" id="modal-login-password" placeholder="Password" autocomplete="current-password">
-      <div class="upload-status" id="modal-login-status"></div>
-      <div class="btn-row">
-        <button class="btn" onclick="committeeLogin()">Log in</button>
-        <button class="btn ghost" onclick="closeLoginModal()">Cancel</button>
-      </div>`;
+      <p style="font-size:.85rem; color:var(--text-muted); margin:0 0 .8rem;">Sign in with your passkey or use your email and password below.</p>
+      <hanko-auth id="hanko-auth-el" style="display:block; margin-bottom:.6rem;"></hanko-auth>
+      <details style="margin-top:.4rem;">
+        <summary style="font-size:.8rem; color:var(--text-muted); cursor:pointer; margin-bottom:.5rem;">Use password instead</summary>
+        <input type="text" id="modal-login-email" placeholder="Email" autocomplete="username" style="margin-bottom:.4rem;">
+        <input type="password" id="modal-login-password" placeholder="Password" autocomplete="current-password">
+        <div class="upload-status" id="modal-login-status"></div>
+        <div class="btn-row" style="margin-top:.4rem;">
+          <button class="btn" onclick="committeeLogin()">Log in</button>
+          <button class="btn ghost" onclick="closeLoginModal()">Cancel</button>
+        </div>
+      </details>`;
     setTimeout(() => {
-      const emailEl = document.getElementById('modal-login-email');
-      if (emailEl) emailEl.focus();
+      const hankoEl = document.getElementById('hanko-auth-el');
+      if (hankoEl){
+        hankoEl.setAttribute('api', HANKO_API);
+        hankoEl.addEventListener('onSessionCreated', async (e) => {
+          await handleHankoSession();
+        });
+      }
     }, 50);
   }
+}
+
+async function handleHankoSession(){
+  /* get the Hanko JWT and extract the email */
+  try {
+    const { Hanko } = await import('https://cdn.jsdelivr.net/npm/@teamhanko/hanko-frontend-sdk/dist/sdk.js');
+    const hanko = new Hanko(HANKO_API);
+    const user = await hanko.user.getCurrent();
+    const email = user?.email;
+    if (!email){ showLoginError('Could not get your email from Hanko.'); return; }
+
+    /* check this email belongs to a committee member */
+    const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
+    if (!player || !player.is_committee){
+      showLoginError('This email is not registered as a committee member.');
+      /* sign out of Hanko since they're not authorised */
+      const { Hanko: H2 } = await import('https://cdn.jsdelivr.net/npm/@teamhanko/hanko-frontend-sdk/dist/sdk.js');
+      const h2 = new H2(HANKO_API);
+      await h2.session.logout();
+      return;
+    }
+
+    /* authorised — set session */
+    isLoggedIn = true;
+    updateNavLock();
+    closeLoginModal();
+    renderAll();
+  } catch(err){
+    console.error('Hanko session error:', err);
+    showLoginError('Login failed — please try again.');
+  }
+}
+
+function showLoginError(msg){
+  const content = document.getElementById('login-modal-content');
+  if (!content) return;
+  const err = document.createElement('p');
+  err.style.cssText = 'color:var(--claret); font-size:.85rem; margin:.5rem 0 0;';
+  err.textContent = msg;
+  content.appendChild(err);
 }
 
 let loginModalOpen = false;
@@ -2521,30 +2573,66 @@ async function committeeLogin(){
 }
 
 async function committeeLogout(){
+  /* sign out of Supabase (password auth) */
   if (db) await db.auth.signOut();
+  /* sign out of Hanko (passkey auth) */
+  try {
+    const { Hanko } = await import('https://cdn.jsdelivr.net/npm/@teamhanko/hanko-frontend-sdk/dist/sdk.js');
+    const hanko = new Hanko(HANKO_API);
+    await hanko.session.logout();
+  } catch(e){ console.warn('Hanko logout:', e); }
+  isLoggedIn = false;
+  updateNavLock();
+  renderAll();
+  closeLoginModal();
+}
+
+function renderAll(){
+  renderCommittee();
+  renderGallery();
+  renderPlayers();
+  renderEvents();
+  renderNews();
+  renderRules();
+  renderHonours();
+  renderCoursesPanel();
+  renderAccounts();
 }
 
 async function initAuth(){
-  if (!db) return;
-  const { data } = await db.auth.getSession();
-  isLoggedIn = !!(data && data.session);
-  db.auth.onAuthStateChange((_event, session) => {
-    isLoggedIn = !!session;
-    updateNavLock();
-    if (isLoggedIn) closeLoginModal();
-    renderCommittee();
-    renderGallery();
-    renderPlayers();
-    renderEvents();
-    renderNews();
-  
-    renderRules();
-    renderHonours();
-    renderCoursesPanel();
-    renderAccounts();
-    renderGroupings();
-  
-  });
+  /* check Supabase session (password auth) */
+  if (db){
+    const { data } = await db.auth.getSession();
+    if (data && data.session){
+      isLoggedIn = true;
+    }
+    db.auth.onAuthStateChange((_event, session) => {
+      isLoggedIn = !!session;
+      updateNavLock();
+      if (isLoggedIn) closeLoginModal();
+      renderAll();
+    });
+  }
+
+  /* check Hanko session (passkey auth) */
+  try {
+    const { Hanko } = await import('https://cdn.jsdelivr.net/npm/@teamhanko/hanko-frontend-sdk/dist/sdk.js');
+    const hanko = new Hanko(HANKO_API);
+    const isValid = await hanko.session.isValid();
+    if (isValid && !isLoggedIn){
+      const user = await hanko.user.getCurrent();
+      const email = user?.email;
+      if (email){
+        const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
+        if (player && player.is_committee){
+          isLoggedIn = true;
+        }
+      }
+    }
+  } catch(e){ console.warn('Hanko session check:', e); }
+
+  updateNavLock();
+  renderAll();
 }
 
 async function uploadCommitteePhoto(memberId, inputEl){
