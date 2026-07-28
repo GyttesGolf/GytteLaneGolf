@@ -5079,10 +5079,22 @@ function renderAccounts(){
   const yearEvents = events.filter(e => new Date(e.date+'T00:00:00').getFullYear() === accountsYear && eventStatus(e) === 'past');
   const incomeRows = yearEvents.map(e => {
     const paidList = eventPayments.filter(p => p.event_id === e.id && p.paid);
-    const total = paidList.reduce((s,p) => s + Number(p.amount||0), 0);
-    if (total === 0) return null;
-    return { label: e.name, sub: `${paidList.length} players · actual collected`, amount: total };
-  }).filter(Boolean);
+    const allPayments = eventPayments.filter(p => p.event_id === e.id);
+    const collected = paidList.reduce((s,p) => s + Number(p.amount||0), 0);
+    const fee = parseFloat((e.cost||'').replace(/[^0-9.]/g,'')) || 0;
+    const signedUp = signupsForEvent(e.id).length;
+    const expected = allPayments.length
+      ? allPayments.reduce((s,p) => s + Number(p.amount||fee), 0)
+      : signedUp * fee;
+    const outstanding = expected - collected;
+    return {
+      label: e.name,
+      sub: `${paidList.length}/${signedUp} paid · £${collected.toFixed(2)} collected${outstanding > 0 ? ` · £${outstanding.toFixed(2)} outstanding` : ''}`,
+      amount: collected,
+      expected,
+      outstanding
+    };
+  });
 
   /* membership income — £10 per member paid in this year */
   const MEMBERSHIP_FEE = 10;
@@ -5121,9 +5133,21 @@ function renderAccounts(){
         ${incomeRows.length ? incomeRows.map(r => `
           <div class="accounts-row">
             <span class="ar-label">${r.label}<br><span class="ar-sub">${r.sub}</span></span>
-            <span class="ar-amount income">£${r.amount.toFixed(2)}</span>
-          </div>`).join('') : '<p class="muted">No income recorded for this year.</p>'}
-        ${incomeRows.length ? `<div class="accounts-total"><span class="ar-label">Total income</span><span class="ar-amount" style="color:var(--bracken);">£${totalIncome.toFixed(2)}</span></div>` : ''}
+            <div style="text-align:right;">
+              <span class="ar-amount income">£${r.amount.toFixed(2)}</span>
+              ${r.outstanding > 0 ? `<br><span style="font-family:var(--mono); font-size:.65rem; color:var(--claret);">£${r.outstanding.toFixed(2)} outstanding</span>` : ''}
+            </div>
+          </div>`).join('') : '<p class="muted">No events recorded for this year.</p>'}
+        ${incomeRows.length ? `
+          <div class="accounts-total">
+            <span class="ar-label">Total collected</span>
+            <span class="ar-amount" style="color:var(--bracken);">£${totalIncome.toFixed(2)}</span>
+          </div>
+          ${incomeRows.some(r => r.outstanding > 0) ? `
+          <div class="accounts-total" style="opacity:.7;">
+            <span class="ar-label" style="font-size:.82rem;">Total outstanding</span>
+            <span class="ar-amount" style="color:var(--claret); font-size:.82rem;">£${incomeRows.reduce((s,r) => s + r.outstanding, 0).toFixed(2)}</span>
+          </div>` : ''}` : ''}
       </div>
 
       <div class="accounts-section">
