@@ -2487,35 +2487,30 @@ function renderLoginModal(){
       const hankoEl = document.getElementById('hanko-auth-el');
       if (hankoEl){
         hankoEl.setAttribute('api', HANKO_API);
-        hankoEl.addEventListener('onSessionCreated', async (e) => {
-          await handleHankoSession();
-        });
+        hankoEl.addEventListener('onSessionCreated', () => { handleHankoSession(); });
+        hankoEl.addEventListener('hankoAuthSuccess', () => { handleHankoSession(); });
       }
-    }, 50);
+    }, 100);
   }
 }
 
 async function handleHankoSession(){
-  /* get the Hanko JWT and extract the email */
   try {
-    const { Hanko } = await import('https://cdn.jsdelivr.net/npm/@teamhanko/hanko-frontend-sdk/dist/sdk.js');
-    const hanko = new Hanko(HANKO_API);
-    const user = await hanko.user.getCurrent();
-    const email = user?.email;
+    /* get user email via Hanko REST API */
+    const emailResp = await fetch(`${HANKO_API}/emails`, { credentials: 'include' });
+    if (!emailResp.ok){ showLoginError('Could not get your email from Hanko.'); return; }
+    const emails = await emailResp.json();
+    const email = emails?.[0]?.address;
     if (!email){ showLoginError('Could not get your email from Hanko.'); return; }
 
     /* check this email belongs to a committee member */
     const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
     if (!player || !player.is_committee){
       showLoginError('This email is not registered as a committee member.');
-      /* sign out of Hanko since they're not authorised */
-      const { Hanko: H2 } = await import('https://cdn.jsdelivr.net/npm/@teamhanko/hanko-frontend-sdk/dist/sdk.js');
-      const h2 = new H2(HANKO_API);
-      await h2.session.logout();
+      await fetch(`${HANKO_API}/sessions/logout`, { method: 'DELETE', credentials: 'include' });
       return;
     }
 
-    /* authorised — set session */
     isLoggedIn = true;
     updateNavLock();
     closeLoginModal();
@@ -2573,13 +2568,13 @@ async function committeeLogin(){
 }
 
 async function committeeLogout(){
-  /* sign out of Supabase (password auth) */
   if (db) await db.auth.signOut();
-  /* sign out of Hanko (passkey auth) */
+  /* clear Hanko cookie by redirecting to Hanko logout endpoint */
   try {
-    const { Hanko } = await import('https://cdn.jsdelivr.net/npm/@teamhanko/hanko-frontend-sdk/dist/sdk.js');
-    const hanko = new Hanko(HANKO_API);
-    await hanko.session.logout();
+    const hankoEl = document.createElement('hanko-auth');
+    hankoEl.setAttribute('api', HANKO_API);
+    /* Hanko clears its own session via the element */
+    await fetch(`${HANKO_API}/sessions/logout`, { method: 'DELETE', credentials: 'include' });
   } catch(e){ console.warn('Hanko logout:', e); }
   isLoggedIn = false;
   updateNavLock();
@@ -2614,18 +2609,18 @@ async function initAuth(){
     });
   }
 
-  /* check Hanko session (passkey auth) */
+  /* check Hanko session (passkey auth) via cookie */
   try {
-    const { Hanko } = await import('https://cdn.jsdelivr.net/npm/@teamhanko/hanko-frontend-sdk/dist/sdk.js');
-    const hanko = new Hanko(HANKO_API);
-    const isValid = await hanko.session.isValid();
-    if (isValid && !isLoggedIn){
-      const user = await hanko.user.getCurrent();
-      const email = user?.email;
-      if (email){
-        const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
-        if (player && player.is_committee){
-          isLoggedIn = true;
+    const resp = await fetch(`${HANKO_API}/me`, { credentials: 'include' });
+    if (resp.ok && !isLoggedIn){
+      const me = await resp.json();
+      const emailResp = await fetch(`${HANKO_API}/emails`, { credentials: 'include' });
+      if (emailResp.ok){
+        const emails = await emailResp.json();
+        const email = emails?.[0]?.address;
+        if (email){
+          const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
+          if (player && player.is_committee) isLoggedIn = true;
         }
       }
     }
