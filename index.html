@@ -1711,6 +1711,8 @@ function signupsForEvent(eventId){
 
 const editingEventIds = new Set();
 
+function isPaidRecord(rec){ return rec && (rec.paid === true || rec.paid === 1 || rec.paid === 'true'); }
+
 function eventDetailHtml(e){
   const attendees = signupsForEvent(e.id);
   const isEditing = editingEventIds.has(e.id);
@@ -1848,9 +1850,9 @@ function eventDetailHtml(e){
           p,
           rec: eventPayments.find(x => String(x.event_id) === String(e.id) && x.player_id === p.id)
         }));
-        const totalCollected = playerPayments.reduce((s, {rec}) => s + (rec && rec.paid ? Number(rec.amount||0) : 0), 0);
+        const totalCollected = playerPayments.reduce((s, {rec}) => s + (isPaidRecord(rec) ? Number(rec.amount||0) : 0), 0);
         const totalExpected = playerPayments.reduce((s, {rec}) => s + Number(rec ? (rec.amount||fee) : fee), 0);
-        const paidCount = playerPayments.filter(({rec}) => rec && rec.paid).length;
+        const paidCount = playerPayments.filter(({rec}) => isPaidRecord(rec)).length;
         return `
           <div class="attendee-list" style="margin-top:.8rem;">
             <h4>Event summary</h4>
@@ -1876,7 +1878,7 @@ function eventDetailHtml(e){
                   <h4>Payment received in bank${fee ? ` — default £${fee.toFixed(2)}` : ''}</h4>
                   <div>
                     ${playerPayments.map(({p, rec}) => {
-                      const isPaid = rec && (rec.paid === true || rec.paid === 1 || rec.paid === "true");
+                      const isPaid = rec && isPaidRecord(rec);
                       const amount = rec ? Number(rec.amount||fee) : fee;
                       return `<div class="payment-row ${isPaid?'paid':''}" data-event="${e.id}" data-player="${p.id}">
                         <input type="checkbox" ${isPaid?'checked':''} onchange="togglePayment('${e.id}',${p.id},'${amount.toFixed(2)}',this.checked)">
@@ -1908,7 +1910,7 @@ function eventDetailHtml(e){
         if (e.pay_by) details.push(['Pay by', fmtDate(e.pay_by)]);
         const fee = parseFloat((e.cost||'').replace(/[^0-9.]/g,'')) || 0;
         const signedUp = signupsForEvent(e.id);
-        const paidIds = new Set(eventPayments.filter(p => String(p.event_id) === String(e.id) && p.paid).map(p => p.player_id));
+        const paidIds = new Set(eventPayments.filter(p => String(p.event_id) === String(e.id) && isPaidRecord(p)).map(p => p.player_id));
         const totalCollected = paidIds.size * fee;
         const totalExpected = signedUp.length * fee;
         const foodPanel = e.whats_included ? `
@@ -1946,7 +1948,7 @@ function eventDetailHtml(e){
               <div>
                 ${signedUp.map(p => {
                   const rec = eventPayments.find(x => String(x.event_id) === String(e.id) && x.player_id === p.id);
-                  const isPaid = rec && (rec.paid === true || rec.paid === 1 || rec.paid === "true");
+                  const isPaid = rec && isPaidRecord(rec);
                   const amount = rec ? Number(rec.amount||fee) : fee;
                   return `<div class="payment-row ${isPaid?'paid':''}" data-event="${e.id}" data-player="${p.id}">
                     <input type="checkbox" ${isPaid?'checked':''} onchange="togglePayment('${e.id}',${p.id},'${amount.toFixed(2)}',this.checked)">
@@ -1964,11 +1966,11 @@ function eventDetailHtml(e){
                 ${(() => {
                   const collected = signedUp.reduce((s,p) => {
                     const rec = eventPayments.find(x => String(x.event_id) === String(e.id) && x.player_id === p.id);
-                    return s + (rec && rec.paid ? Number(rec.amount||fee) : 0);
+                    return s + (isPaidRecord(rec) ? Number(rec.amount||fee) : 0);
                   }, 0);
                   const paidCnt = signedUp.filter(p => {
                     const rec = eventPayments.find(x => String(x.event_id) === String(e.id) && x.player_id === p.id);
-                    return rec && rec.paid;
+                    return isPaidRecord(rec);
                   }).length;
                   const expected = signedUp.reduce((s,p) => {
                     const rec = eventPayments.find(x => String(x.event_id) === String(e.id) && x.player_id === p.id);
@@ -5051,7 +5053,7 @@ function renderAccounts(){
   const yearEvents = events.filter(e => new Date(e.date+'T00:00:00').getFullYear() === accountsYear);
   const incomeRows = yearEvents.map(e => {
     const eid = String(e.id);
-    const paidList = eventPayments.filter(p => String(p.event_id) === eid && (p.paid === true || p.paid === 1 || p.paid === "true"));
+    const paidList = eventPayments.filter(p => String(p.event_id) === eid && isPaidRecord(p));
     const allPayments = eventPayments.filter(p => String(p.event_id) === eid);
     const collected = paidList.reduce((s,p) => s + Number(p.amount||0), 0);
     const fee = parseFloat((e.cost||'').replace(/[^0-9.]/g,'')) || 0;
@@ -5252,7 +5254,7 @@ async function downloadAccountsPdf(year){
   const yr = accountsYear;
   const yearEvents = events.filter(e => new Date(e.date+'T00:00:00').getFullYear() === yr);
   const incomeRows = yearEvents.map(e => {
-    const paidList = eventPayments.filter(p => String(p.event_id) === String(e.id) && p.paid);
+    const paidList = eventPayments.filter(p => String(p.event_id) === String(e.id) && isPaidRecord(p));
     const total = paidList.reduce((s,p) => s + Number(p.amount||0), 0);
     return total > 0 ? { label: e.name, sub: `${paidList.length} @ ${e.cost||'?'}`, amount: total } : null;
   }).filter(Boolean);
