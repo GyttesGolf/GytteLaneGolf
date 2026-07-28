@@ -2001,9 +2001,11 @@ async function removeSignup(eventId, playerId){
   const name = p ? `${p.first_name} ${p.last_name}` : 'this player';
   if (!confirm(`Remove ${name} from this event?`)) return;
   if (!db) return;
-  const { error } = await db.from('signups').delete()
-    .eq('event_id', eventId).eq('player_id', playerId);
-  if (error){ console.error(error); alert('Could not remove — please try again.'); return; }
+  const { error, count } = await db.from('signups').delete()
+    .eq('event_id', eventId)
+    .eq('player_id', playerId)
+    .select();
+  if (error){ console.error('Remove signup error:', error); alert('Could not remove — please try again.'); return; }
   signups = signups.filter(s => !(s.event_id === eventId && s.player_id === playerId));
   renderEvents();
 }
