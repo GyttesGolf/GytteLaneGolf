@@ -1920,17 +1920,12 @@ function eventDetailHtml(e){
           <div class="signup-block">
             <h4>Sign up for this event</h4>
             <div class="signup-status" id="signup-status-${e.id}"></div>
-            <label class="signup-label" for="existing-${e.id}">Played with us before? Select your name</label>
+            <label class="signup-label" for="existing-${e.id}">Select your name</label>
             <select id="existing-${e.id}">
-              <option value="">— I'm new, add my details below —</option>
+              <option value="">— Select your name —</option>
               ${playerOptions}
             </select>
-            <label class="signup-label">Or, if you're new:</label>
-            <div class="new-player-fields">
-              <input type="text" id="fname-${e.id}" placeholder="First name">
-              <input type="text" id="lname-${e.id}" placeholder="Last name">
-              <input type="email" id="email-${e.id}" placeholder="Email address">
-            </div>
+            <p style="font-size:.78rem; color:var(--text-muted); margin:.4rem 0 .6rem;">Not in the list? Contact your captain to be added.</p>
             <button class="btn brass" onclick="submitSignup('${e.id}')">Sign up</button>
           </div>
           <div class="attendee-list">
@@ -2017,47 +2012,11 @@ async function submitSignup(eventId){
   if (!db){ setStatus('Sign-up isn\u2019t connected yet.', 'error'); return; }
 
   const select = document.getElementById('existing-' + eventId);
-  let playerId = select.value ? Number(select.value) : null;
+  const playerId = select.value ? Number(select.value) : null;
 
   if (!playerId){
-    const fname = document.getElementById('fname-' + eventId).value.trim();
-    const lname = document.getElementById('lname-' + eventId).value.trim();
-    const email = document.getElementById('email-' + eventId).value.trim();
-
-    if (!fname || !lname || !email){
-      setStatus('Select your name above, or fill in first name, last name and email.', 'error');
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
-      setStatus('That email address doesn\u2019t look right.', 'error');
-      return;
-    }
-
-    const existing = players.find(p => p.email && typeof p.email === 'string' && p.email.toLowerCase() === email.toLowerCase());
-    const existingByName = !existing && players.find(p =>
-      p.first_name && p.last_name &&
-      p.first_name.toLowerCase() === fname.toLowerCase() &&
-      p.last_name.toLowerCase() === lname.toLowerCase()
-    );
-    if (existing){
-      playerId = existing.id;
-    } else if (existingByName){
-      // player is already in the system (imported without email) — link them and save the email
-      playerId = existingByName.id;
-      if (email && !existingByName.email){
-        await db.from('players').update({ email }).eq('id', playerId);
-        existingByName.email = email;
-      }
-    } else {
-      const { data, error } = await db.from('players').insert({ first_name: fname, last_name: lname, email, society_id: societyId }).select().single();
-      if (error){
-        console.error('Insert player error:', error);
-        setStatus('Something went wrong adding your details. Please try again.', 'error');
-        return;
-      }
-      players.push(data);
-      playerId = data.id;
-    }
+    setStatus('Please select your name from the list.', 'error');
+    return;
   }
 
   const { error: suError } = await db.from('signups').insert({ event_id: eventId, player_id: playerId, society_id: societyId });
@@ -2075,7 +2034,7 @@ async function submitSignup(eventId){
   renderEvents();
   setTimeout(() => {
     const refreshedStatus = document.getElementById('signup-status-' + eventId);
-    if (refreshedStatus){ refreshedStatus.textContent = 'You\u2019re signed up — see you on the day!'; refreshedStatus.className = 'signup-status success'; }
+    if (refreshedStatus){ refreshedStatus.textContent = 'You\u2019re signed up \u2014 see you on the day!'; refreshedStatus.className = 'signup-status success'; }
   }, 0);
 }
 
