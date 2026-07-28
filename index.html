@@ -13,7 +13,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script type="module" src="https://cdn.jsdelivr.net/npm/@teamhanko/hanko-elements/dist/elements.js"></script>
+<script type="module">
+    import { register } from 'https://cdn.jsdelivr.net/npm/@teamhanko/hanko-elements@latest/dist/elements.js';
+    register('https://bd920e36-71c4-446b-9e27-619ad3f2a6d2.hanko.io').catch(console.error);
+  </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
@@ -2472,7 +2475,7 @@ function renderLoginModal(){
     content.innerHTML = `
       <h3>Committee login</h3>
       <p style="font-size:.85rem; color:var(--text-muted); margin:0 0 .8rem;">Sign in with your passkey or use your email and password below.</p>
-      <hanko-auth id="hanko-auth-el" style="display:block; margin-bottom:.6rem;"></hanko-auth>
+      <hanko-auth id="hanko-auth-el" api="https://bd920e36-71c4-446b-9e27-619ad3f2a6d2.hanko.io" style="display:block; margin-bottom:.6rem;"></hanko-auth>
       <details style="margin-top:.4rem;">
         <summary style="font-size:.8rem; color:var(--text-muted); cursor:pointer; margin-bottom:.5rem;">Use password instead</summary>
         <input type="text" id="modal-login-email" placeholder="Email" autocomplete="username" style="margin-bottom:.4rem;">
@@ -2486,11 +2489,15 @@ function renderLoginModal(){
     setTimeout(() => {
       const hankoEl = document.getElementById('hanko-auth-el');
       if (hankoEl){
-        hankoEl.setAttribute('api', HANKO_API);
+        /* register the web component with the API URL */
+        if (window.HankoElements?.register) {
+          window.HankoElements.register(HANKO_API);
+        }
         hankoEl.addEventListener('onSessionCreated', () => { handleHankoSession(); });
         hankoEl.addEventListener('hankoAuthSuccess', () => { handleHankoSession(); });
+        hankoEl.addEventListener('success', () => { handleHankoSession(); });
       }
-    }, 100);
+    }, 300);
   }
 }
 
