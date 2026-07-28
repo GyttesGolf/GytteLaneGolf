@@ -1573,7 +1573,6 @@ async function loadData(){
       db.from('expenditures').select('*').order('date'),
     ]);
     eventPayments = pmRes.data || [];
-    console.log('eventPayments loaded:', eventPayments.length, 'sample:', JSON.stringify(eventPayments.slice(0,3)));
     expenditures = exRes.data || [];
   } catch(err){
     console.warn('Payments not available yet (run add-payments.sql):', err);
@@ -1837,7 +1836,7 @@ function eventDetailHtml(e){
       ${eventStatus(e) === 'past' ? (() => {
         const fullScores = eventFullScores(e.id);
         const played = fullScores.length || attendees.length;
-        const winner = ev && ev.trophy ? honours.find(h => h.title && h.title.startsWith(ev.trophy) && h.year === new Date(ev.date+'T00:00:00').getFullYear()) : null;
+        const winner = e.trophy ? honours.find(h => h.title && h.title.startsWith(e.trophy) && h.year === new Date(e.date+'T00:00:00').getFullYear()) : null;
         const course = courseById(e.course_id);
         const mapsUrl = (e.course || course) ? googleMapsUrl(e.course || (course && course.name), e.postcode || (course && course.postcode)) : null;
         const avg = course ? courseAvgRating(course.id) : null;
@@ -1874,7 +1873,7 @@ function eventDetailHtml(e){
               </details>` : ''}
             ${isLoggedIn && eventPlayers.length ? `
                 <div class="edit-form" style="margin-top:.8rem;">
-                  <h4>Payment tracking${fee ? ` — default £${fee.toFixed(2)}` : ''}</h4>
+                  <h4>Payment received in bank${fee ? ` — default £${fee.toFixed(2)}` : ''}</h4>
                   <div>
                     ${playerPayments.map(({p, rec}) => {
                       const isPaid = rec && (rec.paid === true || rec.paid === 1 || rec.paid === "true");
@@ -1943,7 +1942,7 @@ function eventDetailHtml(e){
           </div>
           ${isLoggedIn && signedUp.length ? `
             <div class="edit-form" style="margin-top:.8rem;">
-              <h4>Payment tracking${fee ? ` — default £${fee.toFixed(2)}` : ''}</h4>
+              <h4>Payment received in bank${fee ? ` — default £${fee.toFixed(2)}` : ''}</h4>
               <div>
                 ${signedUp.map(p => {
                   const rec = eventPayments.find(x => String(x.event_id) === String(e.id) && x.player_id === p.id);
@@ -2494,19 +2493,16 @@ function renderLoginModal(){
 
 async function handleHankoSession(){
   try {
-    console.log('All cookies:', document.cookie);
     const cookies = document.cookie.split(';').map(c => c.trim());
     const hankoToken = cookies.find(c => c.startsWith('hanko='));
 
     if (!hankoToken){
-      console.log('No hanko cookie found');
       showLoginError('No session found — please try again.');
       return;
     }
 
     const jwt = hankoToken.split('=').slice(1).join('=');
     const payload = JSON.parse(atob(jwt.split('.')[1]));
-    console.log('JWT payload:', JSON.stringify(payload));
 
     /* Hanko JWT may store email differently depending on version */
     let email = null;
@@ -2514,7 +2510,6 @@ async function handleHankoSession(){
     else if (payload.email?.address) email = payload.email.address;
     else if (typeof payload.sub === 'string' && payload.sub.includes('@')) email = payload.sub;
 
-    console.log('Extracted email:', email);
 
     /* if no email in JWT, fetch from Hanko API using the user ID (sub) */
     if (!email && payload.sub){
@@ -2522,7 +2517,6 @@ async function handleHankoSession(){
         const r = await fetch(`${HANKO_API}/users/${payload.sub}`, { credentials: 'include' });
         if (r.ok){
           const u = await r.json();
-          console.log('User from API:', JSON.stringify(u));
           email = u.email || u.emails?.[0]?.address;
         }
       } catch(e){ console.warn('Could not fetch user:', e); }
@@ -2531,7 +2525,6 @@ async function handleHankoSession(){
     if (!email){ showLoginError('Could not get your email. Please use password login.'); return; }
 
     const player = players.find(p => p.email && typeof p.email === 'string' && p.email.toLowerCase() === email.toLowerCase());
-    console.log('Player found:', player?.first_name, 'is_committee:', player?.is_committee);
 
     if (!player || !player.is_committee){
       showLoginError('This email is not registered as a committee member.');
@@ -4984,23 +4977,17 @@ async function saveNewCourseLibrary(){
 
 /* ===================== payments ===================== */
 async function togglePayment(eventId, playerId, amountOrEl, paid){
-  console.log('togglePayment called:', {eventId, playerId, amountOrEl, paid, societyId});
-  console.log('eventPayments array length:', eventPayments.length);
-  console.log('db available:', !!db);
   if (!db) { console.error('No db'); return; }
 
   const amount = parseFloat(amountOrEl) || 0;
-  console.log('amount:', amount);
 
   /* compare as strings since event_id may be uuid string */
   const existing = eventPayments.find(p =>
     String(p.event_id) === String(eventId) &&
     String(p.player_id) === String(playerId)
   );
-  console.log('existing record:', existing);
 
   if (existing){
-    console.log('Updating existing record id:', existing.id);
     const { error } = await db.from('event_payments')
       .update({ paid, amount, paid_date: paid ? new Date().toISOString().slice(0,10) : null })
       .eq('id', existing.id);
@@ -5008,14 +4995,11 @@ async function togglePayment(eventId, playerId, amountOrEl, paid){
     existing.paid = paid;
     existing.amount = amount;
     existing.paid_date = paid ? new Date().toISOString().slice(0,10) : null;
-    console.log('Update success');
   } else {
-    console.log('Inserting new record, societyId:', societyId);
     const { data, error } = await db.from('event_payments')
       .insert({ event_id: eventId, player_id: playerId, amount, paid, society_id: societyId, paid_date: paid ? new Date().toISOString().slice(0,10) : null })
       .select().single();
     if (error){ console.error('Insert error:', error); alert('Could not save: ' + error.message); return; }
-    if (data) { eventPayments.push(data); console.log('Insert success:', data); }
   }
   /* update row styling directly — no full re-render to avoid checkbox loop */
   const row = document.querySelector(`.payment-row[data-player="${playerId}"][data-event="${eventId}"]`);
@@ -5063,16 +5047,12 @@ function renderAccounts(){
     ${allYears.map(y => `<button class="accounts-year-tab ${y===accountsYear?'active':''}" onclick="accountsYear=${y}; renderAccounts();">${y}</button>`).join('')}
   </div>`;
 
-  /* income: paid event payments for this year */
-  const yearEvents = events.filter(e => new Date(e.date+'T00:00:00').getFullYear() === accountsYear && eventStatus(e) === 'past');
-  console.log('renderAccounts — yearEvents:', yearEvents.map(e => ({id: e.id, name: e.name})));
-  console.log('renderAccounts — eventPayments total:', eventPayments.length);
-  console.log('renderAccounts — eventPayments sample:', eventPayments.slice(0,3));
+  /* income: all events in this year where payments have been received */
+  const yearEvents = events.filter(e => new Date(e.date+'T00:00:00').getFullYear() === accountsYear);
   const incomeRows = yearEvents.map(e => {
     const eid = String(e.id);
     const paidList = eventPayments.filter(p => String(p.event_id) === eid && (p.paid === true || p.paid === 1 || p.paid === "true"));
     const allPayments = eventPayments.filter(p => String(p.event_id) === eid);
-    console.log(`Event ${eid} (${e.name}): allPayments=${allPayments.length} paidList=${paidList.length}`);
     const collected = paidList.reduce((s,p) => s + Number(p.amount||0), 0);
     const fee = parseFloat((e.cost||'').replace(/[^0-9.]/g,'')) || 0;
     const signedUp = signupsForEvent(e.id).length;
@@ -5270,7 +5250,7 @@ async function downloadAccountsPdf(year){
   if (!jsPDF){ alert('PDF library not loaded — use Print instead.'); return; }
   const doc = new jsPDF();
   const yr = accountsYear;
-  const yearEvents = events.filter(e => new Date(e.date+'T00:00:00').getFullYear() === yr && eventStatus(e) === 'past');
+  const yearEvents = events.filter(e => new Date(e.date+'T00:00:00').getFullYear() === yr);
   const incomeRows = yearEvents.map(e => {
     const paidList = eventPayments.filter(p => String(p.event_id) === String(e.id) && p.paid);
     const total = paidList.reduce((s,p) => s + Number(p.amount||0), 0);
