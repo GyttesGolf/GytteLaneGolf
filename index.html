@@ -1173,8 +1173,8 @@
     <p class="eyebrow">Society members</p>
     <h2 class="section-title">Players</h2>
     <p class="players-login-note" id="players-login-note"></p>
+    <div id="players-add-slot" style="margin-bottom:.8rem;"></div>
     <div id="players-body"></div>
-    <div id="players-add-slot" style="margin-top:.8rem;"></div>
   </section>
 
   <!-- ============ GALLERY ============ -->
@@ -3258,6 +3258,10 @@ function renderPlayers(){
     ? sorted.filter(p => (p.first_name + ' ' + p.last_name).toLowerCase().includes(playerListSearch.toLowerCase()))
     : sorted;
 
+  const addSlot = document.getElementById('players-add-slot');
+  if (addSlot) addSlot.innerHTML = isLoggedIn
+    ? `<button class="add-item-btn" onclick="openAddPlayer()">+ Add player</button><div id="add-player-form"></div>` : '';
+
   const container = document.getElementById('players-body');
   if (!container) return;
 
@@ -3346,10 +3350,6 @@ function renderPlayers(){
     searchInput.focus();
     searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
   }
-
-  const addSlot = document.getElementById('players-add-slot');
-  if (addSlot) addSlot.innerHTML = isLoggedIn
-    ? `<button class="add-item-btn" style="margin-top:.6rem;" onclick="openAddPlayer()">+ Add player</button><div id="add-player-form"></div>` : '';
 }
 
 function togglePlayerEdit(id){
