@@ -245,7 +245,11 @@ hanko-auth.passkey-mode::part(error) { display:none !important; }
 const HANKO_API = 'https://bd920e36-71c4-446b-9e27-619ad3f2a6d2.hanko.io';
 const SUPABASE_URL = 'https://noldemdyjbwfqxkuxmvy.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vbGRlbWR5amJ3ZnF4a3V4bXZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTU2OTY3NzYsImV4cCI6MjAzMTI3Mjc3Nn0.3AzNi_MqFGMCbFkRnuCwFU_PZ99Gz4cOCfOQGM_iC1o';
-const db = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+let db = null;
+function getDb(){
+  if(!db && window.supabase) db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  return db;
+}
 
 let currentPill = null;
 
@@ -359,6 +363,7 @@ async function handleHankoSession(){
 
     email = email.trim().toLowerCase();
 
+    const db = getDb();
     if(!db){ setStatus('Not connected. Please try again.', 'error'); return; }
 
     /* Try case-insensitive match */
@@ -368,7 +373,7 @@ async function handleHankoSession(){
 
     /* If no match, try fetching all and matching manually (handles edge cases) */
     if(!players || !players.length){
-      const { data: allPlayers } = await db.from('players')
+      const { data: allPlayers } = await getDb().from('players')
         .select('id,first_name,last_name,is_committee,active,email')
         .limit(100);
       if(allPlayers){
