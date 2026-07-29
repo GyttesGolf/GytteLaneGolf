@@ -2511,56 +2511,7 @@ function renderLoginModal(){
   }
 }
 
-async function handleHankoSession(){
-  try {
-    const cookies = document.cookie.split(';').map(c => c.trim());
-    const hankoToken = cookies.find(c => c.startsWith('hanko='));
-
-    if (!hankoToken){
-      showLoginError('No session found — please try again.');
-      return;
-    }
-
-    const jwt = hankoToken.split('=').slice(1).join('=');
-    const payload = JSON.parse(atob(jwt.split('.')[1]));
-
-    /* Hanko JWT may store email differently depending on version */
-    let email = null;
-    if (typeof payload.email === 'string') email = payload.email;
-    else if (payload.email?.address) email = payload.email.address;
-    else if (typeof payload.sub === 'string' && payload.sub.includes('@')) email = payload.sub;
-
-
-    /* if no email in JWT, fetch from Hanko API using the user ID (sub) */
-    if (!email && payload.sub){
-      try {
-        const r = await fetch(`${HANKO_API}/users/${payload.sub}`, { credentials: 'include' });
-        if (r.ok){
-          const u = await r.json();
-          email = u.email || u.emails?.[0]?.address;
-        }
-      } catch(e){ console.warn('Could not fetch user:', e); }
-    }
-
-    if (!email){ showLoginError('Could not get your email. Please use password login.'); return; }
-
-    const player = players.find(p => p.email && typeof p.email === 'string' && p.email.toLowerCase() === email.toLowerCase());
-
-    if (!player || !player.is_committee){
-      showLoginError('This email is not registered as a committee member.');
-      await fetch(`${HANKO_API}/sessions/logout`, { method: 'DELETE', credentials: 'include' });
-      return;
-    }
-
-    isLoggedIn = true;
-    updateNavLock();
-    closeLoginModal();
-    renderAll();
-  } catch(err){
-    console.error('Hanko session error:', err);
-    showLoginError('Login failed — please try again.');
-  }
-}
+/* Hanko session handler removed - using Supabase auth */
 
 function showLoginError(msg){
   const content = document.getElementById('login-modal-content');
@@ -2589,24 +2540,7 @@ function handleBackdropClick(e){
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && loginModalOpen) closeLoginModal(); });
 
-async function committeeLogin(){
-  const email = (document.getElementById('modal-login-email') || {}).value?.trim();
-  const password = (document.getElementById('modal-login-password') || {}).value;
-  const statusEl = document.getElementById('modal-login-status');
-  const setStatus = (msg, kind) => { if(statusEl){ statusEl.textContent = msg; statusEl.className = 'upload-status ' + kind; } };
-
-  if (!db){ setStatus('Not connected to Supabase.', 'error'); return; }
-  if (!email || !password){ setStatus('Enter both email and password.', 'error'); return; }
-
-  setStatus('Logging in\u2026', 'loading');
-  const { error } = await db.auth.signInWithPassword({ email, password });
-  if (error){
-    console.error('Login error:', error);
-    setStatus('Incorrect email or password.', 'error');
-    return;
-  }
-  // onAuthStateChange handles re-rendering and closes the modal
-}
+/* committeeLogin removed - using Supabase auth */
 
 async function committeeLogout(){
   if (db) await db.auth.signOut();
