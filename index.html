@@ -2658,10 +2658,12 @@ async function initAuth(){
       const payload = JSON.parse(atob(jwt.split('.')[1]));
       const email = payload.email;
       const exp = payload.exp;
+      /* email can be string or {address:...} object */
+      const resolvedEmail = typeof email === 'string' ? email : email?.address || null;
       /* check token hasn't expired */
-      if (email && exp && Date.now() / 1000 < exp){
-        const player = players.find(p => p.email && typeof p.email === 'string' && p.email.toLowerCase() === email.toLowerCase());
-        if (player && player.is_committee) isLoggedIn = true;
+      if (resolvedEmail && exp && Date.now() / 1000 < exp){
+        const player = players.find(p => p.email && typeof p.email === 'string' && p.email.toLowerCase() === resolvedEmail.toLowerCase());
+        if (player && player.active !== false) isLoggedIn = true;
       }
     }
   } catch(e){ console.warn('Hanko session check:', e); }
