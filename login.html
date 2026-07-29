@@ -221,6 +221,14 @@ hanko-auth::part(link) { display:none; }
     </button>
   </div>
 
+  <!-- Back button shown when Hanko component is visible -->
+  <div id="back-btn-wrap" class="hidden" style="margin-bottom:.6rem;">
+    <button onclick="resetToDefault()" style="background:transparent;border:none;color:rgba(255,255,255,.5);font-family:'Inter',system-ui,sans-serif;font-size:.8rem;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:.35rem;padding:.3rem 0;">
+      <i class="ti ti-arrow-left" style="font-size:14px;" aria-hidden="true"></i>
+      Back
+    </button>
+  </div>
+
   <!-- Hanko component (hidden, used programmatically) -->
   <hanko-auth id="hanko-auth" api="https://bd920e36-71c4-446b-9e27-619ad3f2a6d2.hanko.io" class="hidden"></hanko-auth>
 
@@ -244,6 +252,26 @@ function setStatus(msg, kind){
   const el = document.getElementById('status-msg');
   el.textContent = msg;
   el.className = 'status-msg ' + kind;
+}
+
+function showHanko(){
+  document.getElementById('hanko-auth').classList.remove('hidden');
+  document.getElementById('back-btn-wrap').classList.remove('hidden');
+  document.getElementById('pills').classList.add('hidden');
+  document.getElementById('panel-first').classList.add('hidden');
+  document.getElementById('panel-member').classList.add('hidden');
+}
+
+function resetToDefault(){
+  document.getElementById('hanko-auth').classList.add('hidden');
+  document.getElementById('back-btn-wrap').classList.add('hidden');
+  document.getElementById('pills').classList.remove('hidden');
+  document.getElementById('panel-first').classList.add('hidden');
+  document.getElementById('panel-member').classList.add('hidden');
+  document.getElementById('status-msg').className = 'status-msg';
+  document.getElementById('pill-first').className = 'pill first';
+  document.getElementById('pill-member').className = 'pill member';
+  currentPill = null;
 }
 
 function selectPill(pill){
@@ -282,19 +310,44 @@ function submitEmail(){
     setStatus('Please enter a valid email address.', 'error'); return;
   }
   setStatus('Opening Hanko\u2026', 'loading');
-  const hankoEl = document.getElementById('hanko-auth');
-  hankoEl.classList.remove('hidden');
-  document.getElementById('panel-first').classList.add('hidden');
-  document.getElementById('pills').classList.add('hidden');
+  showHanko();
 }
 
 async function triggerPasskey(){
-  setStatus('', '');
-  /* Show the Hanko component — it handles passkey natively */
-  const hankoEl = document.getElementById('hanko-auth');
-  hankoEl.classList.remove('hidden');
-  document.getElementById('panel-member').classList.add('hidden');
-  document.getElementById('pills').classList.add('hidden');
+  setStatus('Opening passkey\u2026', 'loading');
+  try {
+    const { Hanko } = await import('https://cdn.jsdelivr.net/npm/@teamhanko/hanko-frontend-sdk@latest/dist/sdk.js');
+    const hanko = new Hanko(HANKO_API);
+
+    /* start login flow */
+    let state = await hanko.createState('login');
+
+    /* if we're at login_init, skip to passkey */
+    if(state.name === 'login_init' && state.actions.passkey_login){
+      state = await state.actions.passkey_login.run();
+    }
+
+    /* handle passkey state — triggers device prompt */
+    if(state.name === 'login_passkey' && state.actions.webauthn_verify_assertion_response){
+      state = await state.actions.webauthn_verify_assertion_response.run();
+    }
+
+    if(state.name === 'success'){
+      setStatus('Signed in! Redirecting\u2026', 'success');
+      await handleHankoSession();
+    } else {
+      setStatus('', '');
+      showHanko();
+    }
+  } catch(err){
+    if(err.name === 'NotAllowedError'){
+      setStatus('Passkey cancelled.', 'error');
+    } else {
+      console.warn('Passkey SDK error, falling back to component:', err);
+      setStatus('', '');
+      showHanko();
+    }
+  }
 }
 
 async function handleHankoSession(){
