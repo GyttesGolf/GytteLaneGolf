@@ -303,6 +303,7 @@ function submitEmail(){
 
 function triggerPasskey(){
   setStatus('Opening passkey…', 'loading');
+  localStorage.setItem('glgs_login_pending', '1');
   showHanko();
 }
 
@@ -424,6 +425,11 @@ window.addEventListener('load', () => {
     if(hankoToken && sessionStorage.getItem('glgs_player_id')){
       window.location.href = '/';
     }
+    /* Resume login if passkey was pending (handles Safari page reload after passkey) */
+    if(hankoToken && localStorage.getItem('glgs_login_pending')){
+      localStorage.removeItem('glgs_login_pending');
+      setTimeout(async () => { await safeHandleSession(); }, 500);
+    }
   } catch(e){}
 
   /* Safari iOS fallback — poll for hanko cookie since events don't fire reliably */
@@ -438,7 +444,8 @@ window.addEventListener('load', () => {
     const hankoToken = cookies.find(c => c.startsWith('hanko='));
     if(hankoToken){
       clearInterval(poll);
-      await safeHandleSession();
+      /* Small delay to let Safari fully commit the cookie */
+      setTimeout(async () => { await safeHandleSession(); }, 300);
     }
   }, 500);
 });
