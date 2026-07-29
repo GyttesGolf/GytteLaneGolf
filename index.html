@@ -2654,8 +2654,8 @@ async function initAuth(){
   try {
     const hankoToken = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('hanko='));
     if (hankoToken && !isLoggedIn){
-      const jwt = hankoToken.split('=')[1];
-      const payload = JSON.parse(atob(jwt.split('.')[1]));
+      const jwt = hankoToken.split('=').slice(1).join('=');
+      const payload = JSON.parse(atob(jwt.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
       const email = payload.email;
       const exp = payload.exp;
       /* email can be string or {address:...} object */
@@ -3313,6 +3313,10 @@ function renderPlayers(){
           <div class="full" style="display:flex;align-items:center;gap:.6rem;">
             <input type="checkbox" id="ep-active-${p.id}" ${p.active!==false?'checked':''} style="width:16px;height:16px;accent-color:var(--bracken);">
             <label for="ep-active-${p.id}" style="font-size:.85rem;">Active member</label>
+          </div>
+          <div class="full" style="display:flex;align-items:center;gap:.6rem;">
+            <input type="checkbox" id="ep-committee-${p.id}" ${p.is_committee?'checked':''} style="width:16px;height:16px;accent-color:var(--brass);">
+            <label for="ep-committee-${p.id}" style="font-size:.85rem;">Committee member (can log in)</label>
           </div>
         </div>
         <div class="edit-form-actions">
