@@ -258,16 +258,34 @@ function setStatus(msg, kind){
 function showHanko(){
   const hankoEl = document.getElementById('hanko-auth');
   hankoEl.classList.remove('hidden');
-  /* If coming from member pill, add passkey-mode to suppress email UI */
-  if(currentPill === 'member'){
-    hankoEl.classList.add('passkey-mode');
-  } else {
-    hankoEl.classList.remove('passkey-mode');
-  }
   document.getElementById('back-btn-wrap').classList.remove('hidden');
   document.getElementById('pills').classList.add('hidden');
   document.getElementById('panel-first').classList.add('hidden');
   document.getElementById('panel-member').classList.add('hidden');
+
+  /* If member pill — auto-click the passkey button once Hanko renders */
+  if(currentPill === 'member'){
+    hankoEl.classList.add('passkey-mode');
+    let attempts = 0;
+    const clickPasskey = setInterval(() => {
+      attempts++;
+      const shadow = hankoEl.shadowRoot;
+      if(shadow){
+        /* Find and click the passkey button */
+        const btns = shadow.querySelectorAll('button');
+        for(const btn of btns){
+          if(btn.textContent && btn.textContent.toLowerCase().includes('passkey')){
+            btn.click();
+            clearInterval(clickPasskey);
+            return;
+          }
+        }
+      }
+      if(attempts > 20) clearInterval(clickPasskey);
+    }, 100);
+  } else {
+    hankoEl.classList.remove('passkey-mode');
+  }
 }
 
 function resetToDefault(){
