@@ -15,7 +15,8 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;}
 body{
   min-height:100vh;min-height:100dvh;
   background:linear-gradient(170deg,#4B1320 0%,#2a0b12 55%,#000000 100%);
-  display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2rem;
   padding:env(safe-area-inset-top,2.5rem) 1.4rem env(safe-area-inset-bottom,2rem);
   position:relative;overflow:hidden;
 }
@@ -36,7 +37,7 @@ body{
 .top{
   display:flex;flex-direction:column;align-items:center;
   gap:1.4rem;position:relative;z-index:1;
-  flex:1;justify-content:center;padding-bottom:1rem;
+  justify-content:center;padding-bottom:0;
 }
 .logo-ring{
   width:130px;height:145px;
@@ -151,8 +152,11 @@ hanko-auth{
 /* hide create account link — members only */
 hanko-auth::part(link) { display:none; }
 /* passkey mode — hide email field, show only passkey button */
-hanko-auth.passkey-mode::part(form-email) { display:none; }
-hanko-auth.passkey-mode::part(divider) { display:none; }
+hanko-auth.passkey-mode::part(input) { display:none !important; }
+hanko-auth.passkey-mode::part(button-primary) { display:none !important; }
+hanko-auth.passkey-mode::part(headline) { display:none !important; }
+hanko-auth.passkey-mode::part(divider) { display:none !important; }
+hanko-auth.passkey-mode::part(error) { display:none !important; }
 
 /* not a member */
 .not-member{
