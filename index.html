@@ -2636,37 +2636,28 @@ function renderAll(){
 }
 
 async function initAuth(){
-  /* check Supabase session (password auth) */
-  if (db){
-    const { data } = await db.auth.getSession();
-    if (data && data.session){
-      isLoggedIn = true;
-    }
-    db.auth.onAuthStateChange((_event, session) => {
-      isLoggedIn = !!session;
-      updateNavLock();
-      if (isLoggedIn) closeLoginModal();
-      renderAll();
-    });
+  if (!db) { updateNavLock(); renderAll(); return; }
+
+  /* Check Supabase session — works for both passkey and magic link */
+  const { data: { session } } = await db.auth.getSession();
+  if (session?.user){
+    const email = session.user.email;
+    const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
+    if (player && player.active !== false) isLoggedIn = true;
   }
 
-  /* check Hanko session (passkey auth) via JWT cookie */
-  try {
-    const hankoToken = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('hanko='));
-    if (hankoToken && !isLoggedIn){
-      const jwt = hankoToken.split('=').slice(1).join('=');
-      const payload = JSON.parse(atob(jwt.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
-      const email = payload.email;
-      const exp = payload.exp;
-      /* email can be string or {address:...} object */
-      const resolvedEmail = typeof email === 'string' ? email : email?.address || null;
-      /* check token hasn't expired */
-      if (resolvedEmail && exp && Date.now() / 1000 < exp){
-        const player = players.find(p => p.email && typeof p.email === 'string' && p.email.toLowerCase() === resolvedEmail.toLowerCase());
-        if (player && player.active !== false) isLoggedIn = true;
-      }
+  /* Listen for auth state changes (magic link callback, sign out etc) */
+  db.auth.onAuthStateChange(async (_event, session) => {
+    if (session?.user){
+      const email = session.user.email;
+      const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
+      isLoggedIn = !!(player && player.active !== false);
+    } else {
+      isLoggedIn = false;
     }
-  } catch(e){ console.warn('Hanko session check:', e); }
+    updateNavLock();
+    renderAll();
+  });
 
   updateNavLock();
   renderAll();
