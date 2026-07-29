@@ -356,13 +356,28 @@ async function handleHankoSession(){
 
     if(!email){ setStatus('Could not get your email. Please try again.', 'error'); return; }
 
+    email = email.trim().toLowerCase();
+
     if(!db){ setStatus('Not connected. Please try again.', 'error'); return; }
-    const { data: players } = await db.from('players')
-      .select('id,first_name,last_name,is_committee,active')
+
+    /* Try case-insensitive match */
+    let { data: players } = await db.from('players')
+      .select('id,first_name,last_name,is_committee,active,email')
       .ilike('email', email).limit(1);
 
+    /* If no match, try fetching all and matching manually (handles edge cases) */
     if(!players || !players.length){
-      setStatus('This email isn’t registered. Contact your captain to get access.', 'error');
+      const { data: allPlayers } = await db.from('players')
+        .select('id,first_name,last_name,is_committee,active,email')
+        .limit(100);
+      if(allPlayers){
+        const match = allPlayers.find(p => p.email && p.email.trim().toLowerCase() === email);
+        if(match) players = [match];
+      }
+    }
+
+    if(!players || !players.length){
+      setStatus('This email isn’t registered (' + email + '). Contact your captain.', 'error');
       await fetch(`${HANKO_API}/sessions/logout`, { method:'DELETE', credentials:'include' });
       return;
     }
@@ -386,13 +401,22 @@ async function handleHankoSession(){
   }
 }
 
+let sessionHandled = false;
+async function safeHandleSession(){
+  if(sessionHandled) return;
+  sessionHandled = true;
+  await handleHankoSession();
+}
+
 window.addEventListener('load', () => {
   const hankoEl = document.getElementById('hanko-auth');
   if(hankoEl){
-    hankoEl.addEventListener('onSessionCreated', handleHankoSession);
-    hankoEl.addEventListener('hankoAuthSuccess', handleHankoSession);
-    hankoEl.addEventListener('success', handleHankoSession);
+    /* All known Hanko event names */
+    ['onSessionCreated','hankoAuthSuccess','success','sessionCreated'].forEach(evt => {
+      hankoEl.addEventListener(evt, safeHandleSession);
+    });
   }
+
   /* auto-redirect if already logged in */
   try {
     const cookies = document.cookie.split(';').map(c => c.trim());
@@ -401,6 +425,22 @@ window.addEventListener('load', () => {
       window.location.href = '/';
     }
   } catch(e){}
+
+  /* Safari iOS fallback — poll for hanko cookie since events don't fire reliably */
+  let pollCount = 0;
+  const poll = setInterval(async () => {
+    pollCount++;
+    if(pollCount > 120 || sessionHandled){ clearInterval(poll); return; }
+    /* Only poll when Hanko component is visible */
+    const hankoEl = document.getElementById('hanko-auth');
+    if(!hankoEl || hankoEl.classList.contains('hidden')) return;
+    const cookies = document.cookie.split(';').map(c => c.trim());
+    const hankoToken = cookies.find(c => c.startsWith('hanko='));
+    if(hankoToken){
+      clearInterval(poll);
+      await safeHandleSession();
+    }
+  }, 500);
 });
 </script>
 </body>
