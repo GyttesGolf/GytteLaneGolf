@@ -363,21 +363,39 @@ async function handleHankoSession(){
 
     email = email.trim().toLowerCase();
 
-    const db = getDb();
+    /* Wait up to 3s for Supabase to load on slow mobile connections */
+    let db = getDb();
+    if(!db){
+      for(let i=0; i<30; i++){
+        await new Promise(r => setTimeout(r, 100));
+        db = getDb();
+        if(db) break;
+      }
+    }
     if(!db){ setStatus('Not connected. Please try again.', 'error'); return; }
 
-    /* Try case-insensitive match */
-    let { data: players } = await db.from('players')
+    /* Query players - try eq first then ilike */
+    let { data: players, error: qErr } = await db.from('players')
       .select('id,first_name,last_name,is_committee,active,email')
-      .ilike('email', email).limit(1);
+      .ilike('email', email)
+      .limit(1);
 
-    /* If no match, try fetching all and matching manually (handles edge cases) */
+    /* If RLS blocks or no result, try eq exact match */
     if(!players || !players.length){
-      const { data: allPlayers } = await getDb().from('players')
+      const res2 = await db.from('players')
         .select('id,first_name,last_name,is_committee,active,email')
-        .limit(100);
-      if(allPlayers){
-        const match = allPlayers.find(p => p.email && p.email.trim().toLowerCase() === email);
+        .eq('email', email)
+        .limit(1);
+      if(res2.data && res2.data.length) players = res2.data;
+    }
+
+    /* Last resort: fetch all active players and match client-side */
+    if(!players || !players.length){
+      const res3 = await db.from('players')
+        .select('id,first_name,last_name,is_committee,active,email')
+        .eq('active', true);
+      if(res3.data){
+        const match = res3.data.find(p => p.email && p.email.trim().toLowerCase() === email.trim().toLowerCase());
         if(match) players = [match];
       }
     }
