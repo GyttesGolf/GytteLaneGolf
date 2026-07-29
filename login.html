@@ -121,7 +121,11 @@ body{
 <script>
 const SUPABASE_URL = 'https://noldemdyjbwfqxkuxmvy.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_pzqpKakNbZYprPW8XzGVNg_U9pL0Nsw';
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+/* Passkeys are still an experimental Supabase Auth feature - this flag must
+   be set on the client or signInWithPasskey()/registerPasskey() will throw. */
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { experimental: { passkey: true } }
+});
 
 let currentPill = null;
 
@@ -184,14 +188,28 @@ async function handleEmailSubmit(){
   setStatus('Checking…', 'loading');
 
   try {
-    /* Send magic link - shouldCreateUser:false means only existing Supabase auth users get a link */
+    /* Remember that this visitor came from "First time?" so that when they
+       land back here via the magic link we can offer to set up a passkey
+       instead of just redirecting them straight into the site. */
+    sessionStorage.setItem('gwg_register_passkey', '1');
+
+    /* Send magic link - shouldCreateUser:true lets brand-new members create
+       an account. emailRedirectTo is set explicitly so the link always
+       comes back here regardless of the dashboard's Site URL default. */
     const { error } = await sb.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: true }
+      options: {
+        shouldCreateUser: true,
+        /* Points back at wherever this page is actually hosted, so this
+           doesn't need to be hand-edited if the login page's path changes.
+           Must also be present in Supabase's Redirect URLs allow list. */
+        emailRedirectTo: window.location.origin + window.location.pathname
+      }
     });
     if (error) throw error;
     setStatus('Magic link sent to ' + email + ' — check your email and tap the link to sign in.', 'success');
   } catch(err) {
+    sessionStorage.removeItem('gwg_register_passkey');
     setStatus('Could not send link: ' + err.message, 'error');
   }
 }
@@ -199,8 +217,9 @@ async function handleEmailSubmit(){
 async function signInWithPasskey(){
   setStatus('Waiting for passkey…', 'loading');
   try {
-    /* Supabase passkey sign in - correct v2 API */
-    const { data, error } = await sb.auth.signInWithWebAuthn();
+    /* Supabase passkey sign in - correct SDK method is signInWithPasskey(),
+       not signInWithWebAuthn() (that method doesn't exist). */
+    const { data, error } = await sb.auth.signInWithPasskey();
     if (error) throw error;
     if (data?.user) await completeLogin(data.user);
     else {
@@ -222,20 +241,32 @@ async function signInWithPasskey(){
 async function registerPasskey(){
   setStatus('Setting up your passkey…', 'loading');
   try {
-    const { data, error } = await sb.auth.enrollWebAuthn();
+    /* Correct SDK method is registerPasskey(), not enrollWebAuthn(). */
+    const { data, error } = await sb.auth.registerPasskey();
     if (error) throw error;
     setStatus('Passkey registered! You can now sign in with it.', 'success');
     setTimeout(() => window.location.replace('/'), 1500);
   } catch(err) {
-    setStatus('Registration failed: ' + err.message, 'error');
+    setStatus('Could not set up a passkey (' + err.message + '). You can still use magic links to sign in — taking you in…', 'error');
+    /* They're already authenticated via the magic link even though passkey
+       setup failed, so don't strand them on the login page. */
+    setTimeout(() => window.location.replace('/'), 2500);
   }
 }
 
-/* On load — check if already signed in and redirect */
+/* On load — check if already signed in.
+   If they arrived here via the "First time?" magic link, offer to register
+   a passkey before sending them into the site; otherwise redirect straight in. */
 window.addEventListener('load', async () => {
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
-    window.location.replace('/');
+    const wantsPasskey = sessionStorage.getItem('gwg_register_passkey') === '1';
+    sessionStorage.removeItem('gwg_register_passkey');
+    if (wantsPasskey) {
+      await registerPasskey();
+    } else {
+      window.location.replace('/');
+    }
   }
 });
 </script>
