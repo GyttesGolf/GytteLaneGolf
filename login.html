@@ -255,37 +255,29 @@ function setStatus(msg, kind){
   el.className = 'status-msg ' + kind;
 }
 
-function showHanko(){
+function selectPill(pill){
+  currentPill = pill;
+  const pillFirst = document.getElementById('pill-first');
+  const pillMember = document.getElementById('pill-member');
+  const panelFirst = document.getElementById('panel-first');
+  const panelMember = document.getElementById('panel-member');
   const hankoEl = document.getElementById('hanko-auth');
-  hankoEl.classList.remove('hidden');
-  document.getElementById('back-btn-wrap').classList.remove('hidden');
-  document.getElementById('pills').classList.add('hidden');
-  document.getElementById('panel-first').classList.add('hidden');
-  document.getElementById('panel-member').classList.add('hidden');
 
-  /* If member pill — auto-click the passkey button once Hanko renders */
-  if(currentPill === 'member'){
-    hankoEl.classList.add('passkey-mode');
-    let attempts = 0;
-    const clickPasskey = setInterval(() => {
-      attempts++;
-      const shadow = hankoEl.shadowRoot;
-      if(shadow){
-        /* Find and click the passkey button */
-        const btns = shadow.querySelectorAll('button');
-        for(const btn of btns){
-          if(btn.textContent && btn.textContent.toLowerCase().includes('passkey')){
-            btn.click();
-            clearInterval(clickPasskey);
-            return;
-          }
-        }
-      }
-      if(attempts > 20) clearInterval(clickPasskey);
-    }, 100);
+  hankoEl.classList.add('hidden');
+  document.getElementById('back-btn-wrap').classList.add('hidden');
+
+  pillFirst.className = 'pill first' + (pill === 'first' ? ' active-pill' : ' dimmed');
+  pillMember.className = 'pill member' + (pill === 'member' ? ' active-pill' : ' dimmed');
+
+  if(pill === 'first'){
+    panelFirst.classList.remove('hidden');
+    panelMember.classList.add('hidden');
+    setTimeout(() => document.getElementById('email-input').focus(), 100);
   } else {
-    hankoEl.classList.remove('passkey-mode');
+    panelMember.classList.remove('hidden');
+    panelFirst.classList.add('hidden');
   }
+  document.getElementById('status-msg').className = 'status-msg';
 }
 
 function resetToDefault(){
@@ -300,65 +292,48 @@ function resetToDefault(){
   currentPill = null;
 }
 
-function selectPill(pill){
-  currentPill = pill;
-  const pillFirst = document.getElementById('pill-first');
-  const pillMember = document.getElementById('pill-member');
-  const panelFirst = document.getElementById('panel-first');
-  const panelMember = document.getElementById('panel-member');
-  const hankoEl = document.getElementById('hanko-auth');
-
-  /* reset hanko and show pills again */
-  hankoEl.classList.add('hidden');
-  document.getElementById('pills').classList.remove('hidden');
-
-  pillFirst.className = 'pill first' + (pill === 'first' ? ' active-pill' : ' dimmed');
-  pillMember.className = 'pill member' + (pill === 'member' ? ' active-pill' : ' dimmed');
-
-  /* remove dimmed so both are always clickable */
-  pillFirst.style.pointerEvents = 'auto';
-  pillMember.style.pointerEvents = 'auto';
-
-  if(pill === 'first'){
-    panelFirst.classList.remove('hidden');
-    panelMember.classList.add('hidden');
-    setTimeout(() => document.getElementById('email-input').focus(), 100);
-  } else {
-    panelMember.classList.remove('hidden');
-    panelFirst.classList.add('hidden');
-  }
-  document.getElementById('status-msg').className = 'status-msg';
-}
-
 function submitEmail(){
   const email = document.getElementById('email-input').value.trim();
   if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
     setStatus('Please enter a valid email address.', 'error'); return;
   }
-  setStatus('Opening Hanko\u2026', 'loading');
+  setStatus('Opening Hanko…', 'loading');
   showHanko();
 }
 
-async function triggerPasskey(){
-  setStatus('Opening passkey\u2026', 'loading');
-  try {
-    /* Use the Hanko component directly — it handles the full WebAuthn flow */
-    setStatus('', '');
-    showHanko();
-  } catch(err){
-    console.warn('Passkey error:', err);
-    setStatus('Something went wrong. Please try again.', 'error');
+function triggerPasskey(){
+  setStatus('Opening passkey…', 'loading');
+  showHanko();
+}
+
+function showHanko(){
+  const hankoEl = document.getElementById('hanko-auth');
+  hankoEl.classList.remove('hidden');
+  document.getElementById('back-btn-wrap').classList.remove('hidden');
+  document.getElementById('pills').classList.add('hidden');
+  document.getElementById('panel-first').classList.add('hidden');
+  document.getElementById('panel-member').classList.add('hidden');
+  setStatus('', '');
+
+  /* Auto-click passkey button for member flow */
+  if(currentPill === 'member'){
+    let attempts = 0;
+    const clickPasskey = setInterval(() => {
+      attempts++;
+      const shadow = hankoEl.shadowRoot;
+      if(shadow){
+        const btns = shadow.querySelectorAll('button');
+        for(const btn of btns){
+          if(btn.textContent && btn.textContent.toLowerCase().includes('passkey')){
+            btn.click();
+            clearInterval(clickPasskey);
+            return;
+          }
+        }
+      }
+      if(attempts > 30) clearInterval(clickPasskey);
+    }, 100);
   }
-}
-
-function base64ToBuffer(base64){
-  const b64 = base64.replace(/-/g,'+').replace(/_/g,'/');
-  return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-}
-
-function bufferToBase64(buffer){
-  return btoa(String.fromCharCode(...new Uint8Array(buffer)))
-    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
 }
 
 async function handleHankoSession(){
@@ -387,7 +362,7 @@ async function handleHankoSession(){
       .ilike('email', email).limit(1);
 
     if(!players || !players.length){
-      setStatus('This email isn\u2019t registered. Contact your captain to get access.', 'error');
+      setStatus('This email isn’t registered. Contact your captain to get access.', 'error');
       await fetch(`${HANKO_API}/sessions/logout`, { method:'DELETE', credentials:'include' });
       return;
     }
@@ -402,12 +377,12 @@ async function handleHankoSession(){
     sessionStorage.setItem('glgs_name', player.first_name + ' ' + player.last_name);
     sessionStorage.setItem('glgs_email', email);
 
-    setStatus('Welcome, ' + player.first_name + '! Signing you in\u2026', 'success');
+    setStatus('Welcome, ' + player.first_name + '! Signing you in…', 'success');
     setTimeout(() => { window.location.href = '/'; }, 900);
 
   } catch(err){
     console.error('Login error:', err);
-    setStatus('Login failed \u2014 please try again.', 'error');
+    setStatus('Login failed — please try again.', 'error');
   }
 }
 
