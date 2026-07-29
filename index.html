@@ -7,10 +7,7 @@
 <meta name="description" content="Gytte Lane Golf Society, Syresham. Founded 1994. Events, results, committee, gallery and news.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script type="module">
@@ -30,9 +27,9 @@
      --claret  #7A2A2E  club-tie claret — stripe / alert accent
      --brass   #B8862F  trophy brass — highlight / active state
      Type
-     --display: Fraunces      (crest, headlines — engraved-plaque character)
-     --body:    Work Sans     (everything you read)
-     --mono:    IBM Plex Mono (dates, scores, labels — the scorecard voice)
+     --display: Inter         (headlines, event names — bold and tight)
+     --body:    Inter         (everything you read)
+     --mono:    Inter         (dates, scores, labels — using weight/spacing instead)
      Signature: the diagonal club-tie stripe (ink / claret / brass), repeated
      at the header, section dividers, active nav state and footer.
   ============================================= */
@@ -52,9 +49,9 @@
     --on-dark-muted:#D9C2C4;
     --on-dark-faint:#B9888C;
     --radius:6px;
-    --display:'Archivo', sans-serif;
-    --body:'Work Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-    --mono:'IBM Plex Mono', 'SF Mono', monospace;
+    --display:'Inter', system-ui, sans-serif;
+    --body:'Inter', system-ui, sans-serif;
+    --mono:'Inter', system-ui, sans-serif;
   }
 
   *{box-sizing:border-box;}
@@ -106,7 +103,7 @@
     font-family:var(--display); font-weight:600; font-size:1.5rem; margin:0; letter-spacing:.01em;
   }
   .head-text p{
-    margin:.2rem 0 0; font-family:var(--mono); font-size:.78rem; letter-spacing:.04em;
+    margin:.2rem 0 0; font-family:var(--body); font-size:.78rem; letter-spacing:.04em;
     color:var(--brass-light); text-transform:uppercase;
   }
 
@@ -123,7 +120,7 @@
   }
   .tab-btn{
     background:none; border:none; color:var(--on-dark-muted); cursor:pointer;
-    font-family:var(--mono); font-size:.62rem; letter-spacing:.04em; text-transform:uppercase;
+    font-family:var(--body); font-size:.62rem; letter-spacing:.04em; text-transform:uppercase;
     padding:.55rem .8rem .5rem; border-bottom:2px solid transparent; white-space:nowrap;
     transition:color .15s, border-color .15s;
     display:flex; flex-direction:column; align-items:center; gap:.28rem;
@@ -147,7 +144,7 @@
   }
   .bn-tab{
     display:flex; flex-direction:column; align-items:center; gap:.2rem;
-    font-family:var(--mono); font-size:.6rem; text-transform:uppercase; letter-spacing:.04em;
+    font-family:var(--body); font-size:.6rem; text-transform:uppercase; letter-spacing:.04em;
     color:var(--text-muted); padding:.2rem .4rem; cursor:pointer; border:none; background:none;
     min-width:52px;
   }
@@ -177,7 +174,7 @@
   }
   .md-item{
     display:flex; align-items:center; gap:.8rem; padding:.85rem 1rem;
-    font-family:var(--mono); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em;
+    font-family:var(--body); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em;
     color:var(--text); border:none; background:none; cursor:pointer; width:100%;
     border-bottom:1px solid var(--line); text-align:left;
   }
@@ -196,7 +193,7 @@
   /* ---------- committee login nav button & modal ---------- */
   .nav-lock-btn{
     background:none; border:none; color:var(--on-dark-muted); cursor:pointer;
-    font-family:var(--mono); font-size:.82rem; letter-spacing:.04em; text-transform:uppercase;
+    font-family:var(--body); font-size:.82rem; letter-spacing:.04em; text-transform:uppercase;
     padding:.9rem 1.15rem .75rem; border-bottom:3px solid transparent; white-space:nowrap;
     margin-left:auto; display:flex; align-items:center; gap:.4rem;
     transition:color .15s;
@@ -238,11 +235,12 @@
   @keyframes fadein{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
 
   .eyebrow{
-    font-family:var(--mono); font-size:.75rem; letter-spacing:.09em; text-transform:uppercase;
-    color:var(--claret); margin:0 0 .4rem;
+    font-family:var(--body); font-size:.65rem; font-weight:600; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--brass); margin:0 0 .3rem;
   }
   h2.section-title{
-    font-family:var(--display); font-size:2rem; font-weight:600; margin:0 0 1.6rem; color:var(--ink);
+    font-family:var(--display); font-size:2rem; font-weight:800; margin:0 0 1.2rem; color:var(--ink);
+    letter-spacing:-.03em; line-height:1.1;
   }
   .lede{font-size:1.05rem; color:var(--text-muted); max-width:62ch;}
 
@@ -264,7 +262,7 @@
     width:100%; font-size:.8rem; text-align:center; padding:.9rem .5rem; line-height:1.3;
   }
   .btn{
-    font-family:var(--mono); font-size:.82rem; letter-spacing:.03em; text-transform:uppercase;
+    font-family:var(--body); font-size:.82rem; letter-spacing:.03em; text-transform:uppercase;
     padding:.7rem 1.2rem; border-radius:var(--radius); cursor:pointer; border:2px solid var(--ink);
     background:var(--ink); color:var(--paper); transition:background .15s, color .15s;
   }
@@ -284,12 +282,12 @@
     background:repeating-linear-gradient(45deg, var(--claret) 0 12px, var(--brass) 12px 24px);
   }
   .next-fixture .label{
-    font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.1em;
+    font-family:var(--body); font-size:.72rem; text-transform:uppercase; letter-spacing:.1em;
     color:var(--brass-light); margin-top:.3rem;
   }
   .next-fixture h3{font-family:var(--display); font-size:1.55rem; margin:.4rem 0 .8rem; color:var(--paper); line-height:1.15;}
   .next-fixture dl{display:grid; grid-template-columns:auto 1fr; gap:.3rem .9rem; margin:0; font-size:.92rem;}
-  .next-fixture dt{font-family:var(--mono); color:var(--on-dark-faint); font-size:.75rem; text-transform:uppercase; letter-spacing:.05em;}
+  .next-fixture dt{font-family:var(--body); color:var(--on-dark-faint); font-size:.75rem; text-transform:uppercase; letter-spacing:.05em;}
   .next-fixture dd{margin:0; color:var(--on-dark-muted);}
   .next-fixture a{color:var(--brass-light);}
   .fixture-countdown{
@@ -297,10 +295,10 @@
     padding-top:.9rem; border-top:1px solid rgba(255,255,255,.14);
   }
   .fixture-countdown .cd-num{
-    font-family:var(--mono); font-size:2rem; font-weight:600; color:var(--brass); line-height:1;
+    font-family:var(--body); font-size:2rem; font-weight:600; color:var(--brass); line-height:1;
   }
   .fixture-countdown .cd-label{
-    font-family:var(--mono); font-size:.75rem; text-transform:uppercase; letter-spacing:.06em;
+    font-family:var(--body); font-size:.75rem; text-transform:uppercase; letter-spacing:.06em;
     color:var(--on-dark-muted);
   }
   .fixture-countdown.today .cd-num{font-size:1.4rem;}
@@ -317,7 +315,7 @@
   }
   .leaflet-popup-content{margin:.8rem 1rem; font-size:.88rem;}
   .leaflet-popup-content h4{font-family:var(--display); margin:0 0 .25rem; font-size:1.02rem; color:var(--ink);}
-  .leaflet-popup-content a{font-family:var(--mono); font-size:.76rem; text-transform:uppercase;}
+  .leaflet-popup-content a{font-family:var(--body); font-size:.76rem; text-transform:uppercase;}
   .leaflet-popup-tip{background:var(--paper);}
   .map-empty-note{font-size:.88rem; color:var(--text-muted); margin-top:.6rem;}
 
@@ -333,17 +331,17 @@
   }
   .leader-photo.placeholder{
     display:flex; align-items:center; justify-content:center;
-    font-family:var(--mono); font-size:1rem; letter-spacing:.03em; color:var(--ink);
+    font-family:var(--body); font-size:1rem; letter-spacing:.03em; color:var(--ink);
   }
-  .leader-role{font-family:var(--mono); font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:var(--claret);}
+  .leader-role{font-family:var(--body); font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:var(--claret);}
   .leader-name{font-family:var(--display); font-size:1.15rem; font-weight:600; color:var(--ink); margin:.2rem 0 0;}
   .home-col h3.mini-title{
-    font-family:var(--mono); font-size:.78rem; letter-spacing:.06em; text-transform:uppercase;
+    font-family:var(--body); font-size:.78rem; letter-spacing:.06em; text-transform:uppercase;
     color:var(--ink); border-bottom:2px solid var(--ink); padding-bottom:.5rem; margin:0 0 1rem;
   }
   .mini-news-item{padding:.9rem 0; border-bottom:1px solid var(--line);}
   .mini-news-item:last-child{border-bottom:none;}
-  .mini-news-item time{font-family:var(--mono); font-size:.72rem; color:var(--text-muted);}
+  .mini-news-item time{font-family:var(--body); font-size:.72rem; color:var(--text-muted);}
   .mini-news-item h4{margin:.2rem 0 .25rem; font-family:var(--display); font-size:1.05rem; font-weight:600;}
   .mini-news-item p{margin:0; font-size:.92rem; color:var(--text-muted);}
 
@@ -353,11 +351,11 @@
   /* ---------- events ---------- */
   .filter-row{display:flex; gap:.6rem; margin-bottom:1.4rem; flex-wrap:wrap;}
   .chip{
-    font-family:var(--mono); font-size:.75rem; text-transform:uppercase; letter-spacing:.04em;
-    border:1px solid var(--ink); background:transparent; color:var(--ink);
-    padding:.4rem .85rem; border-radius:999px; cursor:pointer;
+    font-family:var(--body); font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.05em;
+    border:1.5px solid var(--line); background:transparent; color:var(--text-muted);
+    padding:.3rem .85rem; border-radius:999px; cursor:pointer;
   }
-  .chip[aria-pressed="true"]{background:var(--ink); color:var(--paper);}
+  .chip[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink);}
 
   .event-list{display:flex; flex-direction:column; gap:1rem;}
   .event-block{display:flex; flex-direction:column; margin-bottom:.75rem;}
@@ -372,11 +370,11 @@
   .event-card.highlight{border-color:var(--brass); box-shadow:0 0 0 3px var(--brass-light);}
   .event-card[aria-expanded="true"]{border-color:var(--brass); border-bottom-left-radius:0; border-bottom-right-radius:0;}
   .event-date{background:var(--ink); padding:.8rem .5rem; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center;}
-  .event-date .d-month{font-family:var(--mono); font-size:.62rem; text-transform:uppercase; letter-spacing:.08em; color:var(--brass-light); font-weight:500;}
-  .event-date .d-day{font-family:var(--mono); font-size:1.55rem; font-weight:600; color:var(--paper); line-height:1;}
-  .event-date .d-year{font-family:var(--mono); font-size:.62rem; color:var(--brass-light); opacity:.7;}
+  .event-date .d-month{font-family:var(--body); font-size:.6rem; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.55);}
+  .event-date .d-day{font-family:var(--body); font-size:1.6rem; font-weight:700; letter-spacing:-.03em; color:var(--paper); line-height:1;}
+  .event-date .d-year{font-family:var(--body); font-size:.6rem; font-weight:500; color:rgba(255,255,255,.4);}
   .event-main{padding:.7rem .9rem;}
-  .event-main h3{font-family:var(--display); font-size:.98rem; margin:0 0 .1rem; color:var(--ink);}
+  .event-main h3{font-family:var(--display); font-size:1rem; font-weight:700; letter-spacing:-.02em; margin:0 0 .1rem; color:var(--ink);}
   .event-main .meta{font-size:.82rem; color:var(--text-muted);}
   .event-main .event-address{
     display:inline-flex; align-items:center; gap:.35rem; margin-top:.2rem;
@@ -384,7 +382,7 @@
   }
   .event-main .event-address:hover{text-decoration:underline;}
   .event-main .event-chips{display:flex; flex-wrap:wrap; gap:.3rem; margin-top:.4rem;}
-  .ev-chip{font-size:.68rem; font-family:var(--mono); padding:.18rem .52rem; border-radius:999px; border:0.5px solid var(--line); color:var(--text-muted); display:inline-flex; align-items:center; gap:.25rem; white-space:nowrap;}
+  .ev-chip{font-size:.67rem; font-family:var(--body); font-weight:500; padding:.18rem .52rem; border-radius:999px; border:0.5px solid var(--line); color:var(--text-muted); display:inline-flex; align-items:center; gap:.25rem; white-space:nowrap;}
   .ev-chip.cost{background:#eef6ee; border-color:#a8d5a8; color:#2e6b2e;}
   .ev-chip.time{background:#e8f0fb; border-color:#a8c0e8; color:#1a4a8a;}
   .ev-chip.food{background:#fdf3e7; border-color:#f0c070; color:#7a4a10;}
@@ -396,7 +394,7 @@
     margin-bottom:1rem; display:flex; flex-wrap:wrap; gap:.6rem 2rem;
   }
   .edi-row{display:flex; flex-direction:column; gap:.15rem; min-width:120px;}
-  .edi-label{font-family:var(--mono); font-size:.65rem; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted);}
+  .edi-label{font-family:var(--body); font-size:.65rem; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted);}
   .edi-value{font-size:.95rem; color:var(--text); font-weight:500;}
 
   /* ---------- payments ---------- */
@@ -407,10 +405,10 @@
   .payment-row:last-child{border-bottom:none;}
   .payment-row input[type=checkbox]{accent-color:var(--bracken); width:18px; height:18px; cursor:pointer; flex-shrink:0;}
   .payment-row .pay-name{flex:1;}
-  .payment-row .pay-amount{font-family:var(--mono); font-size:.82rem; color:var(--text-muted);}
+  .payment-row .pay-amount{font-family:var(--body); font-size:.82rem; color:var(--text-muted);}
   .payment-row.paid .pay-name{color:var(--bracken);}
   .payment-summary{
-    font-family:var(--mono); font-size:.8rem; padding:.6rem .8rem; margin-top:.5rem;
+    font-family:var(--body); font-size:.8rem; padding:.6rem .8rem; margin-top:.5rem;
     background:var(--stone); border-radius:var(--radius); display:flex; gap:1.2rem; flex-wrap:wrap;
   }
   .payment-summary .ps-total{color:var(--bracken); font-weight:600;}
@@ -420,7 +418,7 @@
   .accounts-login-note{max-width:480px; text-align:center; padding:2rem; color:var(--text-muted);}
   .accounts-year-tabs{display:flex; gap:.5rem; margin-bottom:1.4rem; flex-wrap:wrap;}
   .accounts-year-tab{
-    font-family:var(--mono); font-size:.8rem; text-transform:uppercase; letter-spacing:.04em;
+    font-family:var(--body); font-size:.8rem; text-transform:uppercase; letter-spacing:.04em;
     padding:.5rem 1rem; border-radius:999px; border:1px solid var(--line);
     background:transparent; color:var(--text-muted); cursor:pointer;
   }
@@ -428,7 +426,7 @@
   .accounts-report{max-width:680px;}
   .accounts-section{margin-bottom:1.6rem;}
   .accounts-section h3{
-    font-family:var(--mono); font-size:.78rem; text-transform:uppercase; letter-spacing:.08em;
+    font-family:var(--body); font-size:.78rem; text-transform:uppercase; letter-spacing:.08em;
     color:var(--ink); border-bottom:2px solid var(--ink); padding-bottom:.4rem; margin-bottom:.8rem;
   }
   .accounts-row{
@@ -437,8 +435,8 @@
   }
   .accounts-row:last-child{border-bottom:none;}
   .accounts-row .ar-label{flex:1; color:var(--text);}
-  .accounts-row .ar-sub{font-size:.78rem; color:var(--text-muted); font-family:var(--mono);}
-  .accounts-row .ar-amount{font-family:var(--mono); font-weight:600; min-width:5rem; text-align:right;}
+  .accounts-row .ar-sub{font-size:.78rem; color:var(--text-muted); font-family:var(--body);}
+  .accounts-row .ar-amount{font-family:var(--body); font-weight:600; min-width:5rem; text-align:right;}
   .accounts-row .ar-amount.income{color:var(--bracken);}
   .accounts-row .ar-amount.expense{color:var(--claret);}
   .accounts-total{
@@ -446,20 +444,20 @@
     margin-top:.4rem; font-size:1rem; font-weight:600; border-top:2px solid var(--ink);
   }
   .accounts-total .ar-label{flex:1;}
-  .accounts-total .ar-amount{font-family:var(--mono); min-width:5rem; text-align:right; font-size:1.1rem;}
+  .accounts-total .ar-amount{font-family:var(--body); min-width:5rem; text-align:right; font-size:1.1rem;}
   .accounts-surplus{
     background:var(--ink); color:var(--paper); border-radius:var(--radius);
     padding:1rem 1.2rem; display:flex; align-items:baseline; gap:.8rem; margin-top:1rem;
   }
   .accounts-surplus .ar-label{flex:1; font-family:var(--display); font-size:1.1rem;}
-  .accounts-surplus .ar-amount{font-family:var(--mono); font-size:1.4rem; font-weight:700; color:var(--brass-light);}
+  .accounts-surplus .ar-amount{font-family:var(--body); font-size:1.4rem; font-weight:700; color:var(--brass-light);}
   .accounts-actions{display:flex; gap:.7rem; flex-wrap:wrap; margin-bottom:1.4rem;}
   .exp-category-pill{
-    font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.05em;
+    font-family:var(--body); font-size:.68rem; text-transform:uppercase; letter-spacing:.05em;
     padding:.2rem .55rem; border-radius:999px; background:var(--stone); color:var(--text-muted);
   }
   .status-pill{
-    font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.05em;
+    font-family:var(--body); font-size:.68rem; text-transform:uppercase; letter-spacing:.05em;
     padding:.25rem .6rem; border-radius:999px; white-space:nowrap;
   }
   .status-pill.upcoming{background:var(--bracken); color:var(--paper);}
@@ -473,7 +471,7 @@
   .event-description{margin:0; font-size:.95rem;}
   .event-description.muted{color:var(--text-muted); font-style:italic;}
   .signup-block h4, .attendee-list h4{
-    font-family:var(--mono); font-size:.75rem; text-transform:uppercase; letter-spacing:.05em;
+    font-family:var(--body); font-size:.75rem; text-transform:uppercase; letter-spacing:.05em;
     color:var(--ink); margin:0 0 .7rem;
   }
   .signup-label{display:block; font-size:.82rem; color:var(--text-muted); margin-bottom:.3rem;}
@@ -491,7 +489,7 @@
   .signup-status.notice{color:var(--text-muted); font-weight:600;}
   .attendee-list ul{list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:.4rem;}
   .attendee-list li{
-    font-family:var(--mono); font-size:.78rem; background:var(--stone); border:1px solid var(--line);
+    font-family:var(--body); font-size:.78rem; background:var(--stone); border:1px solid var(--line);
     border-radius:999px; padding:.3rem .7rem;
   }
   .muted{color:var(--text-muted); font-style:italic; font-size:.88rem;}
@@ -502,7 +500,7 @@
     padding:1.2rem 1.3rem; margin-top:1rem;
   }
   .edit-form h4{
-    font-family:var(--mono); font-size:.75rem; text-transform:uppercase; letter-spacing:.05em;
+    font-family:var(--body); font-size:.75rem; text-transform:uppercase; letter-spacing:.05em;
     color:var(--ink); margin:0 0 .9rem;
   }
   .edit-form-grid{display:grid; grid-template-columns:1fr 1fr; gap:.5rem .8rem;}
@@ -519,7 +517,7 @@
   }
   .edit-form-actions{display:flex; gap:.6rem; margin-top:.9rem; flex-wrap:wrap; align-items:center;}
   .edit-form-actions .delete-btn{
-    margin-left:auto; font-family:var(--mono); font-size:.75rem; text-transform:uppercase;
+    margin-left:auto; font-family:var(--body); font-size:.75rem; text-transform:uppercase;
     letter-spacing:.03em; background:none; border:1px solid var(--claret); color:var(--claret);
     padding:.45rem .9rem; border-radius:var(--radius); cursor:pointer;
   }
@@ -530,7 +528,7 @@
   .edit-status.loading{color:var(--text-muted);}
 
   .add-item-btn{
-    font-family:var(--mono); font-size:.8rem; text-transform:uppercase; letter-spacing:.04em;
+    font-family:var(--body); font-size:.8rem; text-transform:uppercase; letter-spacing:.04em;
     background:none; border:2px dashed var(--line); color:var(--text-muted);
     padding:.75rem 1.2rem; border-radius:var(--radius); cursor:pointer; width:100%;
     transition:border-color .15s, color .15s; margin-top:.5rem;
@@ -556,11 +554,11 @@
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-decoration:none;
   }
   .course-row-name:hover{text-decoration:underline;}
-  .course-row-stars{font-family:var(--mono); font-size:.75rem; color:var(--brass);}
+  .course-row-stars{font-family:var(--body); font-size:.75rem; color:var(--brass);}
   .course-row-stars .star-empty{color:var(--line);}
-  .course-row-none{font-family:var(--mono); font-size:.7rem; color:var(--text-muted);}
+  .course-row-none{font-family:var(--body); font-size:.7rem; color:var(--text-muted);}
   .course-rate-btn{
-    flex-shrink:0; font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.05em;
+    flex-shrink:0; font-family:var(--body); font-size:.68rem; text-transform:uppercase; letter-spacing:.05em;
     padding:.35rem .7rem; border:1.5px solid var(--line); border-radius:999px;
     background:transparent; color:var(--text-muted); cursor:pointer; white-space:nowrap;
     transition:border-color .15s, color .15s;
@@ -578,7 +576,7 @@
   .star-display .stars{color:var(--brass); font-size:1rem; letter-spacing:.05em;}
   .star-display .star-empty{color:var(--line); font-size:1rem;}
   .star-display .star-filled{color:var(--brass); font-size:1rem;}
-  .star-display .star-avg{font-family:var(--mono); font-size:.78rem; color:var(--text-muted);}
+  .star-display .star-avg{font-family:var(--body); font-size:.78rem; color:var(--text-muted);}
   .star-picker{display:flex; align-items:center; gap:.2rem; margin:.5rem 0;}
   .star-picker button{
     background:none; border:none; cursor:pointer; font-size:1.6rem; line-height:1;
@@ -587,7 +585,7 @@
   .star-picker button.lit{color:var(--brass);}
   .star-picker button:hover{transform:scale(1.15);}
   .rate-block{margin-top:.8rem; padding-top:.8rem; border-top:1px solid var(--line);}
-  .rate-block h5{font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin:0 0 .5rem;}
+  .rate-block h5{font-family:var(--body); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin:0 0 .5rem;}
   .rate-select{
     width:100%; font-family:var(--body); font-size:.88rem; padding:.45rem .6rem;
     border:1px solid var(--line); border-radius:var(--radius); background:var(--stone); margin-bottom:.4rem;
@@ -612,7 +610,7 @@
     display:flex; align-items:center; gap:.6rem;
   }
   .rule-num{
-    font-family:var(--mono); font-size:.78rem; color:var(--claret); font-weight:600;
+    font-family:var(--body); font-size:.78rem; color:var(--claret); font-weight:600;
   }
   .rule-card p{margin:0; font-size:.95rem; color:var(--text); white-space:pre-wrap;}
 
@@ -629,7 +627,7 @@
   .trophy-card.selected{border-color:var(--brass); box-shadow:0 0 0 3px var(--brass-light); transform:translateY(-2px);}
   .trophy-card svg{width:76px; height:76px; margin:0 auto .5rem; display:block;}
   .trophy-card h3{font-family:var(--display); font-size:1rem; margin:0 0 .2rem; color:var(--ink); line-height:1.2;}
-  .trophy-card .trophy-count{font-family:var(--mono); font-size:.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em;}
+  .trophy-card .trophy-count{font-family:var(--body); font-size:.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em;}
 
   .trophy-winners{
     background:var(--ink); color:var(--paper); border-radius:var(--radius);
@@ -650,7 +648,7 @@
     border-bottom:1px solid rgba(255,255,255,.1); font-size:.95rem;
   }
   .trophy-winners li:last-child{border-bottom:none;}
-  .tw-year{font-family:var(--mono); color:var(--brass); font-weight:600; min-width:3.2rem;}
+  .tw-year{font-family:var(--body); color:var(--brass); font-weight:600; min-width:3.2rem;}
   .tw-name{color:var(--paper); font-weight:500;}
   .tw-course{font-size:.8rem; color:var(--on-dark-faint); margin-left:auto; text-align:right;}
   .trophy-winners .committee-edit-btn{border-color:rgba(255,255,255,.3); color:var(--on-dark-muted);}
@@ -680,7 +678,7 @@
   .pli-ini{width:34px;height:34px;border-radius:50%;background:var(--ink);color:var(--brass-light);font-size:.75rem;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
   .pli-info{flex:1;min-width:0;}
   .pli-name{font-size:.9rem;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .pli-sub{font-size:.68rem;color:var(--text-muted);font-family:var(--mono);margin-top:.05rem;}
+  .pli-sub{font-size:.68rem;color:var(--text-muted);font-family:var(--body);margin-top:.05rem;}
   .pli-right{display:flex;align-items:center;gap:.5rem;flex-shrink:0;}
   .pli-dot{width:8px;height:8px;border-radius:50%;}
   .pli-dot.paid{background:#4CAF50;}
@@ -688,7 +686,7 @@
   .pli-expanded{background:var(--stone);border-bottom:0.5px solid var(--line);padding:.65rem .8rem .65rem 3.4rem;}
   .player-list-item.expanded .pli-ini{background:var(--claret);}
   .pli-expanded .pc-tabs{margin-bottom:.55rem;}
-  .player-count{font-family:var(--mono);font-size:.72rem;color:var(--text-muted);margin-bottom:.5rem;}
+  .player-count{font-family:var(--body);font-size:.72rem;color:var(--text-muted);margin-bottom:.5rem;}
 
   /* ---- player archive ---- */
     margin-top:2.4rem; padding-top:2rem; border-top:1px solid var(--line);
@@ -742,7 +740,7 @@
   /* ---------- whatsapp share ---------- */
   .wa-share-btn{
     display:inline-flex; align-items:center; gap:.45rem;
-    font-family:var(--mono); font-size:.75rem; text-transform:uppercase; letter-spacing:.04em;
+    font-family:var(--body); font-size:.75rem; text-transform:uppercase; letter-spacing:.04em;
     background:#25D366; color:#fff; border:none; padding:.5rem .95rem;
     border-radius:999px; cursor:pointer; transition:filter .15s; text-decoration:none;
   }
@@ -752,7 +750,7 @@
   /* ---------- live scores ---------- */
   .scores-sub-tabs{display:grid; grid-template-columns:1fr 1fr 1fr; gap:.5rem; margin-bottom:1.2rem;}
   .scores-sub-tab{
-    font-family:var(--mono); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em;
+    font-family:var(--body); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em;
     padding:.8rem .6rem; border-radius:var(--radius); border:1.5px solid var(--line);
     background:var(--paper); color:var(--text-muted); cursor:pointer; transition:all .15s;
     text-align:center;
@@ -761,16 +759,16 @@
 
   .leaderboard-table{width:100%; border-collapse:collapse; font-size:.95rem;}
   .leaderboard-table th{
-    font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.05em;
+    font-family:var(--body); font-size:.72rem; text-transform:uppercase; letter-spacing:.05em;
     text-align:left; border-bottom:2px solid var(--ink); padding:.6rem .7rem; color:var(--ink);
   }
   .leaderboard-table td{padding:.8rem .7rem; border-bottom:1px solid var(--line);}
   .leaderboard-table tr:hover td{background:var(--paper);}
   .pos-medal{font-size:1.2rem;}
-  .pos-num{font-family:var(--mono); font-weight:600; color:var(--text-muted);}
+  .pos-num{font-family:var(--body); font-weight:600; color:var(--text-muted);}
   .lb-player{font-weight:600; color:var(--ink);}
-  .lb-total{font-family:var(--mono); font-size:1.1rem; font-weight:600; color:var(--ink); text-align:right;}
-  .lb-thru{font-family:var(--mono); font-size:.78rem; color:var(--text-muted); text-align:right;}
+  .lb-total{font-family:var(--body); font-size:1.1rem; font-weight:600; color:var(--ink); text-align:right;}
+  .lb-thru{font-family:var(--body); font-size:.78rem; color:var(--text-muted); text-align:right;}
   .lb-complete{color:var(--bracken); font-weight:600;}
   .lb-fun-label{
     font-size:.76rem; font-weight:400; font-style:italic; margin-top:.15rem;
@@ -778,7 +776,7 @@
   .lb-fun-label.leader{color:var(--brass);}
   .lb-fun-label.last{color:var(--claret);}
   .live-badge{
-    display:inline-flex; align-items:center; gap:.35rem; font-family:var(--mono); font-size:.72rem;
+    display:inline-flex; align-items:center; gap:.35rem; font-family:var(--body); font-size:.72rem;
     text-transform:uppercase; letter-spacing:.05em; color:var(--claret); margin-bottom:1rem;
   }
   .live-dot{
@@ -805,7 +803,7 @@
   .player-pick-item.selected{border-color:var(--bracken); background:var(--stone);}
   .player-pick-item input[type=checkbox]{accent-color:var(--bracken); width:16px; height:16px;}
   .pick-name{font-size:.95rem;}
-  .pick-hcap{font-family:var(--mono); font-size:.76rem; color:var(--text-muted); margin-left:auto;}
+  .pick-hcap{font-family:var(--body); font-size:.76rem; color:var(--text-muted); margin-left:auto;}
   .player-search{
     width:100%; font-family:var(--body); font-size:.9rem; padding:.55rem .7rem;
     border:1px solid var(--line); border-radius:var(--radius); background:var(--stone);
@@ -822,22 +820,22 @@
   .hole-nav h3{font-family:var(--display); font-size:1.3rem; margin:0;}
   .hole-nav-btn{
     background:none; border:1px solid rgba(255,255,255,.3); color:var(--paper);
-    font-family:var(--mono); font-size:.82rem; padding:.4rem .9rem;
+    font-family:var(--body); font-size:.82rem; padding:.4rem .9rem;
     border-radius:999px; cursor:pointer; transition:background .15s;
   }
   .hole-nav-btn:hover{background:rgba(255,255,255,.15);}
   .hole-nav-btn:disabled{opacity:.3; cursor:not-allowed;}
-  .hole-progress{font-family:var(--mono); font-size:.72rem; color:rgba(255,255,255,.6); text-align:center; margin:.15rem 0 0;}
+  .hole-progress{font-family:var(--body); font-size:.72rem; color:rgba(255,255,255,.6); text-align:center; margin:.15rem 0 0;}
   .player-score-row{
     background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
     padding:1rem 1.1rem; margin-bottom:.7rem;
   }
   .player-score-header{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:.7rem;}
   .player-score-name{font-weight:600; color:var(--ink);}
-  .player-running-total{font-family:var(--mono); font-size:.82rem; color:var(--text-muted);}
+  .player-running-total{font-family:var(--body); font-size:.82rem; color:var(--text-muted);}
   .points-btn-row{display:flex; gap:.4rem;}
   .points-btn{
-    flex:1; font-family:var(--mono); font-size:1.1rem; font-weight:600;
+    flex:1; font-family:var(--body); font-size:1.1rem; font-weight:600;
     padding:.7rem .3rem; border:2px solid var(--line); border-radius:var(--radius);
     background:var(--stone); color:var(--text); cursor:pointer;
     transition:all .12s; text-align:center;
@@ -847,7 +845,7 @@
   .points-btn.selected-0{background:var(--text-muted); border-color:var(--text-muted); color:var(--paper);}
   .hole-entry-actions{display:flex; gap:.7rem; margin-top:1rem; flex-wrap:wrap;}
   .sync-indicator{
-    font-family:var(--mono); font-size:.76rem; padding:.5rem .8rem; border-radius:var(--radius);
+    font-family:var(--body); font-size:.76rem; padding:.5rem .8rem; border-radius:var(--radius);
     margin-bottom:.8rem; text-align:center;
   }
   .sync-indicator:empty{display:none;}
@@ -861,7 +859,7 @@
   .round-complete-banner h3{font-family:var(--display); font-size:1.3rem; margin:0 0 .3rem;}
   .round-complete-banner p{margin:0 0 .9rem; opacity:.9;}
   .committee-edit-btn{
-    font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em;
+    font-family:var(--body); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em;
     background:none; border:1px solid var(--line); color:var(--text-muted);
     padding:.3rem .7rem; border-radius:999px; cursor:pointer; margin-left:.5rem;
     transition:border-color .15s, color .15s;
@@ -875,11 +873,11 @@
     border-top:4px solid var(--claret);
   }
   .committee-card-top{display:flex; align-items:center; gap:.9rem; margin-bottom:.9rem;}
-  .committee-card .role{font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--claret);}
+  .committee-card .role{font-family:var(--body); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--claret);}
   .committee-card h3{font-family:var(--display); font-size:1.2rem; margin:.35rem 0 0; color:var(--ink);}
   .committee-photo-upload input[type=file]{display:none;}
   .upload-label{
-    display:inline-block; font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em;
+    display:inline-block; font-family:var(--body); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em;
     padding:.4rem .8rem; border-radius:999px; border:1px solid var(--ink); color:var(--ink); cursor:pointer;
     background:transparent; transition:background .15s, color .15s;
   }
@@ -914,17 +912,17 @@
   .tile-media-real{width:100%; height:140px; object-fit:cover; display:block; background:var(--ink);}
   .tile-body{padding:.9rem 1rem;}
   .tile-body p{margin:0 0 .5rem; font-size:.92rem; color:var(--text);}
-  .tile-link{font-family:var(--mono); font-size:.74rem; text-transform:uppercase; letter-spacing:.04em;}
+  .tile-link{font-family:var(--body); font-size:.74rem; text-transform:uppercase; letter-spacing:.04em;}
 
   /* ---------- news ---------- */
   .news-list{display:flex; flex-direction:column; gap:1.3rem;}
   .news-card{padding:1.3rem 0; border-bottom:1px solid var(--line);}
   .news-card:last-child{border-bottom:none;}
-  .news-card time{font-family:var(--mono); font-size:.74rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em;}
+  .news-card time{font-family:var(--body); font-size:.74rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em;}
   .news-card h3{font-family:var(--display); font-size:1.3rem; margin:.3rem 0 .5rem; color:var(--ink);}
   .news-card p{margin:0 0 .6rem; color:var(--text-muted); max-width:62ch;}
   .related-chip{
-    display:inline-flex; align-items:center; gap:.3rem; font-family:var(--mono); font-size:.74rem;
+    display:inline-flex; align-items:center; gap:.3rem; font-family:var(--body); font-size:.74rem;
     text-transform:uppercase; letter-spacing:.03em; background:var(--stone); border:1px solid var(--line);
     border-radius:999px; padding:.3rem .75rem; color:var(--bracken);
   }
@@ -941,9 +939,9 @@
 
   /* ---------- results ---------- */
   table.results-table{width:100%; border-collapse:collapse; font-size:.94rem;}
-  table.results-table caption{text-align:left; font-family:var(--mono); font-size:.78rem; color:var(--text-muted); margin-bottom:.6rem;}
+  table.results-table caption{text-align:left; font-family:var(--body); font-size:.78rem; color:var(--text-muted); margin-bottom:.6rem;}
   table.results-table th{
-    font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.05em;
+    font-family:var(--body); font-size:.72rem; text-transform:uppercase; letter-spacing:.05em;
     text-align:left; border-bottom:2px solid var(--ink); padding:.6rem .7rem; color:var(--ink);
   }
   table.results-table td{padding:.75rem .7rem; border-bottom:1px solid var(--line); vertical-align:top;}
@@ -966,7 +964,7 @@
   }
   .sc-head h3{font-family:var(--display); font-size:1.05rem; font-weight:700; color:var(--ink); text-transform:uppercase; letter-spacing:.03em; margin:0;}
   .sc-head h3 a{color:var(--ink); text-decoration:none;}
-  .sc-head .sc-meta{font-family:var(--mono); font-size:.68rem; color:var(--ink); opacity:.7;}
+  .sc-head .sc-meta{font-family:var(--body); font-size:.68rem; color:var(--ink); opacity:.7;}
   .sc-podium{display:flex; flex-direction:column; padding:.4rem 0;}
   .sc-place{
     display:flex; align-items:center; gap:1rem; padding:.75rem 1.3rem;
@@ -979,20 +977,20 @@
   .sc-place.first .ribbon{background:linear-gradient(180deg,#F5D78E,#B8862F);}
   .sc-place.second .ribbon{background:linear-gradient(180deg,#D4D4D4,#9E9E9E);}
   .sc-place.third .ribbon{background:linear-gradient(180deg,#CDA27A,#8C5E2A);}
-  .sc-place .p-label{font-family:var(--mono); font-size:.6rem; text-transform:uppercase; letter-spacing:.1em; color:var(--text-muted); margin-bottom:.2rem; min-width:5rem;}
+  .sc-place .p-label{font-family:var(--body); font-size:.6rem; text-transform:uppercase; letter-spacing:.1em; color:var(--text-muted); margin-bottom:.2rem; min-width:5rem;}
   .sc-place .p-name{font-family:var(--display); font-weight:700; color:var(--ink); line-height:1.15;}
   .sc-place.first .p-name{font-size:1.35rem;}
   .sc-place.second .p-name,.sc-place.third .p-name{font-size:1.05rem; color:var(--text);}
   .sc-foot{
     background:var(--stone); border-top:1px solid var(--line); padding:.55rem 1.3rem;
     display:flex; justify-content:space-between; align-items:center;
-    font-family:var(--mono); font-size:.7rem; color:var(--text-muted); flex-wrap:wrap; gap:.4rem .8rem;
+    font-family:var(--body); font-size:.7rem; color:var(--text-muted); flex-wrap:wrap; gap:.4rem .8rem;
   }
   .sc-foot a{color:var(--claret); text-decoration:none;}
   .sc-foot a:hover{text-decoration:underline;}
   .sc-stamp{
     position:absolute; top:10px; right:-24px; transform:rotate(35deg);
-    font-family:var(--mono); font-size:.58rem; letter-spacing:.2em; text-transform:uppercase;
+    font-family:var(--body); font-size:.58rem; letter-spacing:.2em; text-transform:uppercase;
     background:var(--claret); color:var(--paper); padding:.22rem 2.2rem; opacity:.85; z-index:2;
   }
   .scorecard .edit-form{margin:1rem 1.2rem 1.2rem;}
@@ -1001,15 +999,15 @@
   .players-login-note{font-size:.88rem; color:var(--text-muted); margin:0 0 1.2rem;}
   .players-login-note a{font-weight:600;}
   .handicap-input{
-    width:5rem; font-family:var(--mono); font-size:.9rem; padding:.35rem .5rem;
+    width:5rem; font-family:var(--body); font-size:.9rem; padding:.35rem .5rem;
     border:1px solid var(--line); border-radius:var(--radius); background:var(--stone); color:var(--text);
   }
   .handicap-input:focus{border-color:var(--brass); outline:none;}
-  .handicap-readonly{font-family:var(--mono);}
+  .handicap-readonly{font-family:var(--body);}
   .membership-checkbox{width:18px; height:18px; accent-color:var(--bracken); cursor:pointer;}
   .membership-checkbox:disabled{cursor:not-allowed; opacity:.6;}
   .membership-pill{
-    font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em;
+    font-family:var(--body); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em;
     padding:.25rem .6rem; border-radius:999px;
   }
   .membership-pill.paid{background:var(--bracken); color:var(--paper);}
@@ -1884,7 +1882,7 @@ function eventDetailHtml(e){
             </div>
             ${attendees.length ? `
               <details style="margin-top:.4rem;">
-                <summary style="cursor:pointer; font-family:var(--mono); font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); user-select:none;">
+                <summary style="cursor:pointer; font-family:var(--body); font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); user-select:none;">
                   Show who played (${attendees.length})
                 </summary>
                 <ul style="margin-top:.6rem;">${attendees.map(p => `
@@ -1904,9 +1902,9 @@ function eventDetailHtml(e){
                         <input type="checkbox" ${isPaid?'checked':''} onchange="togglePayment('${e.id}',${p.id},'${amount.toFixed(2)}',this.checked)">
                         <span class="pay-name">${p.first_name} ${p.last_name}</span>
                         <div style="display:flex; align-items:center; gap:.3rem; margin-left:auto;">
-                          <span style="font-family:var(--mono); font-size:.8rem; color:var(--text-muted);">£</span>
+                          <span style="font-family:var(--body); font-size:.8rem; color:var(--text-muted);">£</span>
                           <input id="pay-amt-${e.id}-${p.id}" type="number" step="0.01" min="0" value="${amount.toFixed(2)}"
-                            style="width:4.5rem; font-family:var(--mono); font-size:.82rem; padding:.25rem .4rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone); text-align:right;"
+                            style="width:4.5rem; font-family:var(--body); font-size:.82rem; padding:.25rem .4rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone); text-align:right;"
                             onchange="updatePaymentAmount('${e.id}',${p.id},this.value)">
                         </div>
                       </div>`;
@@ -1974,9 +1972,9 @@ function eventDetailHtml(e){
                     <input type="checkbox" ${isPaid?'checked':''} onchange="togglePayment('${e.id}',${p.id},'${amount.toFixed(2)}',this.checked)">
                     <span class="pay-name">${p.first_name} ${p.last_name}</span>
                     <div style="display:flex; align-items:center; gap:.3rem; margin-left:auto;">
-                      <span style="font-family:var(--mono); font-size:.8rem; color:var(--text-muted);">£</span>
+                      <span style="font-family:var(--body); font-size:.8rem; color:var(--text-muted);">£</span>
                       <input id="pay-amt-${e.id}-${p.id}" type="number" step="0.01" min="0" value="${amount.toFixed(2)}"
-                        style="width:4.5rem; font-family:var(--mono); font-size:.82rem; padding:.25rem .4rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone); text-align:right;"
+                        style="width:4.5rem; font-family:var(--body); font-size:.82rem; padding:.25rem .4rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone); text-align:right;"
                         onchange="updatePaymentAmount('${e.id}',${p.id},this.value)">
                     </div>
                   </div>`;
@@ -2311,7 +2309,7 @@ async function deleteEvent(eventId){
 async function addNewEvent(){
   if (!db) return;
   const id = 'ev-' + Date.now();
-  const payload = { id, name: 'New event', date: new Date().toISOString().slice(0,10), status: 'upcoming' };
+  const payload = { id, name: 'New event', date: new Date().toISOString().slice(0,10), status: 'upcoming', society_id: societyId };
   const { error } = await db.from('events').insert(payload);
   if (error){ console.error(error); alert('Could not create event. Please try again.'); return; }
   events.push(payload);
@@ -2859,11 +2857,11 @@ function renderGallery(filterId){
 
   const queueHtml = galleryBulkQueue.map((item, i) => {
     const statusBadge = item.status === 'done'
-      ? `<span style="color:var(--bracken); font-family:var(--mono); font-size:.72rem;">✓ Uploaded</span>`
+      ? `<span style="color:var(--bracken); font-family:var(--body); font-size:.72rem;">✓ Uploaded</span>`
       : item.status === 'error'
-      ? `<span style="color:var(--claret); font-family:var(--mono); font-size:.72rem;">✗ Failed</span>`
+      ? `<span style="color:var(--claret); font-family:var(--body); font-size:.72rem;">✗ Failed</span>`
       : item.status === 'uploading'
-      ? `<span style="color:var(--brass); font-family:var(--mono); font-size:.72rem;">Uploading…</span>`
+      ? `<span style="color:var(--brass); font-family:var(--body); font-size:.72rem;">Uploading…</span>`
       : '';
 
     return `
@@ -2898,7 +2896,7 @@ function renderGallery(filterId){
     <div class="gallery-add-form">
       <div style="display:flex; align-items:center; gap:.8rem; margin-bottom:1rem; flex-wrap:wrap;">
         <h3 style="margin:0; flex:1;">Add to gallery</h3>
-        <label style="cursor:pointer; font-family:var(--mono); font-size:.78rem; text-transform:uppercase; letter-spacing:.05em; padding:.55rem 1rem; border:1.5px solid var(--ink); border-radius:var(--radius); color:var(--ink);">
+        <label style="cursor:pointer; font-family:var(--body); font-size:.78rem; text-transform:uppercase; letter-spacing:.05em; padding:.55rem 1rem; border:1.5px solid var(--ink); border-radius:var(--radius); color:var(--ink);">
           + Add photos
           <input type="file" accept="image/*,video/*" multiple style="display:none;" onchange="galleryBulkFilePicked(this)">
         </label>
@@ -3891,9 +3889,9 @@ function renderSetupView(){
           padding:1rem 1.2rem; margin-bottom:.7rem; cursor:pointer;"
           onclick="selectGroupForScoring(${g.id})">
           <div style="display:flex; align-items:baseline; gap:.8rem; margin-bottom:.5rem;">
-            <span style="font-family:var(--mono); font-size:1.2rem; font-weight:700; color:var(--ink);">${g.tee_time}</span>
-            <span style="font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Group ${idx+1}</span>
-            ${isSelected ? `<span style="margin-left:auto; font-family:var(--mono); font-size:.7rem; color:var(--brass); font-weight:600;">✓ Selected</span>` : ''}
+            <span style="font-family:var(--body); font-size:1.2rem; font-weight:700; color:var(--ink);">${g.tee_time}</span>
+            <span style="font-family:var(--body); font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Group ${idx+1}</span>
+            ${isSelected ? `<span style="margin-left:auto; font-family:var(--body); font-size:.7rem; color:var(--brass); font-weight:600;">✓ Selected</span>` : ''}
           </div>
           <div style="font-size:.9rem; color:var(--text);">
             ${playerNames.join(', ') || '<span style="color:var(--text-muted);">No players assigned</span>'}
@@ -3910,7 +3908,7 @@ function renderSetupView(){
             ▶ Start / Resume
           </button>
         </div>
-        ${canStart ? `<p style="font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:var(--bracken); margin:0 0 .7rem;">${scoringPlayerIds.length} player${scoringPlayerIds.length===1?'':'s'} selected</p>` : ''}
+        ${canStart ? `<p style="font-family:var(--body); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:var(--bracken); margin:0 0 .7rem;">${scoringPlayerIds.length} player${scoringPlayerIds.length===1?'':'s'} selected</p>` : ''}
         ${cards}
       </div>`;
   }
@@ -3938,7 +3936,7 @@ function renderSetupView(){
           ▶ Start / Resume
         </button>
       </div>
-      ${canStart ? `<p style="font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:var(--bracken); margin:0 0 .7rem;">${scoringPlayerIds.length} selected</p>` : ''}
+      ${canStart ? `<p style="font-family:var(--body); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:var(--bracken); margin:0 0 .7rem;">${scoringPlayerIds.length} selected</p>` : ''}
       <p class="muted" style="font-size:.82rem; margin-bottom:.7rem;">No groups set up yet — select players manually below.</p>
       <input class="player-search" placeholder="Search players…" value="${playerSearchTerm}"
         oninput="playerSearchTerm=this.value; renderLiveScores();">
@@ -4731,7 +4729,7 @@ function courseRatingCount(courseId){ return courseRatings.filter(x => x.course_
 function timesPlayed(courseId){ return events.filter(e => e.course_id === courseId).length; }
 
 function starsHtml(avg, count){
-  if (avg === null) return `<span style="font-family:var(--mono); font-size:.72rem; color:var(--text-muted);">No ratings yet</span>`;
+  if (avg === null) return `<span style="font-family:var(--body); font-size:.72rem; color:var(--text-muted);">No ratings yet</span>`;
   const filled = Math.round(avg);
   const stars = [1,2,3,4,5].map(i => `<span class="${i <= filled ? 'star-filled' : 'star-empty'}">★</span>`).join('');
   return `<span class="star-display">${stars} <span class="star-avg">${avg.toFixed(1)} (${count})</span></span>`;
@@ -5029,7 +5027,7 @@ async function togglePayment(eventId, playerId, amountOrEl, paid){
     row.classList.toggle('paid', paid);
     const flash = document.createElement('span');
     flash.textContent = ' ✓';
-    flash.style.cssText = 'color:var(--bracken); font-family:var(--mono); font-size:.75rem; margin-left:.3rem;';
+    flash.style.cssText = 'color:var(--bracken); font-family:var(--body); font-size:.75rem; margin-left:.3rem;';
     row.appendChild(flash);
     setTimeout(() => flash.remove(), 1500);
   }
@@ -5120,7 +5118,7 @@ function renderAccounts(){
     </div>
 
     <div class="accounts-report" id="accounts-report-${accountsYear}">
-      <p style="font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); margin-bottom:1.4rem;">
+      <p style="font-family:var(--body); font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); margin-bottom:1.4rem;">
         Gytte Lane Golf Society &nbsp;·&nbsp; Financial Year ${accountsYear}
       </p>
 
@@ -5131,7 +5129,7 @@ function renderAccounts(){
             <span class="ar-label">${r.label}<br><span class="ar-sub">${r.sub}</span></span>
             <div style="text-align:right;">
               <span class="ar-amount income">£${r.amount.toFixed(2)}</span>
-              ${r.outstanding > 0 ? `<br><span style="font-family:var(--mono); font-size:.65rem; color:var(--claret);">£${r.outstanding.toFixed(2)} outstanding</span>` : ''}
+              ${r.outstanding > 0 ? `<br><span style="font-family:var(--body); font-size:.65rem; color:var(--claret);">£${r.outstanding.toFixed(2)} outstanding</span>` : ''}
             </div>
           </div>`).join('') : '<p class="muted">No events recorded for this year.</p>'}
         ${incomeRows.length ? `
@@ -5150,7 +5148,7 @@ function renderAccounts(){
         <h3>Expenditure</h3>
         ${EXPENSE_CATEGORIES.filter(c => expByCat[c]?.length).map(cat => `
           <div style="margin-bottom:.6rem;">
-            <div style="font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin:.5rem 0 .3rem;">${cat}</div>
+            <div style="font-family:var(--body); font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin:.5rem 0 .3rem;">${cat}</div>
             ${expByCat[cat].map(x => `
               <div class="accounts-row">
                 <span class="ar-label">${x.description}${x.date ? '<br><span class="ar-sub">'+fmtDate(x.date)+'</span>' : ''}</span>
@@ -5408,14 +5406,14 @@ function renderGroupings(){
     return `
       <div style="background:var(--paper); border:1px solid var(--line); border-left:4px solid var(--brass); border-radius:var(--radius); padding:1rem 1.2rem; margin-bottom:.8rem;">
         <div style="display:flex; align-items:baseline; gap:1rem; margin-bottom:.6rem; flex-wrap:wrap;">
-          <span style="font-family:var(--mono); font-size:1.4rem; font-weight:700; color:var(--ink);">${g.tee_time}</span>
-          <span style="font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Group ${idx+1}</span>
+          <span style="font-family:var(--body); font-size:1.4rem; font-weight:700; color:var(--ink);">${g.tee_time}</span>
+          <span style="font-family:var(--body); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Group ${idx+1}</span>
           ${isLoggedIn ? `<button class="committee-edit-btn" style="margin-left:auto;" onclick="editingGroupId=${isEditing?null:g.id}; renderGroupings();">${isEditing?'Cancel':'Edit'}</button>` : ''}
         </div>
         <ul style="list-style:none; margin:0; padding:0;">
           ${playerNames.map(n => `<li style="padding:.25rem 0; font-size:.95rem; border-bottom:1px solid var(--line);">${n}</li>`).join('') || '<li class="muted">No players assigned</li>'}
         </ul>
-        ${marker ? `<p style="font-family:var(--mono); font-size:.7rem; color:var(--text-muted); margin-top:.5rem; text-transform:uppercase; letter-spacing:.05em;">✎ = marker</p>` : ''}
+        ${marker ? `<p style="font-family:var(--body); font-size:.7rem; color:var(--text-muted); margin-top:.5rem; text-transform:uppercase; letter-spacing:.05em;">✎ = marker</p>` : ''}
         ${editForm}
       </div>`;
   }).join('');
@@ -5425,7 +5423,7 @@ function renderGroupings(){
 
   el.innerHTML = `
     ${eventSelector}
-    <h3 style="font-family:var(--mono); font-size:.8rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin-bottom:1rem;">
+    <h3 style="font-family:var(--body); font-size:.8rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin-bottom:1rem;">
       ${ev.name} &nbsp;·&nbsp; ${fmtDate(ev.date)}${ev.course ? ' &nbsp;·&nbsp; ' + ev.course : ''}
     </h3>
     ${evGroups.length ? groupCards : `<p class="muted">No groups set up yet${isLoggedIn ? ' — add one below' : '.'}.</p>`}
@@ -5503,7 +5501,7 @@ function renderGroupingsInScores(){
         <div class="edit-form-grid">
           <div><label>Tee time</label><input type="time" id="eg-time-${g.id}" value="${g.tee_time}"></div>
           <div class="full">
-            <label>Players <span style="font-family:var(--mono); font-size:.7rem; color:var(--text-muted); font-weight:normal;">(max 4 · signed up only)</span></label>
+            <label>Players <span style="font-family:var(--body); font-size:.7rem; color:var(--text-muted); font-weight:normal;">(max 4 · signed up only)</span></label>
             <select id="eg-players-${g.id}" multiple style="height:130px; width:100%; font-family:var(--body); font-size:.88rem; padding:.3rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone);">
               ${signupsForEvent(liveEventId).map(p => p && p.id ? `<option value="${p.id}" ${gPlayers.some(gp => gp.player_id===p.id)?'selected':''}>${p.first_name} ${p.last_name}</option>` : '').join('')}
             </select>
@@ -5520,8 +5518,8 @@ function renderGroupingsInScores(){
     return `
       <div style="background:var(--paper); border:1px solid var(--line); border-left:4px solid var(--brass); border-radius:var(--radius); padding:.9rem 1.1rem; margin-bottom:.7rem;">
         <div style="display:flex; align-items:baseline; gap:.8rem; margin-bottom:.5rem; flex-wrap:wrap;">
-          <span style="font-family:var(--mono); font-size:1.3rem; font-weight:700; color:var(--ink);">${g.tee_time}</span>
-          <span style="font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Group ${idx+1}</span>
+          <span style="font-family:var(--body); font-size:1.3rem; font-weight:700; color:var(--ink);">${g.tee_time}</span>
+          <span style="font-family:var(--body); font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Group ${idx+1}</span>
           ${isLoggedIn ? `<button class="committee-edit-btn" style="margin-left:auto;" onclick="editingGroupId=${isEditing?null:g.id}; setLiveSubView('groupings');">${isEditing?'Cancel':'Edit'}</button>` : ''}
         </div>
         ${rows || '<p class="muted" style="font-size:.85rem;">No players assigned</p>'}
@@ -5535,7 +5533,7 @@ function renderGroupingsInScores(){
   const emptyMsg = evGroups.length ? '' : `<p class="muted">No groups set up yet${isLoggedIn ? ' — add one below.' : '.'}</p>`;
 
   return `
-    <p style="font-family:var(--mono); font-size:.75rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin-bottom:.9rem;">
+    <p style="font-family:var(--body); font-size:.75rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin-bottom:.9rem;">
       ${ev.name} &nbsp;·&nbsp; ${fmtDate(ev.date)}${ev.course ? ' &nbsp;·&nbsp; ' + ev.course : ''}
     </p>
     ${emptyMsg}
