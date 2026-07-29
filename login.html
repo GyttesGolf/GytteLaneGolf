@@ -30,18 +30,13 @@ body{
   background:radial-gradient(circle,rgba(184,134,47,.14) 0%,transparent 65%);
   pointer-events:none;
 }
-.num18{
-  position:absolute;bottom:60px;right:20px;
-  font-size:22rem;font-weight:800;
-  color:rgba(184,134,47,.09);line-height:1;
-  pointer-events:none;user-select:none;
-}
+
 
 /* top — logo and name */
 .top{
   display:flex;flex-direction:column;align-items:center;
   gap:1.4rem;position:relative;z-index:1;
-  flex:1;justify-content:center;padding-bottom:3rem;
+  flex:1;justify-content:center;padding-bottom:1rem;
 }
 .logo-ring{
   width:130px;height:145px;
@@ -155,6 +150,9 @@ hanko-auth{
 }
 /* hide create account link — members only */
 hanko-auth::part(link) { display:none; }
+/* passkey mode — hide email field, show only passkey button */
+hanko-auth.passkey-mode::part(form-email) { display:none; }
+hanko-auth.passkey-mode::part(divider) { display:none; }
 
 /* not a member */
 .not-member{
@@ -171,7 +169,7 @@ hanko-auth::part(link) { display:none; }
 
 <div class="overlay"></div>
     <div class="glow"></div>
-<div class="num18">18</div>
+
 
 <div class="top">
   <div class="logo-ring">
@@ -254,7 +252,14 @@ function setStatus(msg, kind){
 }
 
 function showHanko(){
-  document.getElementById('hanko-auth').classList.remove('hidden');
+  const hankoEl = document.getElementById('hanko-auth');
+  hankoEl.classList.remove('hidden');
+  /* If coming from member pill, add passkey-mode to suppress email UI */
+  if(currentPill === 'member'){
+    hankoEl.classList.add('passkey-mode');
+  } else {
+    hankoEl.classList.remove('passkey-mode');
+  }
   document.getElementById('back-btn-wrap').classList.remove('hidden');
   document.getElementById('pills').classList.add('hidden');
   document.getElementById('panel-first').classList.add('hidden');
@@ -315,99 +320,12 @@ function submitEmail(){
 async function triggerPasskey(){
   setStatus('Opening passkey\u2026', 'loading');
   try {
-    /* Step 1: Initialise the login flow with webauthn capabilities */
-    const initResp = await fetch(`${HANKO_API}/login`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        input_data: {
-          webauthn_available: true,
-          webauthn_conditional_mediation_available: false,
-          webauthn_platform_authenticator_available: true
-        }
-      })
-    });
-    const initData = await initResp.json();
-    const csrfToken = initData.csrf_token;
-    const flowId = initData.flow_id || initData.id;
-
-    /* Step 2: Find the passkey_login action */
-    const actions = initData.actions || initData.state?.actions || {};
-    const passkeyAction = Object.values(actions).find(a =>
-      a && (a.name === 'passkey_login' || a.href?.includes('passkey_login'))
-    );
-
-    if(!passkeyAction){
-      console.warn('No passkey action found, falling back to component');
-      setStatus('', '');
-      showHanko();
-      return;
-    }
-
-    /* Step 3: Trigger passkey login action */
-    const actionHref = passkeyAction.href || `${HANKO_API}/login?action=passkey_login@${flowId}`;
-    const actionResp = await fetch(actionHref.startsWith('http') ? actionHref : `${HANKO_API}${actionHref}`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ csrf_token: csrfToken, input_data: {} })
-    });
-    const actionData = await actionResp.json();
-
-    /* Step 4: Get the WebAuthn options from the response */
-    const webauthnOptions = actionData.input_data?.public_key || actionData.public_key;
-    if(!webauthnOptions){
-      console.warn('No WebAuthn options, showing component', actionData);
-      setStatus('', '');
-      showHanko();
-      return;
-    }
-
-    /* Step 5: Call browser WebAuthn API */
-    webauthnOptions.challenge = base64ToBuffer(webauthnOptions.challenge);
-    if(webauthnOptions.allowCredentials){
-      webauthnOptions.allowCredentials = webauthnOptions.allowCredentials.map(c => ({
-        ...c, id: base64ToBuffer(c.id)
-      }));
-    }
-    const credential = await navigator.credentials.get({ publicKey: webauthnOptions });
-
-    /* Step 6: Finalise */
-    const finalAction = actionData.actions?.webauthn_verify_assertion_response;
-    const finalHref = finalAction?.href || `${HANKO_API}/login?action=webauthn_verify_assertion_response@${flowId}`;
-    await fetch(finalHref.startsWith('http') ? finalHref : `${HANKO_API}${finalHref}`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        csrf_token: actionData.csrf_token || csrfToken,
-        input_data: {
-          assertion_response: {
-            id: credential.id,
-            rawId: bufferToBase64(credential.rawId),
-            type: credential.type,
-            response: {
-              authenticatorData: bufferToBase64(credential.response.authenticatorData),
-              clientDataJSON: bufferToBase64(credential.response.clientDataJSON),
-              signature: bufferToBase64(credential.response.signature),
-            }
-          }
-        }
-      })
-    });
-
-    setStatus('Verified! Signing you in\u2026', 'success');
-    await handleHankoSession();
-
+    /* Use the Hanko component directly — it handles the full WebAuthn flow */
+    setStatus('', '');
+    showHanko();
   } catch(err){
-    if(err.name === 'NotAllowedError'){
-      setStatus('Passkey cancelled.', 'error');
-    } else {
-      console.warn('Passkey error, falling back:', err);
-      setStatus('', '');
-      showHanko();
-    }
+    console.warn('Passkey error:', err);
+    setStatus('Something went wrong. Please try again.', 'error');
   }
 }
 
