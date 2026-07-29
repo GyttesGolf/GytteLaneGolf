@@ -150,8 +150,10 @@ hanko-auth{
   --background-color:transparent;--error-color:#ff8080;
   --link-color:#E3C173;--border-radius:10px;
   --border-color:rgba(255,255,255,.15);--item-height:46px;
-  display:block;
+  display:block;margin-bottom:.65rem;
 }
+/* hide create account link — members only */
+hanko-auth::part(link) { display:none; }
 
 /* not a member */
 .not-member{
@@ -252,7 +254,7 @@ function selectPill(pill){
   const panelMember = document.getElementById('panel-member');
   const hankoEl = document.getElementById('hanko-auth');
 
-  /* reset hanko if switching away from first time */
+  /* reset hanko and show pills again */
   hankoEl.classList.add('hidden');
   document.getElementById('pills').classList.remove('hidden');
 
@@ -287,56 +289,12 @@ function submitEmail(){
 }
 
 async function triggerPasskey(){
-  setStatus('Opening passkey\u2026', 'loading');
-  try {
-    /* Use WebAuthn directly to trigger passkey without showing Hanko UI */
-    const optionsResp = await fetch(`${HANKO_API}/webauthn/login/initialize`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({})
-    });
-    if(!optionsResp.ok) throw new Error('Could not initialise passkey');
-    const options = await optionsResp.json();
-
-    /* convert base64 challenge */
-    options.publicKey.challenge = Uint8Array.from(atob(options.publicKey.challenge.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0));
-    if(options.publicKey.allowCredentials){
-      options.publicKey.allowCredentials = options.publicKey.allowCredentials.map(c => ({
-        ...c,
-        id: Uint8Array.from(atob(c.id.replace(/-/g,'+').replace(/_/g,'/')), x => x.charCodeAt(0))
-      }));
-    }
-
-    const credential = await navigator.credentials.get({ publicKey: options.publicKey });
-
-    /* finalise with Hanko */
-    const finalResp = await fetch(`${HANKO_API}/webauthn/login/finalize`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        id: credential.id,
-        rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,''),
-        type: credential.type,
-        response: {
-          authenticatorData: btoa(String.fromCharCode(...new Uint8Array(credential.response.authenticatorData))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,''),
-          clientDataJSON: btoa(String.fromCharCode(...new Uint8Array(credential.response.clientDataJSON))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,''),
-          signature: btoa(String.fromCharCode(...new Uint8Array(credential.response.signature))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,''),
-        }
-      })
-    });
-    if(!finalResp.ok) throw new Error('Passkey verification failed');
-    setStatus('Verified! Signing you in\u2026', 'loading');
-    await handleHankoSession();
-  } catch(err){
-    if(err.name === 'NotAllowedError'){
-      setStatus('Passkey cancelled — please try again.', 'error');
-    } else {
-      console.error('Passkey error:', err);
-      setStatus('Passkey failed — please try again or use email.', 'error');
-    }
-  }
+  setStatus('', '');
+  /* Show the Hanko component — it handles passkey natively */
+  const hankoEl = document.getElementById('hanko-auth');
+  hankoEl.classList.remove('hidden');
+  document.getElementById('panel-member').classList.add('hidden');
+  document.getElementById('pills').classList.add('hidden');
 }
 
 async function handleHankoSession(){
