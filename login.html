@@ -411,10 +411,10 @@ async function handleHankoSession(){
       setStatus('Your account is inactive. Please contact your captain.', 'error'); return;
     }
 
-    sessionStorage.setItem('glgs_player_id', player.id);
-    sessionStorage.setItem('glgs_is_committee', player.is_committee ? 'true' : 'false');
-    sessionStorage.setItem('glgs_name', player.first_name + ' ' + player.last_name);
-    sessionStorage.setItem('glgs_email', email);
+    localStorage.setItem('glgs_player_id', player.id);
+    localStorage.setItem('glgs_is_committee', player.is_committee ? 'true' : 'false');
+    localStorage.setItem('glgs_name', player.first_name + ' ' + player.last_name);
+    localStorage.setItem('glgs_email', email);
 
     setStatus('Welcome, ' + player.first_name + '! Signing you in…', 'success');
     setTimeout(() => { window.location.href = '/'; }, 900);
@@ -445,7 +445,7 @@ window.addEventListener('load', () => {
   try {
     const cookies = document.cookie.split(';').map(c => c.trim());
     const hankoToken = cookies.find(c => c.startsWith('hanko='));
-    if(hankoToken && sessionStorage.getItem('glgs_player_id')){
+    if(hankoToken && localStorage.getItem('glgs_player_id')){
       window.location.href = '/';
     }
     /* Resume login if passkey was pending (handles Safari page reload after passkey) */
