@@ -416,8 +416,14 @@ async function handleHankoSession(){
     localStorage.setItem('glgs_name', player.first_name + ' ' + player.last_name);
     localStorage.setItem('glgs_email', email);
 
-    setStatus('Welcome, ' + player.first_name + '! Signing you in…', 'success');
-    setTimeout(() => { window.location.href = '/'; }, 900);
+    setStatus('Welcome, ' + player.first_name + '! Tap below to continue…', 'success');
+    /* Try auto redirect, but also show a manual button in case Safari blocks it */
+    const goBtn = document.createElement('a');
+    goBtn.href = '/';
+    goBtn.style.cssText = 'display:block;margin-top:.8rem;padding:.7rem;background:linear-gradient(135deg,#B8862F,#E3C173 50%,#B8862F);border-radius:10px;color:#1a1008;font-weight:700;font-size:.92rem;text-align:center;text-decoration:none;';
+    goBtn.textContent = 'Enter the site →';
+    document.getElementById('status-msg').after(goBtn);
+    setTimeout(() => { window.location.replace('/'); }, 500);
 
   } catch(err){
     console.error('Login error:', err);
