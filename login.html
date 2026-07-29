@@ -121,7 +121,7 @@ body{
 <script>
 const SUPABASE_URL = 'https://noldemdyjbwfqxkuxmvy.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vbGRlbWR5amJ3ZnF4a3V4bXZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTU2OTY3NzYsImV4cCI6MjAzMTI3Mjc3Nn0.3AzNi_MqFGMCbFkRnuCwFU_PZ99Gz4cOCfOQGM_iC1o';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let currentPill = null;
 
@@ -155,19 +155,19 @@ function resetToDefault(){
 async function completeLogin(user){
   /* Check user exists in players table and is active */
   const email = user.email;
-  const { data: players } = await supabase.from('players')
+  const { data: players } = await sb.from('players')
     .select('id,first_name,last_name,is_committee,active')
     .ilike('email', email)
     .limit(1);
 
   if (!players || !players.length){
-    await supabase.auth.signOut();
+    await sb.auth.signOut();
     setStatus('This email isn’t registered. Contact your captain.', 'error');
     return;
   }
   const player = players[0];
   if (player.active === false){
-    await supabase.auth.signOut();
+    await sb.auth.signOut();
     setStatus('Your account is inactive. Contact your captain.', 'error');
     return;
   }
@@ -185,7 +185,7 @@ async function handleEmailSubmit(){
 
   try {
     /* Send magic link - shouldCreateUser:false means only existing Supabase auth users get a link */
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error } = await sb.auth.signInWithOtp({
       email,
       options: { shouldCreateUser: true }
     });
@@ -200,12 +200,12 @@ async function signInWithPasskey(){
   setStatus('Waiting for passkey…', 'loading');
   try {
     /* Supabase passkey sign in - correct v2 API */
-    const { data, error } = await supabase.auth.signInWithWebAuthn();
+    const { data, error } = await sb.auth.signInWithWebAuthn();
     if (error) throw error;
     if (data?.user) await completeLogin(data.user);
     else {
       /* Session may be set via onAuthStateChange */
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await sb.auth.getSession();
       if (session?.user) await completeLogin(session.user);
     }
   } catch(err) {
@@ -222,7 +222,7 @@ async function signInWithPasskey(){
 async function registerPasskey(){
   setStatus('Setting up your passkey…', 'loading');
   try {
-    const { data, error } = await supabase.auth.enrollWebAuthn();
+    const { data, error } = await sb.auth.enrollWebAuthn();
     if (error) throw error;
     setStatus('Passkey registered! You can now sign in with it.', 'success');
     setTimeout(() => window.location.replace('/'), 1500);
@@ -233,7 +233,7 @@ async function registerPasskey(){
 
 /* On load — check if already signed in and redirect */
 window.addEventListener('load', async () => {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await sb.auth.getSession();
   if (session) {
     window.location.replace('/');
   }
