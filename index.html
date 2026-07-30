@@ -10,6 +10,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script type="module">
+    import { register } from 'https://cdn.jsdelivr.net/npm/@teamhanko/hanko-elements@latest/dist/elements.js';
+    register('https://bd920e36-71c4-446b-9e27-619ad3f2a6d2.hanko.io').catch(console.error);
+  </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
@@ -1359,14 +1363,11 @@
    Security policies only allow public SELECT (read), never INSERT/UPDATE/
    DELETE. The SQL provided alongside this file sets that up correctly.
    ========================================================================= */
+const HANKO_API = 'https://bd920e36-71c4-446b-9e27-619ad3f2a6d2.hanko.io';
 const SUPABASE_URL = 'https://noldemdyjbwfqxkuxmvy.supabase.co';      // e.g. https://abcdefgh.supabase.co
 const SUPABASE_ANON_KEY = 'sb_publishable_pzqpKakNbZYprPW8XzGVNg_U9pL0Nsw';
-/* Passkeys are still an experimental Supabase Auth feature - this flag must
-   be set on the client or signInWithPasskey() will throw. */
 const db = (SUPABASE_URL.startsWith('http') && window.supabase)
-  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { experimental: { passkey: true } }
-    })
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 
 /* Data lives in module-level arrays so the existing render functions
@@ -2483,62 +2484,34 @@ function renderLoginModal(){
   } else {
     content.innerHTML = `
       <h3>Committee login</h3>
-      <p style="font-size:.85rem; color:var(--text-muted); margin:0 0 .8rem;">Sign in with your passkey, or get a magic link by email.</p>
-      <button class="btn" id="modal-passkey-btn" onclick="signInWithPasskeyModal()" style="width:100%; margin-bottom:.6rem;">👆 Sign in with passkey</button>
-      <input type="email" id="modal-login-email" placeholder="Email" autocomplete="username" style="margin-bottom:.4rem;">
-      <div class="btn-row" style="margin-bottom:.4rem;">
-        <button class="btn ghost" onclick="sendCommitteeMagicLink()">Email me a magic link</button>
-      </div>
-      <div class="upload-status" id="modal-login-status"></div>
+      <p style="font-size:.85rem; color:var(--text-muted); margin:0 0 .8rem;">Sign in with your passkey or use your email and password below.</p>
+      <hanko-auth id="hanko-auth-el" api="https://bd920e36-71c4-446b-9e27-619ad3f2a6d2.hanko.io" style="display:block; margin-bottom:.6rem;"></hanko-auth>
       <details style="margin-top:.4rem;">
         <summary style="font-size:.8rem; color:var(--text-muted); cursor:pointer; margin-bottom:.5rem;">Use password instead</summary>
-        <input type="text" id="modal-login-email-pw" placeholder="Email" autocomplete="username" style="margin-bottom:.4rem;">
+        <input type="text" id="modal-login-email" placeholder="Email" autocomplete="username" style="margin-bottom:.4rem;">
         <input type="password" id="modal-login-password" placeholder="Password" autocomplete="current-password">
+        <div class="upload-status" id="modal-login-status"></div>
         <div class="btn-row" style="margin-top:.4rem;">
           <button class="btn" onclick="committeeLogin()">Log in</button>
           <button class="btn ghost" onclick="closeLoginModal()">Cancel</button>
         </div>
       </details>`;
-  }
-}
-
-async function signInWithPasskeyModal(){
-  const btn = document.getElementById('modal-passkey-btn');
-  if (btn) btn.disabled = true;
-  try {
-    /* Correct SDK method is signInWithPasskey() - the old hanko-auth
-       element and its onSessionCreated/hankoAuthSuccess/success listeners
-       called a handleHankoSession() that no longer existed, so passkey
-       sign-in here was silently broken. onAuthStateChange (below) picks up
-       the new session once this resolves and re-renders the whole page. */
-    const { data, error } = await db.auth.signInWithPasskey();
-    if (error) throw error;
-    closeLoginModal();
-  } catch(err){
-    showLoginError(err.name === 'NotAllowedError' ? 'Passkey cancelled.' : 'Passkey sign-in failed: ' + err.message);
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
-
-async function sendCommitteeMagicLink(){
-  const email = document.getElementById('modal-login-email')?.value.trim();
-  if (!email){ showLoginError('Enter your email first.'); return; }
-  try {
-    const { error } = await db.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: false,
-        emailRedirectTo: window.location.origin + window.location.pathname
+    setTimeout(() => {
+      const hankoEl = document.getElementById('hanko-auth-el');
+      if (hankoEl){
+        /* register the web component with the API URL */
+        if (window.HankoElements?.register) {
+          window.HankoElements.register(HANKO_API);
+        }
+        hankoEl.addEventListener('onSessionCreated', () => { handleHankoSession(); });
+        hankoEl.addEventListener('hankoAuthSuccess', () => { handleHankoSession(); });
+        hankoEl.addEventListener('success', () => { handleHankoSession(); });
       }
-    });
-    if (error) throw error;
-    const status = document.getElementById('modal-login-status');
-    if (status){ status.textContent = 'Magic link sent to ' + email + ' — check your email and tap the link.'; status.className = 'upload-status success'; }
-  } catch(err){
-    showLoginError('Could not send link: ' + err.message);
+    }, 300);
   }
 }
+
+/* Hanko session handler removed - using Supabase auth */
 
 function showLoginError(msg){
   const content = document.getElementById('login-modal-content');
@@ -2567,21 +2540,17 @@ function handleBackdropClick(e){
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && loginModalOpen) closeLoginModal(); });
 
-async function committeeLogin(){
-  const email = document.getElementById('modal-login-email-pw')?.value.trim();
-  const password = document.getElementById('modal-login-password')?.value;
-  if (!email || !password){ showLoginError('Enter your email and password.'); return; }
-  try {
-    const { error } = await db.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    closeLoginModal();
-  } catch(err){
-    showLoginError('Login failed: ' + err.message);
-  }
-}
+/* committeeLogin removed - using Supabase auth */
 
 async function committeeLogout(){
   if (db) await db.auth.signOut();
+  /* clear Hanko cookie by redirecting to Hanko logout endpoint */
+  try {
+    const hankoEl = document.createElement('hanko-auth');
+    hankoEl.setAttribute('api', HANKO_API);
+    /* Hanko clears its own session via the element */
+    await fetch(`${HANKO_API}/sessions/logout`, { method: 'DELETE', credentials: 'include' });
+  } catch(e){ console.warn('Hanko logout:', e); }
   isLoggedIn = false;
   updateNavLock();
   renderAll();
@@ -2600,6 +2569,48 @@ function renderAll(){
   renderAccounts();
 }
 
+function showPasskeyRegistrationPrompt(){
+  /* Only show if WebAuthn is supported */
+  if (!window.PublicKeyCredential) return;
+  /* Don't show if already dismissed */
+  if (localStorage.getItem('glgs_passkey_registered')) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'passkey-banner';
+  banner.style.cssText = 'position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);width:calc(100% - 2rem);max-width:420px;background:#1a1a1a;border:1px solid rgba(184,134,47,.4);border-radius:14px;padding:1rem;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,.5);font-family:Inter,system-ui,sans-serif;';
+  banner.innerHTML = `
+    <div style="font-size:.85rem;font-weight:700;color:#FAF8F2;margin-bottom:.3rem;">👆 Set up passkey sign in</div>
+    <div style="font-size:.75rem;color:rgba(255,255,255,.55);margin-bottom:.75rem;">Register this device so you can sign in with Face ID or Touch ID next time — no email needed.</div>
+    <div style="display:flex;gap:.5rem;">
+      <button onclick="registerPasskeyNow()" style="flex:1;padding:.6rem;border:none;border-radius:9px;background:linear-gradient(135deg,#B8862F,#E3C173 50%,#B8862F);color:#1a1008;font-weight:700;font-size:.82rem;cursor:pointer;">Register passkey</button>
+      <button onclick="dismissPasskeyBanner()" style="padding:.6rem .9rem;border:1px solid rgba(255,255,255,.15);border-radius:9px;background:transparent;color:rgba(255,255,255,.5);font-size:.82rem;cursor:pointer;">Not now</button>
+    </div>
+    <div id="passkey-banner-status" style="font-size:.75rem;margin-top:.5rem;text-align:center;"></div>
+  `;
+  document.body.appendChild(banner);
+}
+
+function dismissPasskeyBanner(){
+  const b = document.getElementById('passkey-banner');
+  if (b) b.remove();
+}
+
+async function registerPasskeyNow(){
+  const statusEl = document.getElementById('passkey-banner-status');
+  if (statusEl) statusEl.textContent = 'Setting up passkey...';
+  try {
+    const { error } = await db.auth.enrollWebAuthn({
+      friendlyName: navigator.platform || 'My device'
+    });
+    if (error) throw error;
+    localStorage.setItem('glgs_passkey_registered', '1');
+    if (statusEl){ statusEl.style.color = '#80e8a0'; statusEl.textContent = '✓ Passkey registered! Use it next time you sign in.'; }
+    setTimeout(() => dismissPasskeyBanner(), 2000);
+  } catch(err){
+    if (statusEl){ statusEl.style.color = '#ff8080'; statusEl.textContent = 'Failed: ' + err.message; }
+  }
+}
+
 async function initAuth(){
   if (!db) { updateNavLock(); renderAll(); return; }
 
@@ -2612,11 +2623,15 @@ async function initAuth(){
   }
 
   /* Listen for auth state changes (magic link callback, sign out etc) */
-  db.auth.onAuthStateChange(async (_event, session) => {
+  db.auth.onAuthStateChange(async (event, session) => {
     if (session?.user){
       const email = session.user.email;
       const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
       isLoggedIn = !!(player && player.active !== false);
+      /* If signed in via magic link, prompt to register a passkey */
+      if (event === 'SIGNED_IN' && session.user.app_metadata?.provider === 'email'){
+        setTimeout(() => showPasskeyRegistrationPrompt(), 800);
+      }
     } else {
       isLoggedIn = false;
     }
