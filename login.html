@@ -188,14 +188,13 @@ async function handleEmailSubmit(){
   setStatus('Checking…', 'loading');
 
   try {
-    /* Remember that this visitor came from "First time?" so that when they
-       land back here via the magic link we can offer to set up a passkey
-       instead of just redirecting them straight into the site. */
-    sessionStorage.setItem('gwg_register_passkey', '1');
-
     /* Send magic link - shouldCreateUser:true lets brand-new members create
-       an account. emailRedirectTo is set explicitly so the link always
-       comes back here regardless of the dashboard's Site URL default. */
+       an account. The "want a passkey" flag travels as a query param on the
+       redirect URL itself, NOT sessionStorage - on mobile the link is often
+       opened in a different browser/tab (e.g. an in-app webview inside the
+       Mail/Gmail app) than the one that requested it, and sessionStorage
+       doesn't survive that jump. A query param does, because it comes back
+       from Supabase attached to the URL. */
     const { error } = await sb.auth.signInWithOtp({
       email,
       options: {
@@ -203,13 +202,12 @@ async function handleEmailSubmit(){
         /* Points back at wherever this page is actually hosted, so this
            doesn't need to be hand-edited if the login page's path changes.
            Must also be present in Supabase's Redirect URLs allow list. */
-        emailRedirectTo: window.location.origin + window.location.pathname
+        emailRedirectTo: window.location.origin + window.location.pathname + '?register_passkey=1'
       }
     });
     if (error) throw error;
     setStatus('Magic link sent to ' + email + ' — check your email and tap the link to sign in.', 'success');
   } catch(err) {
-    sessionStorage.removeItem('gwg_register_passkey');
     setStatus('Could not send link: ' + err.message, 'error');
   }
 }
@@ -260,9 +258,10 @@ async function registerPasskey(){
 window.addEventListener('load', async () => {
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
-    const wantsPasskey = sessionStorage.getItem('gwg_register_passkey') === '1';
-    sessionStorage.removeItem('gwg_register_passkey');
+    const wantsPasskey = new URLSearchParams(window.location.search).get('register_passkey') === '1';
     if (wantsPasskey) {
+      /* Strip the param immediately so a refresh/back-nav can't re-trigger registration */
+      window.history.replaceState({}, '', window.location.pathname);
       await registerPasskey();
     } else {
       window.location.replace('/');
