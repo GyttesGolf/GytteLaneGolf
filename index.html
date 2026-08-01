@@ -309,6 +309,11 @@
   #events-map{
     height:320px; width:100%; border-radius:var(--radius); border:1px solid var(--line);
     background:var(--paper);
+    /* Leaflet's own panes/controls use z-index up to 1000; without this the
+       map has no stacking context of its own, so those layers can escape
+       and paint above fixed elements elsewhere on the page (e.g. the
+       bottom nav) whenever they visually overlap during scroll. */
+    position:relative; z-index:0;
   }
   .leaflet-popup-content-wrapper{
     background:var(--paper); color:var(--text); border-radius:var(--radius); font-family:var(--body);
@@ -2569,48 +2574,6 @@ function renderAll(){
   renderAccounts();
 }
 
-function showPasskeyRegistrationPrompt(){
-  /* Only show if WebAuthn is supported */
-  if (!window.PublicKeyCredential) return;
-  /* Don't show if already dismissed */
-  if (localStorage.getItem('glgs_passkey_registered')) return;
-
-  const banner = document.createElement('div');
-  banner.id = 'passkey-banner';
-  banner.style.cssText = 'position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);width:calc(100% - 2rem);max-width:420px;background:#1a1a1a;border:1px solid rgba(184,134,47,.4);border-radius:14px;padding:1rem;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,.5);font-family:Inter,system-ui,sans-serif;';
-  banner.innerHTML = `
-    <div style="font-size:.85rem;font-weight:700;color:#FAF8F2;margin-bottom:.3rem;">👆 Set up passkey sign in</div>
-    <div style="font-size:.75rem;color:rgba(255,255,255,.55);margin-bottom:.75rem;">Register this device so you can sign in with Face ID or Touch ID next time — no email needed.</div>
-    <div style="display:flex;gap:.5rem;">
-      <button onclick="registerPasskeyNow()" style="flex:1;padding:.6rem;border:none;border-radius:9px;background:linear-gradient(135deg,#B8862F,#E3C173 50%,#B8862F);color:#1a1008;font-weight:700;font-size:.82rem;cursor:pointer;">Register passkey</button>
-      <button onclick="dismissPasskeyBanner()" style="padding:.6rem .9rem;border:1px solid rgba(255,255,255,.15);border-radius:9px;background:transparent;color:rgba(255,255,255,.5);font-size:.82rem;cursor:pointer;">Not now</button>
-    </div>
-    <div id="passkey-banner-status" style="font-size:.75rem;margin-top:.5rem;text-align:center;"></div>
-  `;
-  document.body.appendChild(banner);
-}
-
-function dismissPasskeyBanner(){
-  const b = document.getElementById('passkey-banner');
-  if (b) b.remove();
-}
-
-async function registerPasskeyNow(){
-  const statusEl = document.getElementById('passkey-banner-status');
-  if (statusEl) statusEl.textContent = 'Setting up passkey...';
-  try {
-    const { error } = await db.auth.enrollWebAuthn({
-      friendlyName: navigator.platform || 'My device'
-    });
-    if (error) throw error;
-    localStorage.setItem('glgs_passkey_registered', '1');
-    if (statusEl){ statusEl.style.color = '#80e8a0'; statusEl.textContent = '✓ Passkey registered! Use it next time you sign in.'; }
-    setTimeout(() => dismissPasskeyBanner(), 2000);
-  } catch(err){
-    if (statusEl){ statusEl.style.color = '#ff8080'; statusEl.textContent = 'Failed: ' + err.message; }
-  }
-}
-
 async function initAuth(){
   if (!db) { updateNavLock(); renderAll(); return; }
 
@@ -2628,10 +2591,6 @@ async function initAuth(){
       const email = session.user.email;
       const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
       isLoggedIn = !!(player && player.active !== false);
-      /* If signed in via magic link, prompt to register a passkey */
-      if (event === 'SIGNED_IN' && session.user.app_metadata?.provider === 'email'){
-        setTimeout(() => showPasskeyRegistrationPrompt(), 800);
-      }
     } else {
       isLoggedIn = false;
     }
