@@ -94,7 +94,7 @@ body{
     <div class="pill member" id="pill-member" onclick="selectPill('member')">
       <div class="pill-icon pk">👆</div>
       <div class="pill-title">Member?</div>
-      <div class="pill-desc">Sign in with your device passkey</div>
+      <div class="pill-desc">Log in to your account</div>
     </div>
   </div>
 
@@ -199,7 +199,14 @@ async function completeLogin(user){
 }
 
 async function handleEmailSubmit(inputId){
-  const email = document.getElementById(inputId || 'email-input').value.trim();
+  inputId = inputId || 'email-input';
+  /* The "First time?" panel's email input offers passkey setup after the
+     magic link completes; the "Member" panel's email fallback is just a
+     sign-in path for people without a working passkey, so it should land
+     them straight on the home page like signInWithPasskey() does, not
+     detour into passkey registration. */
+  const offerPasskeySetup = inputId !== 'member-email-input';
+  const email = document.getElementById(inputId).value.trim();
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
     setStatus('Please enter a valid email address.', 'error'); return;
   }
@@ -220,7 +227,7 @@ async function handleEmailSubmit(inputId){
         /* Points back at wherever this page is actually hosted, so this
            doesn't need to be hand-edited if the login page's path changes.
            Must also be present in Supabase's Redirect URLs allow list. */
-        emailRedirectTo: window.location.origin + window.location.pathname + '?register_passkey=1'
+        emailRedirectTo: window.location.origin + window.location.pathname + (offerPasskeySetup ? '?register_passkey=1' : '')
       }
     });
     if (error) throw error;
