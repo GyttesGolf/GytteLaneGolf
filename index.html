@@ -10,10 +10,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script type="module">
-    import { register } from 'https://cdn.jsdelivr.net/npm/@teamhanko/hanko-elements@latest/dist/elements.js';
-    register('https://bd920e36-71c4-446b-9e27-619ad3f2a6d2.hanko.io').catch(console.error);
-  </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
@@ -201,32 +197,6 @@
   .nav-lock-btn:hover{color:var(--paper);}
   .nav-lock-btn.logged-in{color:var(--brass-light); border-bottom-color:var(--brass);}
   .nav-lock-btn svg{width:14px; height:14px; fill:currentColor; flex-shrink:0;}
-
-  .login-modal-backdrop{
-    position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:100;
-    display:flex; align-items:flex-start; justify-content:flex-end;
-    padding:56px 1rem 0;
-  }
-  .login-modal{
-    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
-    padding:1.4rem 1.5rem; width:320px; box-shadow:0 8px 32px rgba(0,0,0,.25);
-    position:relative;
-  }
-  .login-modal h3{
-    font-family:var(--display); font-size:1.1rem; margin:0 0 1rem; color:var(--ink);
-  }
-  .login-modal input{
-    width:100%; font-family:var(--body); font-size:.92rem; padding:.55rem .7rem;
-    border:1px solid var(--line); border-radius:var(--radius); background:var(--stone);
-    color:var(--text); margin-bottom:.6rem; box-sizing:border-box;
-  }
-  .login-modal input:focus{border-color:var(--brass); outline:none;}
-  .login-modal-close{
-    position:absolute; top:.7rem; right:.8rem; background:none; border:none;
-    font-size:1.2rem; cursor:pointer; color:var(--text-muted); line-height:1;
-  }
-  .login-modal-close:hover{color:var(--ink);}
-  .login-modal .btn-row{display:flex; gap:.6rem; margin-top:.4rem;}
 
   /* ---------- layout shells ---------- */
   main{max-width:1080px; margin:0 auto; padding:2.4rem 1.5rem 4rem;}
@@ -1093,7 +1063,7 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="1" x2="12" y2="23" stroke="currentColor" stroke-width="1.8"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
       Accounts
     </button>
-    <button class="nav-lock-btn" id="nav-lock-btn" onclick="toggleLoginModal()" aria-label="Committee login">
+    <button class="nav-lock-btn" id="nav-lock-btn" onclick="handleNavLock()" aria-label="Committee login">
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
       <span id="nav-lock-label">Committee</span>
     </button>
@@ -1318,16 +1288,10 @@
       </button>
     </div>
     <div style="padding:.4rem 1rem .2rem; border-top:1px solid var(--line); margin-top:.3rem;">
-      <button class="md-item" style="width:100%; justify-content:center; color:var(--claret);" onclick="closeMoreDrawer(); toggleLoginModal();">
+      <button class="md-item" style="width:100%; justify-content:center; color:var(--claret);" onclick="closeMoreDrawer(); handleNavLock();">
         <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" fill="currentColor" stroke="none"/></svg>
         <span id="more-drawer-lock-label">Committee login</span>
       </button>
-    </div>
-  </div>
-  <div class="login-modal-backdrop" id="login-modal-backdrop" style="display:none;" onclick="handleBackdropClick(event)">
-    <div class="login-modal" id="login-modal">
-      <button class="login-modal-close" onclick="closeLoginModal()" aria-label="Close">&times;</button>
-      <div id="login-modal-content"></div>
     </div>
   </div>
   <!-- ============ LIGHTBOX ============ -->
@@ -1368,7 +1332,6 @@
    Security policies only allow public SELECT (read), never INSERT/UPDATE/
    DELETE. The SQL provided alongside this file sets that up correctly.
    ========================================================================= */
-const HANKO_API = 'https://bd920e36-71c4-446b-9e27-619ad3f2a6d2.hanko.io';
 const SUPABASE_URL = 'https://noldemdyjbwfqxkuxmvy.supabase.co';      // e.g. https://abcdefgh.supabase.co
 const SUPABASE_ANON_KEY = 'sb_publishable_pzqpKakNbZYprPW8XzGVNg_U9pL0Nsw';
 const db = (SUPABASE_URL.startsWith('http') && window.supabase)
@@ -2460,11 +2423,11 @@ function updateNavLock(){
   if (!btn || !label) return;
   if (isLoggedIn){
     btn.classList.add('logged-in');
-    label.textContent = 'Logged in';
+    label.textContent = 'Log out';
     document.querySelector('nav.tabs')?.classList.add('committee-logged-in');
     document.getElementById('more-drawer')?.classList.add('committee-logged-in');
     const drawerLabel = document.getElementById('more-drawer-lock-label');
-    if (drawerLabel) drawerLabel.textContent = 'Logged in as committee';
+    if (drawerLabel) drawerLabel.textContent = 'Log out';
   } else {
     btn.classList.remove('logged-in');
     label.textContent = 'Committee';
@@ -2475,91 +2438,15 @@ function updateNavLock(){
   }
 }
 
-function renderLoginModal(){
-  const content = document.getElementById('login-modal-content');
-  if (!content) return;
-  if (isLoggedIn){
-    content.innerHTML = `
-      <h3>Committee</h3>
-      <p style="font-size:.9rem; color:var(--text-muted); margin:0 0 .6rem;">Logged in as committee.</p>
-      <div class="btn-row">
-        <button class="btn ghost" onclick="committeeLogout()">Log out</button>
-        <button class="btn" onclick="closeLoginModal()">Close</button>
-      </div>`;
-  } else {
-    content.innerHTML = `
-      <h3>Committee login</h3>
-      <p style="font-size:.85rem; color:var(--text-muted); margin:0 0 .8rem;">Sign in with your passkey or use your email and password below.</p>
-      <hanko-auth id="hanko-auth-el" api="https://bd920e36-71c4-446b-9e27-619ad3f2a6d2.hanko.io" style="display:block; margin-bottom:.6rem;"></hanko-auth>
-      <details style="margin-top:.4rem;">
-        <summary style="font-size:.8rem; color:var(--text-muted); cursor:pointer; margin-bottom:.5rem;">Use password instead</summary>
-        <input type="text" id="modal-login-email" placeholder="Email" autocomplete="username" style="margin-bottom:.4rem;">
-        <input type="password" id="modal-login-password" placeholder="Password" autocomplete="current-password">
-        <div class="upload-status" id="modal-login-status"></div>
-        <div class="btn-row" style="margin-top:.4rem;">
-          <button class="btn" onclick="committeeLogin()">Log in</button>
-          <button class="btn ghost" onclick="closeLoginModal()">Cancel</button>
-        </div>
-      </details>`;
-    setTimeout(() => {
-      const hankoEl = document.getElementById('hanko-auth-el');
-      if (hankoEl){
-        /* register the web component with the API URL */
-        if (window.HankoElements?.register) {
-          window.HankoElements.register(HANKO_API);
-        }
-        hankoEl.addEventListener('onSessionCreated', () => { handleHankoSession(); });
-        hankoEl.addEventListener('hankoAuthSuccess', () => { handleHankoSession(); });
-        hankoEl.addEventListener('success', () => { handleHankoSession(); });
-      }
-    }, 300);
-  }
+function handleNavLock(){
+  isLoggedIn ? committeeLogout() : (window.location.href = 'login.html');
 }
-
-/* Hanko session handler removed - using Supabase auth */
-
-function showLoginError(msg){
-  const content = document.getElementById('login-modal-content');
-  if (!content) return;
-  const err = document.createElement('p');
-  err.style.cssText = 'color:var(--claret); font-size:.85rem; margin:.5rem 0 0;';
-  err.textContent = msg;
-  content.appendChild(err);
-}
-
-let loginModalOpen = false;
-function toggleLoginModal(){
-  loginModalOpen ? closeLoginModal() : openLoginModal();
-}
-function openLoginModal(){
-  loginModalOpen = true;
-  renderLoginModal();
-  document.getElementById('login-modal-backdrop').style.display = 'flex';
-}
-function closeLoginModal(){
-  loginModalOpen = false;
-  document.getElementById('login-modal-backdrop').style.display = 'none';
-}
-function handleBackdropClick(e){
-  if (e.target === document.getElementById('login-modal-backdrop')) closeLoginModal();
-}
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && loginModalOpen) closeLoginModal(); });
-
-/* committeeLogin removed - using Supabase auth */
 
 async function committeeLogout(){
   if (db) await db.auth.signOut();
-  /* clear Hanko cookie by redirecting to Hanko logout endpoint */
-  try {
-    const hankoEl = document.createElement('hanko-auth');
-    hankoEl.setAttribute('api', HANKO_API);
-    /* Hanko clears its own session via the element */
-    await fetch(`${HANKO_API}/sessions/logout`, { method: 'DELETE', credentials: 'include' });
-  } catch(e){ console.warn('Hanko logout:', e); }
   isLoggedIn = false;
   updateNavLock();
   renderAll();
-  closeLoginModal();
 }
 
 function renderAll(){
@@ -4991,7 +4878,7 @@ function renderAccounts(){
   const el = document.getElementById('accounts-content');
   if (!el) return;
   if (!isLoggedIn){
-    el.innerHTML = `<div class="accounts-login-note"><p>This section is for committee members only.</p><p style="margin-top:.6rem; font-size:.85rem;">Use the 🔒 button in the nav to log in.</p></div>`;
+    el.innerHTML = `<div class="accounts-login-note"><p>This section is for committee members only.</p><p style="margin-top:.6rem; font-size:.85rem;">Use the Committee button in the nav to log in.</p></div>`;
     return;
   }
 

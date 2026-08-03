@@ -59,6 +59,8 @@ body{
 .back-btn{background:transparent;border:none;color:rgba(255,255,255,.45);font-family:'Inter',system-ui,sans-serif;font-size:.8rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;padding:.3rem 0;margin-bottom:.5rem;}
 .not-member{text-align:center;font-size:.68rem;color:rgba(255,255,255,.3);line-height:1.7;}
 .not-member a{color:rgba(184,134,47,.75);font-weight:600;text-decoration:none;}
+.email-fallback-link{display:block;width:100%;background:none;border:none;color:rgba(255,255,255,.4);font-family:'Inter',system-ui,sans-serif;font-size:.75rem;text-decoration:underline;cursor:pointer;padding:.6rem 0 .1rem;text-align:center;}
+.email-fallback-link:hover{color:rgba(255,255,255,.65);}
 .hidden{display:none!important;}
 .enter-btn{display:block;margin-top:.8rem;padding:.7rem;background:linear-gradient(135deg,#B8862F,#E3C173 50%,#B8862F);border-radius:10px;color:#1a1008;font-weight:700;font-size:.92rem;text-align:center;text-decoration:none;}
 </style>
@@ -111,6 +113,14 @@ body{
     <button class="btn-passkey" id="passkey-btn" onclick="signInWithPasskey()">
       👆 Sign in with passkey
     </button>
+    <button class="email-fallback-link" id="member-email-toggle" onclick="showMemberEmailFallback()">No passkey on this device? Use email instead</button>
+    <div class="hidden" id="member-email-fallback">
+      <div class="inp-wrap" style="margin-top:.6rem;">
+        <span class="inp-ico">✉</span>
+        <input class="inp-field" type="email" id="member-email-input" placeholder="your@email.com" autocomplete="email">
+      </div>
+      <button class="btn-gold" onclick="handleEmailSubmit('member-email-input')">Email me a sign-in link →</button>
+    </div>
   </div>
 
   <div class="not-member">Not a member? <a href="mailto:gyttelanegolf@gmail.com">Contact your committee</a></div>
@@ -154,6 +164,14 @@ function resetToDefault(){
   document.getElementById('panel-member').classList.add('hidden');
   document.getElementById('back-btn').classList.add('hidden');
   document.getElementById('status-msg').className = 'status-msg';
+  document.getElementById('member-email-fallback').classList.add('hidden');
+  document.getElementById('member-email-toggle').classList.remove('hidden');
+}
+
+function showMemberEmailFallback(){
+  document.getElementById('member-email-fallback').classList.remove('hidden');
+  document.getElementById('member-email-toggle').classList.add('hidden');
+  setTimeout(() => document.getElementById('member-email-input').focus(), 50);
 }
 
 async function completeLogin(user){
@@ -180,8 +198,8 @@ async function completeLogin(user){
   window.location.replace('/');
 }
 
-async function handleEmailSubmit(){
-  const email = document.getElementById('email-input').value.trim();
+async function handleEmailSubmit(inputId){
+  const email = document.getElementById(inputId || 'email-input').value.trim();
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
     setStatus('Please enter a valid email address.', 'error'); return;
   }
