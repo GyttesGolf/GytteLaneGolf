@@ -3218,6 +3218,11 @@ function togglePlayerEdit(id){
   renderPlayers();
 }
 
+/* Players sign in by email match (see login.html/completeLogin) - a typo
+   here (e.g. a missing dot, a stray space) silently locks that person out
+   with no obvious error, since it just fails to match at sign-in time. */
+function isValidEmail(email){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
+
 async function savePlayerEdit(id){
   const setStatus = (msg, kind) => { const el = document.getElementById('ep-status-'+id); if(el){el.textContent=msg; el.className='edit-status '+(kind||'');} };
   if (!db){ setStatus('Not connected.','error'); return; }
@@ -3227,6 +3232,7 @@ async function savePlayerEdit(id){
   const handicap   = document.getElementById('ep-hcap-'+id)?.value !== '' ? Number(document.getElementById('ep-hcap-'+id)?.value) : null;
   const active     = document.getElementById('ep-active-'+id)?.checked !== false;
   if (!first_name || !last_name){ setStatus('First and last name are required.','error'); return; }
+  if (email && !isValidEmail(email)){ setStatus('Enter a valid email address (no spaces), or leave it blank.','error'); return; }
   setStatus('Saving\u2026','loading');
   const { error } = await db.from('players').update({ first_name, last_name, email, handicap, active }).eq('id', id);
   if (error){ console.error(error); setStatus('Save failed.','error'); return; }
@@ -3278,6 +3284,7 @@ async function saveNewPlayer(){
   const email      = (document.getElementById('np-email')?.value||'').trim()||null;
   const handicap   = document.getElementById('np-hcap')?.value !== '' ? Number(document.getElementById('np-hcap')?.value) : null;
   if (!first_name || !last_name){ setStatus('First and last name are required.','error'); return; }
+  if (email && !isValidEmail(email)){ setStatus('Enter a valid email address (no spaces), or leave it blank.','error'); return; }
   setStatus('Saving\u2026','loading');
   const { data, error } = await db.from('players').insert({ first_name, last_name, email, handicap, society_id: societyId }).select().single();
   if (error){ console.error(error); setStatus('Save failed.','error'); return; }
