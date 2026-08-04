@@ -11,7 +11,7 @@ The website for Gytte Lane Golf Society (Syresham, Northamptonshire, founded 199
 - `sw.js` — service worker for offline support
 - `CHANGELOG.md` — narrative history of the project, written phase-by-phase. Useful for *why* something exists, but the code has moved on in places (see "CHANGELOG vs. code" below) — verify against the code, don't take it as current truth.
 
-No npm, no build step, no local dev server config. To preview changes, open `index.html` directly in a browser or serve the directory with any static file server. Deployment is a manual two-file drag-and-drop to Netlify (`index.html` + `sw.js`); there's no CI.
+No npm, no build step, no local dev server config. To preview changes, open `index.html` directly in a browser or serve the directory with any static file server. **Deployment is automatic**: Netlify is connected directly to this GitHub repo (`GyttesGolf/GytteLaneGolf`) and deploys on every push to `main` (verified via the Netlify API, 2026-08-04) — pushing to `main` is a live production deploy, there's no separate staging/review step unless you add branch protection or a PR requirement yourself.
 
 ## Working in this codebase
 
