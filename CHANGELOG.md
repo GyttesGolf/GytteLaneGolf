@@ -1,5 +1,7 @@
 # Gytte Lane Golf Society Website — Change Log
 
+> **Frozen as of 2026-07-12 (Phase 12).** This file is no longer kept up to date and won't be — treat everything below as a historical record of *why* the site looked the way it did through Phase 12, not as current fact. In particular, Phase 4's auth description is superseded (see `CLAUDE.md`'s Auth section for the real, current design), and the "Results" table/page referenced throughout Phases 2–12 no longer exists (results/honours now live in the `honours` table only). For anything after this point, see `git log` and `CLAUDE.md`.
+
 Website for Gytte Lane Golf Society (Syresham, Northamptonshire, founded 1994). A single self-contained `index.html` (HTML/CSS/vanilla JavaScript, no frameworks) plus a service worker (`sw.js`), hosted on Netlify, with a Supabase (PostgreSQL) backend for all content, authentication, and file storage. Built collaboratively with Claude (Anthropic).
 
 **Stack:** Netlify (hosting, free tier) · Supabase (database, auth, storage, realtime — free tier) · Leaflet + OpenStreetMap (map) · postcodes.io (UK postcode geocoding)
