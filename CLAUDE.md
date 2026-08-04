@@ -9,7 +9,7 @@ The website for Gytte Lane Golf Society (Syresham, Northamptonshire, founded 199
 - `index.html` — the entire site (~5,600 lines: all pages, styles, and JS in one file)
 - `login.html` — the only sign-in surface (see Auth below); `index.html` has no login UI of its own, it links out to this page
 - `sw.js` — service worker for offline support
-- `CHANGELOG.md` — narrative history of the project, written phase-by-phase. Useful for *why* something exists, but the code has moved on in places (see "CHANGELOG vs. code" below) — verify against the code, don't take it as current truth.
+- `CHANGELOG.md` — narrative history of the project, written phase-by-phase. Useful for *why* something exists, but the code has moved on in places — verify against the actual code before trusting it, especially for auth (it describes an earlier, now-superseded design).
 
 No npm, no build step, no local dev server config. To preview changes, open `index.html` directly in a browser or serve the directory with any static file server. **Deployment is automatic**: Netlify is connected directly to this GitHub repo (`GyttesGolf/GytteLaneGolf`) and deploys on every push to `main` (verified via the Netlify API, 2026-08-04) — pushing to `main` is a live production deploy, there's no separate staging/review step unless you add branch protection or a PR requirement yourself.
 
@@ -26,9 +26,15 @@ No npm, no build step, no local dev server config. To preview changes, open `ind
 
 All content, auth, and file storage is Supabase (PostgreSQL + Auth + Storage + Realtime, free tier). Client init and config are near the top of the script block (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `const db = window.supabase.createClient(...)`). There is no server-side code in this repo — all reads/writes happen client-side via `db.from('<table>')...`.
 
-Known tables (grep `db.from(` to confirm current usage before assuming a schema): `societies`, `events`, `committee`, `gallery`, `news`, `players`, `signups`, `rules`, `honours`, `scorecards`, `hole_scores`, `courses`, `course_ratings`, `groups`, `group_players`, `event_payments`, `expenditures`. There are no `.sql` migration files in this repo (they're referenced by name in `CHANGELOG.md`'s "Database migration order" section but aren't checked in here) — if you need to change schema, you'll be writing SQL to run directly against the Supabase project, not editing a tracked migration file.
+Known tables (verified directly against the live schema, 2026-08-04 — grep `db.from(` if this drifts): `societies`, `events`, `committee`, `gallery`, `news`, `players`, `signups`, `rules`, `honours`, `scorecards`, `hole_scores`, `courses`, `course_ratings`, `groups`, `group_players`, `event_payments`, `expenditures`. There is no `results` table, despite some UI copy saying "results" — `finaliseScores()` only ever writes to `honours`. There are no `.sql` migration files in this repo — if you need to change schema, you'll be writing SQL to run directly against the Supabase project, not editing a tracked migration file.
 
-**RLS is currently wide open, not gated as you'd expect.** Verified directly against the live project (2026-08-04, via `pg_policies`): every table's INSERT/UPDATE/DELETE policies are granted to role `public` with condition `true` — i.e. unauthenticated writes are allowed on everything, including `players`, `events`, `event_payments`, and `expenditures`. The `is_committee`/"Admin" gate described below is enforced only in `index.html`'s JS (hiding buttons) — anyone with the page's already-public anon key can bypass it entirely via a direct REST call. Do not describe this as "gated to committee/admin" in code comments or to users; it isn't, at the database level. This is a known gap, not a designed tradeoff — tightening it (e.g. requiring `authenticated` + an `is_committee` check, while keeping public SELECT and the intentionally-public `players`/`signups` INSERT for signups) is flagged as follow-up work, not yet done as of this writing.
+**Multi-tenancy: schema scaffolding only, not actually implemented.** Every content table has a `society_id` column, and inserts stamp it via a module-level `societyId` variable — but that variable is just "whichever row `societies` happens to return first" (`select('id').limit(1).single()`), and **no read query anywhere filters by `society_id`** (`grep -c "eq('society_id'" index.html` → 0). In practice this is invisible because there is exactly one row in `societies` right now. But this is not multi-tenant in any working sense: if a second society row were ever added, every list/read in the app would show a mixed pool of both societies' data, and new records would get attributed to an unpredictable one of them. Treat `society_id` as a label carried on each row for a possible future migration, not as an access boundary — it isn't enforced by RLS either. If you're asked to make this genuinely multi-tenant, that means adding `society_id` filters to every `select()` *and* to every RLS policy below, not just trusting the column already being there.
+
+**RLS is scoped and enforced as of 2026-08-04** (tightened from an earlier state where every write was open to `public` with no auth check at all — verify this hasn't regressed by re-running `select tablename, policyname, cmd, roles from pg_policies where schemaname='public'` before assuming it's still true). Current model, backed by a `public.is_admin()` SQL function (checks `auth.email()` against `players.is_committee`/`active`):
+- **Public** (no login) SELECT on all content tables except `expenditures` (admin-only, since it's never shown to non-admins anyway); public INSERT on `signups` and `course_ratings` only (event sign-up and course rating are both deliberately login-free, self-service by picking your own name from a dropdown — there's no identity check tying a row to the person who actually created it).
+- **Member** (any authenticated player, `is_committee` or not) INSERT on `gallery` only — the database permits this, but as of this writing `index.html`'s `renderGallery()` still only shows the upload form when `isLoggedIn` (admin) is true, so no client-side UI actually exposes this to non-admin members yet. Closing that gap (an `isMember` flag distinct from `isLoggedIn`) is pending — don't assume it's wired up without checking.
+- **Admin** (`is_committee`) — everything else: all UPDATE/DELETE, and INSERT on every table other than `signups`/`course_ratings`/`gallery`.
+- This is enforced at the database level now, not just hidden in the UI — confirmed by a live anonymous `curl` against the REST API returning 401 on a write attempt.
 
 ## Auth: Supabase Auth (passkey + magic link), admin gated by `is_committee`
 
@@ -48,11 +54,16 @@ The player-edit "Admin access" checkbox (DB column `is_committee`, element id `e
 
 ## Live scoring specifics
 
-Stableford scoring by hole, entered per group. `SCORE_BLACKOUT_HOLE` (currently 13) controls when the public leaderboard freezes to preserve the finish as a surprise — admin logins bypass the blackout and see the full live standings. "Finalise" writes the top 3 + score summary into `results`/`honours`, keyed by event id so re-finalising updates rather than duplicates.
+Stableford scoring by hole, entered per group. `SCORE_BLACKOUT_HOLE` (currently 13) controls when the public leaderboard freezes to preserve the finish as a surprise — admin logins bypass the blackout and see the full live standings. "Finalise" (`finaliseScores()`) writes only the winner into `honours` via `syncHonourForEvent()`, keyed by event id so re-finalising updates rather than duplicates — there's no separate table recording the full top-3/score summary despite what the button copy implies.
+
+## Known follow-up work (not yet done)
+
+- **No HTML escaping anywhere.** Every `render*()` function inserts data straight into `innerHTML` with no `escapeHtml()`-style helper in the codebase. Now that RLS is scoped (see above), the practical risk is narrower than it was — only `is_committee` admins can write most free-text fields, and any signed-in member can write `gallery` caption/description — but a compromised or careless admin/member account can still stored-XSS every visitor. Fix in progress; not done as of this writing.
+- **`isMember` client-side tier** (see RLS section above) — needed so the gallery upload form actually appears for non-admin signed-in members, matching what the database already permits.
 
 ## Third-party services (all free tier — mind the limits)
 
-- **Netlify** — hosting, manual/drag-and-drop deploy.
+- **Netlify** — hosting; auto-deploys from GitHub on push to `main` (see "What this is" above).
 - **Supabase** — DB/auth/storage/realtime. Pauses the project after 7 days of zero traffic; 5GB/month bandwidth and 1GB storage caps (video uploads are the main consumer); no automatic backups — export key tables (especially `players`) periodically.
 - **Leaflet + OpenStreetMap** — "Where we play" map on Home, plotting fixtures via each event's `postcode` field.
 - **postcodes.io** — UK postcode → lat/lng geocoding for the map (client-side fetch, no key).
