@@ -1066,9 +1066,9 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="1" x2="12" y2="23" stroke="currentColor" stroke-width="1.8"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
       Accounts
     </button>
-    <button class="nav-lock-btn" id="nav-lock-btn" onclick="handleNavLock()" aria-label="Committee login">
+    <button class="nav-lock-btn" id="nav-lock-btn" onclick="handleNavLock()" aria-label="Admin login">
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
-      <span id="nav-lock-label">Committee</span>
+      <span id="nav-lock-label">Admin</span>
     </button>
   </div>
 </nav>
@@ -1210,7 +1210,7 @@
 
   <!-- ============ ACCOUNTS ============ -->
   <section class="section" id="sec-accounts" data-section="accounts">
-    <p class="eyebrow">Committee only</p>
+    <p class="eyebrow">Admin only</p>
     <h2 class="section-title">Accounts</h2>
     <div id="accounts-content"></div>
   </section>
@@ -1228,8 +1228,6 @@
     <h2 class="section-title">Leaderboard</h2>
     <div id="leaderboard-content"></div>
   </section>
-
-  <!-- ============ COMMITTEE LOGIN MODAL ============ -->
 
   <!-- ============ BOTTOM NAV (mobile) ============ -->
   <nav class="bottom-nav" aria-label="Main navigation">
@@ -1293,7 +1291,7 @@
     <div style="padding:.4rem 1rem .2rem; border-top:1px solid var(--line); margin-top:.3rem;">
       <button class="md-item" style="width:100%; justify-content:center; color:var(--claret);" onclick="closeMoreDrawer(); handleNavLock();">
         <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" fill="currentColor" stroke="none"/></svg>
-        <span id="more-drawer-lock-label">Committee login</span>
+        <span id="more-drawer-lock-label">Admin login</span>
       </button>
     </div>
   </div>
@@ -2446,11 +2444,11 @@ function updateNavLock(){
     if (drawerLabel) drawerLabel.textContent = 'Log out';
   } else {
     btn.classList.remove('logged-in');
-    label.textContent = 'Committee';
+    label.textContent = 'Admin';
     document.querySelector('nav.tabs')?.classList.remove('committee-logged-in');
     document.getElementById('more-drawer')?.classList.remove('committee-logged-in');
     const drawerLabel = document.getElementById('more-drawer-lock-label');
-    if (drawerLabel) drawerLabel.textContent = 'Committee login';
+    if (drawerLabel) drawerLabel.textContent = 'Admin login';
   }
 }
 
@@ -2485,7 +2483,7 @@ async function initAuth(){
   if (session?.user){
     const email = session.user.email;
     const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
-    if (player && player.active !== false) isLoggedIn = true;
+    if (player && player.active !== false && player.is_committee) isLoggedIn = true;
   }
 
   /* Listen for auth state changes (magic link callback, sign out etc) */
@@ -2493,7 +2491,11 @@ async function initAuth(){
     if (session?.user){
       const email = session.user.email;
       const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
-      isLoggedIn = !!(player && player.active !== false);
+      /* Anyone with a matching, active player record can sign in - the site
+         doesn't yet do anything differently for a signed-in non-admin member
+         vs. an anonymous visitor, since all player/event data is already
+         public. is_committee is what actually grants admin (edit) rights. */
+      isLoggedIn = !!(player && player.active !== false && player.is_committee);
     } else {
       isLoggedIn = false;
     }
@@ -2852,7 +2854,7 @@ async function deleteGalleryItem(galleryId){
 
   /* delete from database first */
   const { error } = await db.from('gallery').delete().eq('id', galleryId);
-  if (error){ console.error(error); alert('Delete failed — check you are logged in as committee.'); return; }
+  if (error){ console.error(error); alert('Delete failed — check you are logged in as admin.'); return; }
 
   /* also remove the file from Storage if we can derive the path */
   if (item && item.media_url){
@@ -3149,7 +3151,7 @@ function renderPlayers(){
           </div>
           <div class="full" style="display:flex;align-items:center;gap:.6rem;">
             <input type="checkbox" id="ep-committee-${p.id}" ${p.is_committee?'checked':''} style="width:16px;height:16px;accent-color:var(--brass);">
-            <label for="ep-committee-${p.id}" style="font-size:.85rem;">Committee member (can log in)</label>
+            <label for="ep-committee-${p.id}" style="font-size:.85rem;">Admin access</label>
           </div>
         </div>
         <div class="edit-form-actions">
@@ -3647,7 +3649,7 @@ function renderLeaderboardView(){
   const lb = isLoggedIn ? fullLb : getLeaderboard(liveEventId, SCORE_BLACKOUT_HOLE);
   return (isLoggedIn && pastBlackout
     ? `<div class="card" style="border-color:var(--bracken); margin-bottom:1rem; font-size:.88rem;">
-        <strong>Committee view</strong> — public leaderboard is frozen at hole ${SCORE_BLACKOUT_HOLE}. You can see all ${maxHoleAnyone} holes played.
+        <strong>Admin view</strong> — public leaderboard is frozen at hole ${SCORE_BLACKOUT_HOLE}. You can see all ${maxHoleAnyone} holes played.
        </div>`
     : '') + committeeLeaderboardHtml(lb, false);
 }
@@ -4898,7 +4900,7 @@ function renderAccounts(){
   const el = document.getElementById('accounts-content');
   if (!el) return;
   if (!isLoggedIn){
-    el.innerHTML = `<div class="accounts-login-note"><p>This section is for committee members only.</p><p style="margin-top:.6rem; font-size:.85rem;">Use the Committee button in the nav to log in.</p></div>`;
+    el.innerHTML = `<div class="accounts-login-note"><p>This section is for admins only.</p><p style="margin-top:.6rem; font-size:.85rem;">Use the Admin button in the nav to log in.</p></div>`;
     return;
   }
 
