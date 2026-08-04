@@ -734,6 +734,18 @@
     text-align:center;
   }
   .scores-sub-tab.active{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+  .admin-sub-tabs{display:flex; flex-wrap:wrap; gap:.5rem; margin-bottom:1.2rem;}
+  .admin-sub-tab{
+    font-family:var(--body); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em;
+    padding:.7rem 1.1rem; border-radius:var(--radius); border:1.5px solid var(--line);
+    background:var(--paper); color:var(--text-muted); cursor:pointer; transition:all .15s;
+  }
+  .admin-sub-tab.active{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+  .admin-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.5rem; max-width:480px;}
+  .admin-list li{
+    display:flex; align-items:center; justify-content:space-between; gap:.6rem;
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); padding:.65rem .9rem;
+  }
 
   .leaderboard-table{width:100%; border-collapse:collapse; font-size:.95rem;}
   .leaderboard-table th{
@@ -1064,7 +1076,7 @@
     </button>
     <button class="tab-btn committee-only-tab" role="tab" data-section="accounts" aria-selected="false">
       <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="1" x2="12" y2="23" stroke="currentColor" stroke-width="1.8"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
-      Accounts
+      Admin
     </button>
     <button class="nav-lock-btn" id="nav-lock-btn" onclick="handleNavLock()" aria-label="Admin login">
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
@@ -1211,7 +1223,7 @@
   <!-- ============ ACCOUNTS ============ -->
   <section class="section" id="sec-accounts" data-section="accounts">
     <p class="eyebrow">Admin only</p>
-    <h2 class="section-title">Accounts</h2>
+    <h2 class="section-title">Admin</h2>
     <div id="accounts-content"></div>
   </section>
 
@@ -1285,7 +1297,7 @@
         <svg viewBox="0 0 24 24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>Hall of Fame
       </button>
       <button class="md-item committee-only-tab" onclick="goTo('accounts'); closeMoreDrawer(); setBottomNav('accounts');">
-        <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Accounts
+        <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Admin
       </button>
     </div>
     <div style="padding:.4rem 1rem .2rem; border-top:1px solid var(--line); margin-top:.3rem;">
@@ -4927,12 +4939,44 @@ async function updatePaymentAmount(eventId, playerId, value){
 /* ===================== accounts ===================== */
 const EXPENSE_CATEGORIES = ['prizes','green fees','sponsorship','admin','social','other'];
 let accountsYear = new Date().getFullYear();
+/* The Admin section is a small hub - "Accounts" (financials) today, "Admins"
+   (who has is_committee) added alongside it, more tabs expected over time.
+   Follows the same sub-tab pattern as Live Scores' setLiveSubView(). */
+let adminSubView = 'accounts'; // 'accounts' | 'admins'
+
+function setAdminSubView(view){
+  adminSubView = view;
+  renderAccounts();
+}
+
+function renderAdminsList(){
+  const admins = players.filter(p => p.is_committee).sort((a,b) => a.first_name.localeCompare(b.first_name));
+  return `
+    <p style="font-size:.85rem; color:var(--text-muted); margin:0 0 1rem; max-width:480px;">
+      Players with admin access - they can edit content, remove sign-ups, and see the Admin section. Toggle this from a player's "Admin access" checkbox on the Players page.
+    </p>
+    ${admins.length ? `<ul class="admin-list">${admins.map(p => `
+      <li>
+        <span>${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</span>
+        <button class="committee-edit-btn" onclick="goTo('players'); playerListSearch=${JSON.stringify(p.first_name + ' ' + p.last_name)}; expandedPlayerIds.add(${p.id}); renderPlayers();">View</button>
+      </li>`).join('')}</ul>` : '<p class="muted">No admins yet.</p>'}`;
+}
 
 function renderAccounts(){
   const el = document.getElementById('accounts-content');
   if (!el) return;
   if (!isLoggedIn){
     el.innerHTML = `<div class="accounts-login-note"><p>This section is for admins only.</p><p style="margin-top:.6rem; font-size:.85rem;">Use the Admin button in the nav to log in.</p></div>`;
+    return;
+  }
+
+  const subTabs = `<div class="admin-sub-tabs">
+    <button class="admin-sub-tab ${adminSubView==='accounts'?'active':''}" onclick="setAdminSubView('accounts')">Accounts</button>
+    <button class="admin-sub-tab ${adminSubView==='admins'?'active':''}" onclick="setAdminSubView('admins')">Admins</button>
+  </div>`;
+
+  if (adminSubView === 'admins'){
+    el.innerHTML = subTabs + renderAdminsList();
     return;
   }
 
@@ -4987,6 +5031,7 @@ function renderAccounts(){
   yearExp.forEach(x => (expByCat[x.category] = expByCat[x.category]||[]).push(x));
 
   el.innerHTML = `
+    ${subTabs}
     ${yearTabs}
     <div class="accounts-actions">
       <button class="btn brass" onclick="window.print()">🖨 Print</button>
