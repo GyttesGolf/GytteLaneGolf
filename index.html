@@ -462,11 +462,17 @@
   .signup-status.success{color:var(--brass); font-weight:600;}
   .signup-status.error{color:var(--claret); font-weight:600;}
   .signup-status.notice{color:var(--text-muted); font-weight:600;}
-  .attendee-list ul{list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:.4rem;}
+  .attendee-list ul{list-style:none; margin:0 0 .7rem; padding:0; display:flex; flex-wrap:wrap; gap:.4rem;}
+  .attendee-list ul:last-child{margin-bottom:0;}
   .attendee-list li{
     font-family:var(--body); font-size:.78rem; background:var(--stone); border:1px solid var(--line);
     border-radius:999px; padding:.3rem .7rem;
   }
+  .attendee-group-label{
+    font-family:var(--body); font-size:.7rem; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--text-muted); margin:0 0 .4rem;
+  }
+  .paid-tick{color:var(--bracken); font-weight:700; margin-right:.25rem;}
   .muted{color:var(--text-muted); font-style:italic; font-size:.88rem;}
 
   /* ---------- inline edit forms ---------- */
@@ -1699,6 +1705,26 @@ function updatePaymentSummary(eventId){
 
 function isPaidRecord(rec){ return rec && (rec.paid === true || rec.paid === 1 || rec.paid === 'true'); }
 
+function attendeePillLi(p, eventId, isLoggedIn, isPaid){
+  return `<li style="display:flex; align-items:center; justify-content:space-between; gap:.5rem;">
+    <span>${isPaid ? '<span class="paid-tick">✓</span>' : ''}${p.first_name} ${p.last_name}</span>
+    ${isLoggedIn ? `<button class="committee-edit-btn" style="color:var(--claret); border-color:var(--claret); flex-shrink:0;" onclick="removeSignup('${eventId}',${p.id})">✕ Remove</button>` : ''}
+  </li>`;
+}
+
+/* Groups attendees into "Paid" / "Awaiting payment" so it's obvious at a
+   glance who still needs to pay, without relying on a colour-coded pill
+   that'd be easy to miss scanning a long list. */
+function renderAttendeeGroups(players, paidIds, eventId, isLoggedIn){
+  if (!players.length) return '';
+  const paid = players.filter(p => paidIds.has(p.id));
+  const unpaid = players.filter(p => !paidIds.has(p.id));
+  const group = (label, list) => list.length ? `
+    <p class="attendee-group-label">${label} (${list.length})</p>
+    <ul>${list.map(p => attendeePillLi(p, eventId, isLoggedIn, paidIds.has(p.id))).join('')}</ul>` : '';
+  return group('Paid', paid) + group('Awaiting payment', unpaid);
+}
+
 function eventDetailHtml(e){
   const attendees = signupsForEvent(e.id);
   const isEditing = editingEventIds.has(e.id);
@@ -1839,6 +1865,7 @@ function eventDetailHtml(e){
         const totalCollected = playerPayments.reduce((s, {rec}) => s + (isPaidRecord(rec) ? Number(rec.amount||0) : 0), 0);
         const totalExpected = playerPayments.reduce((s, {rec}) => s + Number(rec ? (rec.amount||fee) : fee), 0);
         const paidCount = playerPayments.filter(({rec}) => isPaidRecord(rec)).length;
+        const attendeePaidIds = new Set(playerPayments.filter(({rec}) => isPaidRecord(rec)).map(({p}) => p.id));
         return `
           <div class="attendee-list" style="margin-top:.8rem;">
             <h4>Event summary</h4>
@@ -1853,11 +1880,7 @@ function eventDetailHtml(e){
                 <summary style="cursor:pointer; font-family:var(--body); font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); user-select:none;">
                   Show who played (${attendees.length})
                 </summary>
-                <ul style="margin-top:.6rem;">${attendees.map(p => `
-                  <li style="display:flex; align-items:center; justify-content:space-between; gap:.5rem;">
-                    <span>${p.first_name} ${p.last_name}</span>
-                    ${isLoggedIn ? `<button class="committee-edit-btn" style="color:var(--claret); border-color:var(--claret); flex-shrink:0;" onclick="removeSignup('${e.id}',${p.id})">✕ Remove</button>` : ''}
-                  </li>`).join('')}</ul>
+                <div style="margin-top:.6rem;">${renderAttendeeGroups(attendees, attendeePaidIds, e.id, isLoggedIn)}</div>
               </details>` : ''}
             ${isLoggedIn && eventPlayers.length ? `
                 <div class="edit-form" style="margin-top:.8rem;">
@@ -1921,11 +1944,7 @@ function eventDetailHtml(e){
           <div class="attendee-list">
             <h4>Who's playing (${attendees.length})</h4>
             ${attendees.length
-              ? '<ul>' + attendees.map(p => `
-                  <li style="display:flex; align-items:center; justify-content:space-between; gap:.5rem;">
-                    <span>${p.first_name} ${p.last_name}</span>
-                    ${isLoggedIn ? `<button class="committee-edit-btn" style="color:var(--claret); border-color:var(--claret); flex-shrink:0;" onclick="removeSignup('${e.id}',${p.id})">✕ Remove</button>` : ''}
-                  </li>`).join('') + '</ul>'
+              ? renderAttendeeGroups(attendees, paidIds, e.id, isLoggedIn)
               : '<p class="muted">No one signed up yet — be the first.</p>'}
           </div>
           ${isLoggedIn && signedUp.length ? `
