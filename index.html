@@ -661,9 +661,6 @@
   .pli-name{font-size:.9rem;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .pli-sub{font-size:.68rem;color:var(--text-muted);font-family:var(--body);margin-top:.05rem;}
   .pli-right{display:flex;align-items:center;gap:.5rem;flex-shrink:0;}
-  .pli-dot{width:8px;height:8px;border-radius:50%;}
-  .pli-dot.paid{background:#4CAF50;}
-  .pli-dot.unpaid{background:var(--line);}
   .pli-expanded{background:var(--stone);border-bottom:0.5px solid var(--line);padding:.65rem .8rem .65rem 3.4rem;}
   .player-list-item.expanded .pli-ini{background:var(--claret);}
   .pli-expanded .pc-tabs{margin-bottom:.55rem;}
@@ -3169,7 +3166,11 @@ function renderPlayers(){
           <button class="pc-tab ${tab==='scores'?'active':''}" onclick="setPlayerTab(${p.id},'scores')">Scores</button>
           <button class="pc-tab ${tab==='courses'?'active':''}" onclick="setPlayerTab(${p.id},'courses')">Courses played</button>
           ${isLoggedIn ? `<button class="pc-tab edit-tab" onclick="togglePlayerEdit(${p.id})">${isEditing?'Cancel':'Edit'}</button>` : ''}
-          ${isLoggedIn ? `<input class="membership-checkbox" type="checkbox" ${isPaid?'checked':''} onchange="updateMembershipPaid(${p.id},this.checked)" title="Membership paid" style="width:15px;height:15px;accent-color:var(--brass);margin-left:.3rem;">` : ''}
+        </div>
+        <div style="margin:0 0 .6rem;">
+          ${isLoggedIn
+            ? `<label style="display:inline-flex;align-items:center;gap:.35rem;font-size:.78rem;color:var(--text-muted);cursor:pointer;"><input class="membership-checkbox" type="checkbox" ${isPaid?'checked':''} onchange="updateMembershipPaid(${p.id},this.checked)" style="width:15px;height:15px;accent-color:var(--brass);">Membership paid</label>`
+            : (isPaid ? `<span class="membership-pill paid">Membership paid</span>` : '')}
         </div>
         ${tab==='scores' ? (history.length ? history.map(h => `
           <div class="pc-row">
@@ -3191,7 +3192,7 @@ function renderPlayers(){
           <div class="pli-sub">${hcap} · ${attended} event${attended===1?'':'s'}</div>
         </div>
         <div class="pli-right">
-          <div class="pli-dot ${isPaid?'paid':'unpaid'}" title="Membership ${isPaid?'paid':'unpaid'}"></div>
+          ${isPaid ? `<span class="membership-pill paid">Membership paid</span>` : ''}
           <i class="ti ti-chevron-${isExpanded?'up':'down'}" style="font-size:14px;color:var(--text-muted);" aria-hidden="true"></i>
         </div>
       </div>
