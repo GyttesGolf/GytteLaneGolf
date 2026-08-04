@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 The website for Gytte Lane Golf Society (Syresham, Northamptonshire, founded 1994). It is **not a build project** — there is no package.json, bundler, or test suite. It's a handful of self-contained static files deployed as-is:
 
 - `index.html` — the entire site (~5,600 lines: all pages, styles, and JS in one file)
-- `login.html` — standalone sign-in page (separate from index.html's own login modal — see Auth below)
+- `login.html` — the only sign-in surface (see Auth below); `index.html` has no login UI of its own, it links out to this page
 - `sw.js` — service worker for offline support
 - `CHANGELOG.md` — narrative history of the project, written phase-by-phase. Useful for *why* something exists, but the code has moved on in places (see "CHANGELOG vs. code" below) — verify against the code, don't take it as current truth.
 
@@ -28,13 +28,17 @@ All content, auth, and file storage is Supabase (PostgreSQL + Auth + Storage + R
 
 Known tables (grep `db.from(` to confirm current usage before assuming a schema): `societies`, `events`, `committee`, `gallery`, `news`, `players`, `signups`, `rules`, `honours`, `scorecards`, `hole_scores`, `courses`, `course_ratings`, `groups`, `group_players`, `event_payments`, `expenditures`. There are no `.sql` migration files in this repo (they're referenced by name in `CHANGELOG.md`'s "Database migration order" section but aren't checked in here) — if you need to change schema, you'll be writing SQL to run directly against the Supabase project, not editing a tracked migration file.
 
-Row Level Security is used throughout: public read on content tables, public insert on `players`/`signups` only, and writes elsewhere gated to the authenticated committee account. When adding a new editable field/table, it needs a corresponding RLS policy in Supabase — this repo won't show you the policy, only the client code that assumes it exists.
+**RLS is currently wide open, not gated as you'd expect.** Verified directly against the live project (2026-08-04, via `pg_policies`): every table's INSERT/UPDATE/DELETE policies are granted to role `public` with condition `true` — i.e. unauthenticated writes are allowed on everything, including `players`, `events`, `event_payments`, and `expenditures`. The `is_committee`/"Admin" gate described below is enforced only in `index.html`'s JS (hiding buttons) — anyone with the page's already-public anon key can bypass it entirely via a direct REST call. Do not describe this as "gated to committee/admin" in code comments or to users; it isn't, at the database level. This is a known gap, not a designed tradeoff — tightening it (e.g. requiring `authenticated` + an `is_committee` check, while keeping public SELECT and the intentionally-public `players`/`signups` INSERT for signups) is flagged as follow-up work, not yet done as of this writing.
 
-## Auth: mid-migration state — verify before touching
+## Auth: Supabase Auth (passkey + magic link), admin gated by `is_committee`
 
-The commit history shows several back-and-forth passes between Hanko (passkey provider) and native Supabase Auth, and **the code currently contains both**: `index.html` still loads `@teamhanko/hanko-elements` and defines a `<hanko-auth>` element / `HANKO_API` constant *and* has a Supabase-session-based `initAuth()`. `login.html` implements its own separate passkey flow via `signInWithPasskey()`/`registerPasskey()` (WebAuthn) plus Supabase. Do not assume either file's auth is in a finished/consistent state — read the actual `initAuth`, `renderLoginModal`, `committeeLogout`, and `handleEmailSubmit`/`signInWithPasskey` functions before modifying auth behavior, and check recent git log for the latest intent, since `CHANGELOG.md`'s Phase 4 description ("Supabase Auth with a single shared committee account") predates this passkey work and is out of date on this point.
+The Hanko/Supabase migration referenced in older commits is finished — `index.html` no longer loads `@teamhanko/hanko-elements` or has any login modal of its own. `login.html` is the sole sign-in surface, offering passkey (`signInWithPasskey()`/`registerPasskey()`, WebAuthn via Supabase's `experimental.passkey` flag) or a magic-link email fallback (`handleEmailSubmit()`). Both paths funnel through `completeLogin()`, which looks the signed-in email up in `players` and requires `active !== false`.
 
-There's a single shared committee login (not per-member accounts). `isLoggedIn` gates all edit/delete/add UI and committee-only views (e.g. Accounts) throughout the render functions.
+**Known sharp edge**: `signInWithPasskey()`'s own response doesn't reliably carry the user's email (it's an experimental Supabase feature) — always re-fetch via `sb.auth.getUser()` before trusting `user.email`, rather than the direct sign-in response. Getting this wrong produces a false "this email isn't registered" error for genuinely registered players.
+
+Auth is **not** a single shared committee account — any active player can sign in via `login.html`. But signing in alone doesn't grant admin rights: `index.html`'s `initAuth()` only sets `isLoggedIn` (which gates all edit/delete/add UI and the Accounts page) when the signed-in email matches an active player whose `is_committee` column is also `true`. Since all player/event data is already publicly readable, a signed-in non-admin player currently sees the same view as an anonymous visitor — there's no third "logged in, not admin" experience yet (may change later, but don't assume one exists).
+
+The player-edit "Admin access" checkbox (DB column `is_committee`, element id `ep-committee-${p.id}` — name kept for now to avoid a schema rename) is what actually grants edit rights. This is unrelated to the "Committee" nav page/table (`committee` table, `renderCommittee()`) — that's the public list of club officers (captain, secretary, etc.), a different concept from site admin permissions. All user-facing text uses "Admin"/"Admin access" for the permission concept and "Committee" only for the officers page.
 
 ## Offline support (`sw.js` + in-page logic)
 
@@ -44,7 +48,7 @@ There's a single shared committee login (not per-member accounts). `isLoggedIn` 
 
 ## Live scoring specifics
 
-Stableford scoring by hole, entered per group. `SCORE_BLACKOUT_HOLE` (currently 13) controls when the public leaderboard freezes to preserve the finish as a surprise — committee logins bypass the blackout and see the full live standings. "Finalise" writes the top 3 + score summary into `results`/`honours`, keyed by event id so re-finalising updates rather than duplicates.
+Stableford scoring by hole, entered per group. `SCORE_BLACKOUT_HOLE` (currently 13) controls when the public leaderboard freezes to preserve the finish as a surprise — admin logins bypass the blackout and see the full live standings. "Finalise" writes the top 3 + score summary into `results`/`honours`, keyed by event id so re-finalising updates rather than duplicates.
 
 ## Third-party services (all free tier — mind the limits)
 
