@@ -242,14 +242,16 @@ async function signInWithPasskey(){
   try {
     /* Supabase passkey sign in - correct SDK method is signInWithPasskey(),
        not signInWithWebAuthn() (that method doesn't exist). */
-    const { data, error } = await sb.auth.signInWithPasskey();
+    const { error } = await sb.auth.signInWithPasskey();
     if (error) throw error;
-    if (data?.user) await completeLogin(data.user);
-    else {
-      /* Session may be set via onAuthStateChange */
-      const { data: { session } } = await sb.auth.getSession();
-      if (session?.user) await completeLogin(session.user);
-    }
+    /* Don't trust the user object from signInWithPasskey() directly - as an
+       experimental Supabase Auth feature it doesn't reliably carry email,
+       which broke the players-table lookup in completeLogin() below even
+       for a genuinely registered, signed-in player. Re-fetch the
+       authoritative user record instead. */
+    const { data: { user }, error: userErr } = await sb.auth.getUser();
+    if (userErr) throw userErr;
+    if (user) await completeLogin(user);
   } catch(err) {
     if (err.name === 'NotAllowedError'){
       setStatus('Passkey cancelled.', 'error');
