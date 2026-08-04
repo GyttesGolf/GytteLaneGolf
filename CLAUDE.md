@@ -32,7 +32,7 @@ Known tables (verified directly against the live schema, 2026-08-04 — grep `db
 
 **RLS is scoped and enforced as of 2026-08-04** (tightened from an earlier state where every write was open to `public` with no auth check at all — verify this hasn't regressed by re-running `select tablename, policyname, cmd, roles from pg_policies where schemaname='public'` before assuming it's still true). Current model, backed by a `public.is_admin()` SQL function (checks `auth.email()` against `players.is_committee`/`active`):
 - **Public** (no login) SELECT on all content tables except `expenditures` (admin-only, since it's never shown to non-admins anyway); public INSERT on `signups` and `course_ratings` only (event sign-up and course rating are both deliberately login-free, self-service by picking your own name from a dropdown — there's no identity check tying a row to the person who actually created it).
-- **Member** (any authenticated player, `is_committee` or not) INSERT on `gallery` only — the database permits this, but as of this writing `index.html`'s `renderGallery()` still only shows the upload form when `isLoggedIn` (admin) is true, so no client-side UI actually exposes this to non-admin members yet. Closing that gap (an `isMember` flag distinct from `isLoggedIn`) is pending — don't assume it's wired up without checking.
+- **Member** (any authenticated player, `is_committee` or not) INSERT on `gallery` only — matched client-side by a separate `isMember` flag (any active signed-in player, computed in `initAuth()` alongside `isLoggedIn`), which gates the gallery upload form in `renderGallery()`. `isLoggedIn` still means admin specifically; edit/delete on existing gallery items stays admin-only.
 - **Admin** (`is_committee`) — everything else: all UPDATE/DELETE, and INSERT on every table other than `signups`/`course_ratings`/`gallery`.
 - This is enforced at the database level now, not just hidden in the UI — confirmed by a live anonymous `curl` against the REST API returning 401 on a write attempt.
 
@@ -58,8 +58,7 @@ Stableford scoring by hole, entered per group. `SCORE_BLACKOUT_HOLE` (currently 
 
 ## Known follow-up work (not yet done)
 
-- **No HTML escaping anywhere.** Every `render*()` function inserts data straight into `innerHTML` with no `escapeHtml()`-style helper in the codebase. Now that RLS is scoped (see above), the practical risk is narrower than it was — only `is_committee` admins can write most free-text fields, and any signed-in member can write `gallery` caption/description — but a compromised or careless admin/member account can still stored-XSS every visitor. Fix in progress; not done as of this writing.
-- **`isMember` client-side tier** (see RLS section above) — needed so the gallery upload form actually appears for non-admin signed-in members, matching what the database already permits.
+- **HTML escaping (2026-08-04): mostly fixed, one gap remains.** `escapeHtml()` now exists and is applied to the highest-risk fields — `gallery` caption/description (member-writable), and the main admin-writable public content: events, news, committee, honours, rules. **Not yet escaped**: player first/last names, which are interpolated unescaped (`${p.first_name} ${p.last_name}`) in ~15+ separate dropdown/list render spots across the file. Lower risk since `players` writes are admin-only post-RLS-fix, but still a real gap if you're asked to harden further — grep for `p.first_name` to find them all before assuming this is done.
 
 ## Third-party services (all free tier — mind the limits)
 
