@@ -2430,6 +2430,11 @@ async function addCommitteeMember(){
 
 /* ===================== committee login ===================== */
 let isLoggedIn = false;
+/* Any active, signed-in player - not just admins. Gates the small set of
+   member-only actions (currently just adding gallery photos) that the DB's
+   RLS already permits for any authenticated player, distinct from
+   isLoggedIn which means admin (is_committee) specifically. */
+let isMember = false;
 
 function updateNavLock(){
   const btn = document.getElementById('nav-lock-btn');
@@ -2483,7 +2488,9 @@ async function initAuth(){
   if (session?.user){
     const email = session.user.email;
     const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
-    if (player && player.active !== false && player.is_committee) isLoggedIn = true;
+    const isActivePlayer = !!(player && player.active !== false);
+    isMember = isActivePlayer;
+    if (isActivePlayer && player.is_committee) isLoggedIn = true;
   }
 
   /* Listen for auth state changes (magic link callback, sign out etc) */
@@ -2491,12 +2498,13 @@ async function initAuth(){
     if (session?.user){
       const email = session.user.email;
       const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
-      /* Anyone with a matching, active player record can sign in - the site
-         doesn't yet do anything differently for a signed-in non-admin member
-         vs. an anonymous visitor, since all player/event data is already
-         public. is_committee is what actually grants admin (edit) rights. */
-      isLoggedIn = !!(player && player.active !== false && player.is_committee);
+      const isActivePlayer = !!(player && player.active !== false);
+      /* Any active player can sign in and becomes a "member" - is_committee
+         is what additionally grants admin (edit) rights on top of that. */
+      isMember = isActivePlayer;
+      isLoggedIn = isActivePlayer && !!player.is_committee;
     } else {
+      isMember = false;
       isLoggedIn = false;
     }
     updateNavLock();
@@ -2682,7 +2690,7 @@ function renderGallery(filterId){
 
   const slot = document.getElementById('gallery-add-slot');
   if (!slot) return;
-  if (!isLoggedIn){ slot.innerHTML = ''; galleryAddFormOpen = false; galleryBulkQueue = []; return; }
+  if (!isMember){ slot.innerHTML = ''; galleryAddFormOpen = false; galleryBulkQueue = []; return; }
 
   if (!galleryAddFormOpen){
     slot.innerHTML = `<button class="add-item-btn" style="max-width:480px;" onclick="openGalleryAddForm()">+ Add to gallery</button>`;
