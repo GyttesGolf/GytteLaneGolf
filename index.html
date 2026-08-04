@@ -1552,6 +1552,23 @@ async function loadData(){
 }
 
 /* ===================== helpers ===================== */
+/* Every render*() function below builds innerHTML by string concatenation -
+   there's no framework auto-escaping. Any free-text field that ultimately
+   came from a database write (event names/descriptions, gallery captions,
+   news, committee bios, rules text, player names, etc.) must be passed
+   through this before landing in a template literal, or a crafted value
+   becomes stored XSS for every visitor who views that content. Numeric IDs
+   and values from fixed app code (not DB rows) don't need it. */
+function escapeHtml(str){
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function eventById(id){ return events.find(e => e.id === id); }
 function fmtDate(iso){
   const d = new Date(iso + 'T00:00:00');
@@ -1626,16 +1643,16 @@ function renderEvents(filter){
             <div class="d-year">${p.year}</div>
           </div>
           <div class="event-main">
-            <h3>${e.name}</h3>
-            <div class="meta">${e.format || ''}</div>
-            ${mapsUrl ? `<a class="event-address" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation();">${CAR_ICON} ${e.course}${e.postcode ? ' · ' + e.postcode : ''}</a>` : (e.course ? `<div class="meta">${e.course}</div>` : '')}
+            <h3>${escapeHtml(e.name)}</h3>
+            <div class="meta">${escapeHtml(e.format || '')}</div>
+            ${mapsUrl ? `<a class="event-address" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation();">${CAR_ICON} ${escapeHtml(e.course)}${e.postcode ? ' · ' + escapeHtml(e.postcode) : ''}</a>` : (e.course ? `<div class="meta">${escapeHtml(e.course)}</div>` : '')}
             ${(() => {
               const fee = parseFloat((e.cost||'').replace(/[^0-9.]/g,'')) || 0;
               const chips = [];
               if (fee) chips.push(`<span class="ev-chip cost">£${fee % 1 === 0 ? fee.toFixed(0) : fee.toFixed(2)}</span>`);
-              if (e.meeting_time) chips.push(`<span class="ev-chip time">Meet ${e.meeting_time}</span>`);
-              if (e.tee_time) chips.push(`<span class="ev-chip time">Tee ${e.tee_time}</span>`);
-              if (e.whats_included) chips.push(`<span class="ev-chip food">🍴 ${e.whats_included}</span>`);
+              if (e.meeting_time) chips.push(`<span class="ev-chip time">Meet ${escapeHtml(e.meeting_time)}</span>`);
+              if (e.tee_time) chips.push(`<span class="ev-chip time">Tee ${escapeHtml(e.tee_time)}</span>`);
+              if (e.whats_included) chips.push(`<span class="ev-chip food">🍴 ${escapeHtml(e.whats_included)}</span>`);
               const maxP = e.max_players || 0;
               if (signedUpCount > 0 || maxP > 0){
                 const full = maxP && signedUpCount >= maxP;
@@ -1735,7 +1752,7 @@ function eventDetailHtml(e){
         <div class="edit-form-grid">
           <div>
             <label>Event name</label>
-            <input id="ef-name-${e.id}" value="${(e.name||'').replace(/"/g,'&quot;')}">
+            <input id="ef-name-${e.id}" value="${escapeHtml(e.name||'')}">
           </div>
           <div>
             <label>Date</label>
@@ -1745,8 +1762,8 @@ function eventDetailHtml(e){
             <label>Course</label>
             <select id="ef-course-${e.id}" onchange="onCourseSelected('${e.id}')">
               <option value="">— Select course —</option>
-              ${courses.map(c => `<option value="${c.id}" ${e.course_id===c.id?'selected':''}>${c.name}</option>`).join('')}
-              ${e.course && !e.course_id ? `<option value="legacy" selected>${e.course} (existing)</option>` : ''}
+              ${courses.map(c => `<option value="${c.id}" ${e.course_id===c.id?'selected':''}>${escapeHtml(c.name)}</option>`).join('')}
+              ${e.course && !e.course_id ? `<option value="legacy" selected>${escapeHtml(e.course)} (existing)</option>` : ''}
               <option value="__new__">＋ Add new course…</option>
             </select>
             <div id="ef-new-course-form-${e.id}" style="display:none; margin-top:.5rem; background:var(--paper); padding:.7rem; border-radius:var(--radius); border:1px solid var(--line);">
@@ -1760,11 +1777,11 @@ function eventDetailHtml(e){
           </div>
           <div>
             <label>Format</label>
-            <input id="ef-format-${e.id}" value="${(e.format||'').replace(/"/g,'&quot;')}">
+            <input id="ef-format-${e.id}" value="${escapeHtml(e.format||'')}">
           </div>
           <div>
             <label>Postcode</label>
-            <input id="ef-postcode-${e.id}" value="${(e.postcode||'').replace(/"/g,'&quot;')}">
+            <input id="ef-postcode-${e.id}" value="${escapeHtml(e.postcode||'')}">
           </div>
           <div>
             <label>Status</label>
@@ -1782,19 +1799,19 @@ function eventDetailHtml(e){
           </div>
           <div class="full">
             <label>Description</label>
-            <textarea id="ef-desc-${e.id}">${e.description||''}</textarea>
+            <textarea id="ef-desc-${e.id}">${escapeHtml(e.description||'')}</textarea>
           </div>
           <div>
             <label>Meeting time</label>
-            <input type="time" id="ef-meeting-${e.id}" value="${e.meeting_time||''}">
+            <input type="time" id="ef-meeting-${e.id}" value="${escapeHtml(e.meeting_time||'')}">
           </div>
           <div>
             <label>First tee time</label>
-            <input type="time" id="ef-tee-${e.id}" value="${e.tee_time||''}">
+            <input type="time" id="ef-tee-${e.id}" value="${escapeHtml(e.tee_time||'')}">
           </div>
           <div>
             <label>Cost</label>
-            <input id="ef-cost-${e.id}" placeholder="e.g. £55" value="${(e.cost||'').replace(/"/g,'&quot;')}">
+            <input id="ef-cost-${e.id}" placeholder="e.g. £55" value="${escapeHtml(e.cost||'')}">
           </div>
           <div>
             <label>Max players</label>
@@ -1810,11 +1827,11 @@ function eventDetailHtml(e){
           </div>
           <div>
             <label>Meet at</label>
-            <input id="ef-meetat-${e.id}" placeholder="e.g. Golf Club" value="${(e.meet_at||'').replace(/"/g,'&quot;')}">
+            <input id="ef-meetat-${e.id}" placeholder="e.g. Golf Club" value="${escapeHtml(e.meet_at||'')}">
           </div>
           <div class="full">
             <label>What's included</label>
-            <textarea id="ef-included-${e.id}">${e.whats_included||''}</textarea>
+            <textarea id="ef-included-${e.id}">${escapeHtml(e.whats_included||'')}</textarea>
           </div>
         </div>
         <div class="edit-form-actions">
@@ -1837,7 +1854,7 @@ function eventDetailHtml(e){
   return `
     <div class="event-detail" onclick="event.stopPropagation();">
       ${e.description
-        ? `<p class="event-description">${e.description}</p>`
+        ? `<p class="event-description">${escapeHtml(e.description)}</p>`
         : isLoggedIn
           ? `<p class="event-description muted">No description yet — use "Edit event" below to add one.</p>`
           : `<p class="event-description muted">No description added yet.</p>`}
@@ -1920,10 +1937,10 @@ function eventDetailHtml(e){
         const foodPanel = e.whats_included ? `
           <div style="background:#fdf3e7; border-radius:var(--radius); padding:.65rem 1rem; margin-bottom:.8rem; display:flex; align-items:center; gap:.6rem; font-size:.88rem; color:#7a4a10;">
             <span style="font-size:1.1rem;">🍴</span>
-            <span>${e.whats_included}</span>
+            <span>${escapeHtml(e.whats_included)}</span>
           </div>` : '';
         return `
-          ${details.length ? `<div class="event-detail-info">${details.map(([k,v]) => `<div class="edi-row"><span class="edi-label">${k}</span><span class="edi-value">${v}</span></div>`).join('')}</div>` : ''}
+          ${details.length ? `<div class="event-detail-info">${details.map(([k,v]) => `<div class="edi-row"><span class="edi-label">${k}</span><span class="edi-value">${escapeHtml(v)}</span></div>`).join('')}</div>` : ''}
           ${foodPanel}
           <div class="signup-block">
             <h4>Sign up for this event</h4>
@@ -2312,7 +2329,7 @@ function renderCommittee(){
     const last = m.last_name || (m.name ? m.name.split(' ').slice(1).join(' ') : '');
     const initials = ((first[0] || '') + (last[0] || '')).toUpperCase();
     const photo = m.photo_url
-      ? `<img class="leader-photo" src="${m.photo_url}" alt="${m.name}">`
+      ? `<img class="leader-photo" src="${m.photo_url}" alt="${escapeHtml(m.name)}">`
       : `<div class="leader-photo placeholder">${initials}</div>`;
     const isEditing = editingCommitteeIds.has(m.id);
 
@@ -2329,15 +2346,15 @@ function renderCommittee(){
           <div class="edit-form-grid">
             <div>
               <label>First name</label>
-              <input id="cm-first-${m.id}" value="${(first).replace(/"/g,'&quot;')}">
+              <input id="cm-first-${m.id}" value="${escapeHtml(first)}">
             </div>
             <div>
               <label>Last name</label>
-              <input id="cm-last-${m.id}" value="${(last).replace(/"/g,'&quot;')}">
+              <input id="cm-last-${m.id}" value="${escapeHtml(last)}">
             </div>
             <div class="full">
               <label>Role</label>
-              <input id="cm-role-${m.id}" value="${(m.role||'').replace(/"/g,'&quot;')}">
+              <input id="cm-role-${m.id}" value="${escapeHtml(m.role||'')}">
             </div>
             <div>
               <label>Sort order</label>
@@ -2361,8 +2378,8 @@ function renderCommittee(){
         <div class="committee-card-top">
           ${photo}
           <div>
-            <div class="role">${m.role}</div>
-            <h3>${m.name}</h3>
+            <div class="role">${escapeHtml(m.role)}</div>
+            <h3>${escapeHtml(m.name)}</h3>
           </div>
         </div>
         ${uploadBlock}
@@ -2598,7 +2615,7 @@ function galleryTileHtml(g, opts){
   const mediaHtml = g.media_url
     ? (g.type === 'video'
         ? `<video class="tile-media-real" src="${g.media_url}" controls></video>`
-        : `<img class="tile-media-real" src="${g.media_url}" alt="${g.caption || ''}" style="cursor:zoom-in;" onclick="openLightbox('${g.id}')">`)
+        : `<img class="tile-media-real" src="${g.media_url}" alt="${escapeHtml(g.caption || '')}" style="cursor:zoom-in;" onclick="openLightbox('${g.id}')">`)
     : `<div class="tile-media ${g.type === 'video' ? 'video' : ''}"></div>`;
 
   const uploadBlock = (isLoggedIn && !opts.compact) ? `
@@ -2609,7 +2626,7 @@ function galleryTileHtml(g, opts){
         </div>` : '';
 
   const eventOpts = events.map(e =>
-    `<option value="${e.id}" ${g.eventId===e.id?'selected':''}>${e.name}</option>`
+    `<option value="${e.id}" ${g.eventId===e.id?'selected':''}>${escapeHtml(e.name)}</option>`
   ).join('');
 
   const editForm = (isLoggedIn && isEditing) ? `
@@ -2618,11 +2635,11 @@ function galleryTileHtml(g, opts){
           <div class="edit-form-grid">
             <div class="full">
               <label>Title</label>
-              <input id="gi-caption-${g.id}" value="${(g.caption||'').replace(/"/g,'&quot;')}">
+              <input id="gi-caption-${g.id}" value="${escapeHtml(g.caption||'')}">
             </div>
             <div class="full">
               <label>Description</label>
-              <textarea id="gi-desc-${g.id}">${g.description||''}</textarea>
+              <textarea id="gi-desc-${g.id}">${escapeHtml(g.description||'')}</textarea>
             </div>
             <div>
               <label>Type</label>
@@ -2655,9 +2672,9 @@ function galleryTileHtml(g, opts){
     <div class="gallery-tile">
       ${mediaHtml}
       <div class="tile-body">
-        <p>${g.caption}</p>
-        ${g.description ? `<p class="tile-description">${g.description}</p>` : ''}
-        ${ev ? `<a class="tile-link" href="#" onclick="goTo('events',{highlightEvent:'${ev.id}'}); return false;">From: ${ev.name} ↗</a>` : ''}
+        <p>${escapeHtml(g.caption)}</p>
+        ${g.description ? `<p class="tile-description">${escapeHtml(g.description)}</p>` : ''}
+        ${ev ? `<a class="tile-link" href="#" onclick="goTo('events',{highlightEvent:'${ev.id}'}); return false;">From: ${escapeHtml(ev.name)} ↗</a>` : ''}
         ${uploadBlock}
         ${editToggle}
         ${editForm}
@@ -2950,7 +2967,7 @@ function newsCardHtml(n){
       <div class="edit-form-grid">
         <div class="full">
           <label>Title</label>
-          <input id="nf-title-${n.id}" value="${(n.title||'').replace(/"/g,'&quot;')}">
+          <input id="nf-title-${n.id}" value="${escapeHtml(n.title||'')}">
         </div>
         <div>
           <label>Date</label>
@@ -2965,7 +2982,7 @@ function newsCardHtml(n){
         </div>
         <div class="full">
           <label>Excerpt</label>
-          <textarea id="nf-excerpt-${n.id}">${n.excerpt||''}</textarea>
+          <textarea id="nf-excerpt-${n.id}">${escapeHtml(n.excerpt||'')}</textarea>
         </div>
       </div>
       <div class="edit-form-actions">
@@ -2983,9 +3000,9 @@ function newsCardHtml(n){
   return `
     <article class="news-card">
       <time>${fmtDate(n.date)}${editToggle}</time>
-      <h3>${n.title}</h3>
-      <p>${n.excerpt}</p>
-      ${ev ? `<a class="related-chip" href="#" onclick="goTo('events',{highlightEvent:'${ev.id}'}); return false;">Related event: ${ev.name} ↗</a>` : ''}
+      <h3>${escapeHtml(n.title)}</h3>
+      <p>${escapeHtml(n.excerpt)}</p>
+      ${ev ? `<a class="related-chip" href="#" onclick="goTo('events',{highlightEvent:'${ev.id}'}); return false;">Related event: ${escapeHtml(ev.name)} ↗</a>` : ''}
       ${editForm}
     </article>`;
 }
@@ -3377,8 +3394,8 @@ function renderHome(){
   document.getElementById('home-news-slot').innerHTML = latestNews.map(n => `
     <div class="mini-news-item">
       <time>${fmtDate(n.date)}</time>
-      <h4>${n.title}</h4>
-      <p>${n.excerpt}</p>
+      <h4>${escapeHtml(n.title)}</h4>
+      <p>${escapeHtml(n.excerpt)}</p>
     </div>
   `).join('') + `<div style="margin-top:.6rem;"><a href="#" onclick="goTo('news'); return false;">All news &rarr;</a></div>`;
 
@@ -4059,7 +4076,7 @@ function renderRules(){
           <div class="edit-form-grid">
             <div class="full">
               <label>Title</label>
-              <input id="rl-title-${r.id}" value="${(r.title||'').replace(/"/g,'&quot;')}">
+              <input id="rl-title-${r.id}" value="${escapeHtml(r.title||'')}">
             </div>
             <div>
               <label>Sort order</label>
@@ -4067,7 +4084,7 @@ function renderRules(){
             </div>
             <div class="full">
               <label>Rule text</label>
-              <textarea id="rl-body-${r.id}" style="min-height:100px;">${r.body||''}</textarea>
+              <textarea id="rl-body-${r.id}" style="min-height:100px;">${escapeHtml(r.body||'')}</textarea>
             </div>
           </div>
           <div class="edit-form-actions">
@@ -4080,8 +4097,8 @@ function renderRules(){
 
       return `
         <div class="rule-card">
-          <h3><span class="rule-num">${i+1}.</span> ${r.title} ${editToggle}</h3>
-          <p>${r.body || ''}</p>
+          <h3><span class="rule-num">${i+1}.</span> ${escapeHtml(r.title)} ${editToggle}</h3>
+          <p>${escapeHtml(r.body || '')}</p>
           ${editForm}
         </div>`;
     }).join('');
@@ -4252,11 +4269,11 @@ function honourEditFormHtml(h){
         </div>
         <div>
           <label>Event / title (use "Trophy — Course")</label>
-          <input id="ho-title-${h.id}" value="${(h.title||'').replace(/"/g,'&quot;')}">
+          <input id="ho-title-${h.id}" value="${escapeHtml(h.title||'')}">
         </div>
         <div class="full">
           <label>Winner / name</label>
-          <input id="ho-winner-${h.id}" value="${(h.winner||'').replace(/"/g,'&quot;')}">
+          <input id="ho-winner-${h.id}" value="${escapeHtml(h.winner||'')}">
         </div>
       </div>
       <div class="edit-form-actions">
@@ -4374,8 +4391,8 @@ function renderHonours(){
             const course = honourCourse(h.title);
             return `<li>
               <span class="tw-year">${h.year}</span>
-              <span class="tw-name">${h.winner}</span>
-              ${course ? `<span class="tw-course">${course}</span>` : ''}
+              <span class="tw-name">${escapeHtml(h.winner)}</span>
+              ${course ? `<span class="tw-course">${escapeHtml(course)}</span>` : ''}
               ${isLoggedIn ? `<button class="committee-edit-btn" onclick="toggleHonourEdit(${h.id})">Edit</button>` : ''}
             </li>`;
           }).join('')}
