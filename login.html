@@ -175,8 +175,19 @@ function showMemberEmailFallback(){
 }
 
 async function completeLogin(user){
-  /* Check user exists in players table and is active */
   const email = user.email;
+
+  /* Platform admins manage the whole platform, not any one society's
+     player list - they may not exist in any society's players table at
+     all, so this has to be checked before the players lookup below. */
+  const { data: isPlatformAdmin } = await sb.rpc('is_platform_admin');
+  if (isPlatformAdmin){
+    setStatus('Welcome! Taking you in…', 'success');
+    window.location.replace('/');
+    return;
+  }
+
+  /* Check user exists in players table and is active */
   const { data: players } = await sb.from('players')
     .select('id,first_name,last_name,is_committee,active')
     .ilike('email', email)

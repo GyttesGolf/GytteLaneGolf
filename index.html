@@ -1078,6 +1078,10 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="none" stroke="currentColor" stroke-width="1.8"/><polyline points="9 12 12 15 16 10" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
       Admin
     </button>
+    <button class="tab-btn platform-admin-tab" role="tab" data-section="platform" aria-selected="false" style="display:none;">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      Platform
+    </button>
     <button class="nav-lock-btn" id="nav-lock-btn" onclick="handleNavLock()" aria-label="Admin login">
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
       <span id="nav-lock-label">Admin</span>
@@ -1227,6 +1231,14 @@
     <div id="accounts-content"></div>
   </section>
 
+  <!-- ============ PLATFORM ADMIN ============ -->
+  <section class="section" id="sec-platform" data-section="platform">
+    <p class="eyebrow">Platform admin only</p>
+    <h2 class="section-title">Platform</h2>
+    <p class="lede" style="margin-bottom:1.6rem;">Every society running on this platform - not scoped to any one club.</p>
+    <div id="platform-content"></div>
+  </section>
+
   <!-- ============ GROUPINGS ============ -->
   <section class="section" id="sec-groupings" data-section="groupings">
     <p class="eyebrow">Match day</p>
@@ -1298,6 +1310,9 @@
       </button>
       <button class="md-item committee-only-tab" onclick="goTo('accounts'); closeMoreDrawer(); setBottomNav('accounts');">
         <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 12 15 16 10"/></svg>Admin
+      </button>
+      <button class="md-item platform-admin-drawer-item" style="display:none;" onclick="goTo('platform'); closeMoreDrawer(); setBottomNav('platform');">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>Platform
       </button>
     </div>
     <div style="padding:.4rem 1rem .2rem; border-top:1px solid var(--line); margin-top:.3rem;">
@@ -1657,6 +1672,7 @@ function goTo(sectionName, opts){
     if (db) db.from('event_payments').select('*').eq('society_id', societyId).then(({data}) => { if(data){ eventPayments = data; renderAccounts(); }});
     renderAccounts();
   }
+  if (sectionName === 'platform') renderPlatformAdmin();
   setBottomNav(sectionName);
 }
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -2506,8 +2522,17 @@ let isLoggedIn = false;
    RLS already permits for any authenticated player, distinct from
    isLoggedIn which means admin (is_committee) specifically. */
 let isMember = false;
+/* A person managing the whole platform, not scoped to any one society -
+   checked via the is_platform_admin() RPC rather than any players row,
+   since a platform admin may not exist in any society's player list. */
+let isPlatformAdmin = false;
 
 function updateNavLock(){
+  const platformTab = document.querySelector('.platform-admin-tab');
+  if (platformTab) platformTab.style.display = isPlatformAdmin ? '' : 'none';
+  const platformDrawerItem = document.querySelector('.platform-admin-drawer-item');
+  if (platformDrawerItem) platformDrawerItem.style.display = isPlatformAdmin ? '' : 'none';
+
   const btn = document.getElementById('nav-lock-btn');
   const label = document.getElementById('nav-lock-label');
   if (!btn || !label) return;
@@ -2549,6 +2574,7 @@ function renderAll(){
   renderHonours();
   renderCoursesPanel();
   renderAccounts();
+  if (isPlatformAdmin) renderPlatformAdmin();
 }
 
 async function initAuth(){
@@ -2562,6 +2588,8 @@ async function initAuth(){
     const isActivePlayer = !!(player && player.active !== false);
     isMember = isActivePlayer;
     if (isActivePlayer && player.is_committee) isLoggedIn = true;
+    const { data: pa } = await db.rpc('is_platform_admin');
+    isPlatformAdmin = !!pa;
   }
 
   /* Listen for auth state changes (magic link callback, sign out etc) */
@@ -2574,9 +2602,12 @@ async function initAuth(){
          is what additionally grants admin (edit) rights on top of that. */
       isMember = isActivePlayer;
       isLoggedIn = isActivePlayer && !!player.is_committee;
+      const { data: pa } = await db.rpc('is_platform_admin');
+      isPlatformAdmin = !!pa;
     } else {
       isMember = false;
       isLoggedIn = false;
+      isPlatformAdmin = false;
     }
     updateNavLock();
     renderAll();
@@ -5103,6 +5134,152 @@ async function saveSocietyBranding(){
   if (currentSociety) Object.assign(currentSociety, { primary_colour, secondary_colour, founded });
   applyBranding({ primary_colour, secondary_colour, founded });
   setStatus('Saved!', 'success');
+}
+
+/* ===================== platform admin ===================== */
+let allSocieties = [];
+let editingSocietyIds = new Set();
+let addSocietyFormOpen = false;
+
+async function renderPlatformAdmin(){
+  const el = document.getElementById('platform-content');
+  if (!el) return;
+  if (!isPlatformAdmin){ el.innerHTML = '<p class="muted">This section is for platform admins only.</p>'; return; }
+
+  if (!db){ el.innerHTML = '<p class="muted">Not connected.</p>'; return; }
+  const { data, error } = await db.from('societies').select('*').order('name');
+  if (error){ console.error(error); el.innerHTML = '<p class="muted">Could not load societies.</p>'; return; }
+  allSocieties = data || [];
+
+  el.innerHTML = `
+    <p class="player-count">${allSocieties.length} societ${allSocieties.length===1?'y':'ies'}</p>
+    <div class="player-list">${allSocieties.map(soc => platformSocietyRowHtml(soc)).join('')}</div>
+    <div style="margin-top:1rem;">
+      ${addSocietyFormOpen ? newSocietyFormHtml() : `<button class="add-item-btn" onclick="addSocietyFormOpen=true; renderPlatformAdmin();">+ Add society</button>`}
+    </div>`;
+}
+
+function platformSocietyRowHtml(soc){
+  const isEditing = editingSocietyIds.has(soc.id);
+  const editForm = isEditing ? `
+    <div class="edit-form" style="margin-top:.6rem;">
+      <div class="edit-form-grid">
+        <div><label>Name</label><input id="ps-name-${soc.id}" value="${escapeHtml(soc.name||'')}"></div>
+        <div><label>Founded (year)</label><input type="number" id="ps-founded-${soc.id}" value="${soc.founded||''}"></div>
+        <div><label>Subdomain</label><input id="ps-subdomain-${soc.id}" value="${escapeHtml(soc.subdomain||'')}"></div>
+        <div><label>Custom domain</label><input id="ps-customdomain-${soc.id}" value="${escapeHtml(soc.custom_domain||'')}"></div>
+        <div><label>Primary colour</label><input type="color" id="ps-primary-${soc.id}" value="${soc.primary_colour||'#4B1320'}"></div>
+        <div><label>Secondary colour</label><input type="color" id="ps-secondary-${soc.id}" value="${soc.secondary_colour||'#B8862F'}"></div>
+      </div>
+      <div class="edit-form-actions">
+        <button class="btn brass" onclick="savePlatformSociety('${soc.id}')">Save</button>
+        <button class="btn ghost" onclick="editingSocietyIds.delete('${soc.id}'); renderPlatformAdmin();">Cancel</button>
+        <div class="edit-status" id="ps-status-${soc.id}"></div>
+      </div>
+    </div>` : '';
+
+  return `
+    <div class="player-list-item" style="cursor:default;">
+      <div class="pli-ini" style="background:${soc.primary_colour||'var(--ink)'};">${escapeHtml((soc.name||'?')[0])}</div>
+      <div class="pli-info">
+        <div class="pli-name">${escapeHtml(soc.name)}</div>
+        <div class="pli-sub">${escapeHtml(soc.subdomain||'no subdomain')}${soc.custom_domain ? ' · ' + escapeHtml(soc.custom_domain) : ''}${soc.founded ? ' · founded ' + soc.founded : ''}</div>
+      </div>
+      <div class="pli-right">
+        <button class="committee-edit-btn" onclick="${isEditing ? `editingSocietyIds.delete('${soc.id}')` : `editingSocietyIds.add('${soc.id}')`}; renderPlatformAdmin();">${isEditing ? 'Cancel' : 'Edit'}</button>
+      </div>
+    </div>
+    ${editForm}`;
+}
+
+async function savePlatformSociety(id){
+  const setStatus = (msg, kind) => {
+    const el = document.getElementById('ps-status-'+id);
+    if (el){ el.textContent = msg; el.className = 'edit-status ' + (kind||''); }
+  };
+  if (!db){ setStatus('Not connected.', 'error'); return; }
+  const name = document.getElementById('ps-name-'+id)?.value.trim();
+  const founded = document.getElementById('ps-founded-'+id)?.value || null;
+  const subdomain = document.getElementById('ps-subdomain-'+id)?.value.trim() || null;
+  const custom_domain = document.getElementById('ps-customdomain-'+id)?.value.trim() || null;
+  const primary_colour = document.getElementById('ps-primary-'+id)?.value;
+  const secondary_colour = document.getElementById('ps-secondary-'+id)?.value;
+  if (!name){ setStatus('Name is required.', 'error'); return; }
+  setStatus('Saving…', 'loading');
+  const { error } = await db.from('societies').update({
+    name, founded: founded ? Number(founded) : null, subdomain, custom_domain, primary_colour, secondary_colour
+  }).eq('id', id);
+  if (error){ console.error(error); setStatus('Save failed.', 'error'); return; }
+  editingSocietyIds.delete(id);
+  await renderPlatformAdmin();
+  /* if we just edited the society we're currently browsing as, re-theme immediately */
+  if (id === societyId){
+    currentSociety = allSocieties.find(s => s.id === id) || currentSociety;
+    applyBranding(currentSociety);
+  }
+}
+
+function newSocietyFormHtml(){
+  return `
+    <div class="edit-form" style="max-width:520px;">
+      <h4>New society</h4>
+      <div class="edit-form-grid">
+        <div><label>Name</label><input id="ns-name" placeholder="e.g. Riverside Golf Society"></div>
+        <div><label>Founded (year)</label><input type="number" id="ns-founded"></div>
+        <div><label>Subdomain</label><input id="ns-subdomain" placeholder="e.g. riverside"></div>
+        <div><label>Custom domain</label><input id="ns-customdomain" placeholder="optional, e.g. riversidegolf.co.uk"></div>
+      </div>
+      <h4 style="margin-top:1rem;">First admin</h4>
+      <p style="font-size:.78rem; color:var(--text-muted); margin:0 0 .6rem;">Seeds their first committee admin so someone can sign in and take it from here.</p>
+      <div class="edit-form-grid">
+        <div><label>First name</label><input id="ns-admin-fname"></div>
+        <div><label>Last name</label><input id="ns-admin-lname"></div>
+        <div class="full"><label>Email</label><input type="email" id="ns-admin-email"></div>
+      </div>
+      <div class="edit-form-actions">
+        <button class="btn brass" onclick="saveNewSociety()">Create society</button>
+        <button class="btn ghost" onclick="addSocietyFormOpen=false; renderPlatformAdmin();">Cancel</button>
+        <div class="edit-status" id="ns-status"></div>
+      </div>
+    </div>`;
+}
+
+async function saveNewSociety(){
+  const setStatus = (msg, kind) => {
+    const el = document.getElementById('ns-status');
+    if (el){ el.textContent = msg; el.className = 'edit-status ' + (kind||''); }
+  };
+  if (!db){ setStatus('Not connected.', 'error'); return; }
+  const name = document.getElementById('ns-name')?.value.trim();
+  const founded = document.getElementById('ns-founded')?.value || null;
+  const subdomain = document.getElementById('ns-subdomain')?.value.trim() || null;
+  const custom_domain = document.getElementById('ns-customdomain')?.value.trim() || null;
+  const adminFirst = document.getElementById('ns-admin-fname')?.value.trim();
+  const adminLast = document.getElementById('ns-admin-lname')?.value.trim();
+  const adminEmail = document.getElementById('ns-admin-email')?.value.trim();
+  if (!name){ setStatus('Society name is required.', 'error'); return; }
+  if (!adminFirst || !adminLast || !adminEmail || !isValidEmail(adminEmail)){
+    setStatus('A valid first admin (name and email) is required.', 'error'); return;
+  }
+  setStatus('Creating…', 'loading');
+
+  const { data: soc, error: socErr } = await db.from('societies')
+    .insert({ name, founded: founded ? Number(founded) : null, subdomain, custom_domain })
+    .select().single();
+  if (socErr){ console.error(socErr); setStatus('Could not create society.', 'error'); return; }
+
+  const { error: playerErr } = await db.from('players').insert({
+    first_name: adminFirst, last_name: adminLast, email: adminEmail,
+    is_committee: true, active: true, society_id: soc.id
+  });
+  if (playerErr){
+    console.error(playerErr);
+    setStatus('Society created, but adding the first admin failed - add them from that society’s Players page instead.', 'error');
+  } else {
+    setStatus('Society created!', 'success');
+  }
+  addSocietyFormOpen = false;
+  renderPlatformAdmin();
 }
 
 function renderAccounts(){
