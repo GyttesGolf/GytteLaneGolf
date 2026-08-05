@@ -1421,19 +1421,29 @@ async function loadData(){
     return;
   }
 
-  /* load society ID first — needed for all inserts */
+  /* load society ID first — needed for all inserts, and to scope every read
+     below to just this society. Resolved from the current domain (custom
+     domain first, then subdomain) so multiple societies can share this same
+     codebase/database, each seeing only their own data. Falls back to
+     "whichever society comes first" only if nothing matches (local file://
+     testing, a domain not yet registered to a society, etc). */
   try {
-    const { data: soc } = await db.from('societies').select('id').limit(1).single();
+    const hostname = window.location.hostname;
+    const subdomain = hostname.split('.')[0];
+    let soc = null;
+    ({ data: soc } = await db.from('societies').select('id').eq('custom_domain', hostname).maybeSingle());
+    if (!soc) ({ data: soc } = await db.from('societies').select('id').eq('subdomain', subdomain).maybeSingle());
+    if (!soc) ({ data: soc } = await db.from('societies').select('id').limit(1).maybeSingle());
     if (soc) societyId = soc.id;
   } catch(e){ console.warn('Could not load society:', e); }
 
   let evRes, coRes, gaRes, neRes, reRes;
   try {
     [evRes, coRes, gaRes, neRes, reRes] = await Promise.all([
-      db.from('events').select('*'),
-      db.from('committee').select('*').order('sort_order'),
-      db.from('gallery').select('*'),
-      db.from('news').select('*'),
+      db.from('events').select('*').eq('society_id', societyId),
+      db.from('committee').select('*').eq('society_id', societyId).order('sort_order'),
+      db.from('gallery').select('*').eq('society_id', societyId),
+      db.from('news').select('*').eq('society_id', societyId),
     ]);
   } catch (netErr){
     /* Network completely unavailable (offline) — fall back to the last snapshot */
@@ -1471,8 +1481,8 @@ async function loadData(){
      sign-up feature inactive rather than showing a page-wide error. */
   try {
     const [plRes, suRes] = await Promise.all([
-      db.from('players').select('*'),
-      db.from('signups').select('*'),
+      db.from('players').select('*').eq('society_id', societyId),
+      db.from('signups').select('*').eq('society_id', societyId),
     ]);
     if (plRes.error || suRes.error) throw (plRes.error || suRes.error);
     players = plRes.data || [];
@@ -1485,7 +1495,7 @@ async function loadData(){
 
   /* rules table — same graceful fallback if migration not yet run */
   try {
-    const ruRes = await db.from('rules').select('*').order('sort_order');
+    const ruRes = await db.from('rules').select('*').eq('society_id', societyId).order('sort_order');
     if (ruRes.error) throw ruRes.error;
     rules = ruRes.data || [];
   } catch (err){
@@ -1495,7 +1505,7 @@ async function loadData(){
 
   /* honours table — same graceful fallback */
   try {
-    const hoRes = await db.from('honours').select('*');
+    const hoRes = await db.from('honours').select('*').eq('society_id', societyId);
     if (hoRes.error) throw hoRes.error;
     honours = hoRes.data || [];
   } catch (err){
@@ -1505,13 +1515,20 @@ async function loadData(){
 
   /* all scorecards + hole scores (for player history & full results) */
   try {
-    const [scRes, hsRes] = await Promise.all([
-      db.from('scorecards').select('*'),
-      db.from('hole_scores').select('*'),
-    ]);
-    if (scRes.error || hsRes.error) throw (scRes.error || hsRes.error);
+    const scRes = await db.from('scorecards').select('*').eq('society_id', societyId);
+    if (scRes.error) throw scRes.error;
     allScorecards = scRes.data || [];
-    allHoleScores = hsRes.data || [];
+    /* hole_scores has no society_id column of its own - it's only ever
+       looked up by scorecard_id, so scope it through the scorecards we
+       already resolved above rather than fetching every society's rows. */
+    const scorecardIds = allScorecards.map(s => s.id);
+    if (scorecardIds.length){
+      const hsRes = await db.from('hole_scores').select('*').in('scorecard_id', scorecardIds);
+      if (hsRes.error) throw hsRes.error;
+      allHoleScores = hsRes.data || [];
+    } else {
+      allHoleScores = [];
+    }
   } catch (err){
     console.warn('Scorecards not available yet (run add-live-scores.sql):', err);
     allScorecards = [];
@@ -1521,8 +1538,8 @@ async function loadData(){
   /* courses + ratings */
   try {
     const [crRes, ratRes] = await Promise.all([
-      db.from('courses').select('*').order('name'),
-      db.from('course_ratings').select('*'),
+      db.from('courses').select('*').eq('society_id', societyId).order('name'),
+      db.from('course_ratings').select('*').eq('society_id', societyId),
     ]);
     if (crRes.error || ratRes.error) throw (crRes.error || ratRes.error);
     courses = crRes.data || [];
@@ -1535,12 +1552,17 @@ async function loadData(){
 
   /* groups + group_players (public, for the starting sheet) */
   try {
-    const [grRes, gpRes] = await Promise.all([
-      db.from('groups').select('*').order('tee_time'),
-      db.from('group_players').select('*'),
-    ]);
+    const grRes = await db.from('groups').select('*').eq('society_id', societyId).order('tee_time');
     matchGroups = grRes.data || [];
-    matchGroupPlayers = gpRes.data || [];
+    /* group_players has no society_id of its own - scope it through the
+       groups already resolved above, same reasoning as hole_scores. */
+    const groupIds = matchGroups.map(g => g.id);
+    if (groupIds.length){
+      const gpRes = await db.from('group_players').select('*').in('group_id', groupIds);
+      matchGroupPlayers = gpRes.data || [];
+    } else {
+      matchGroupPlayers = [];
+    }
   } catch(err){
     console.warn('Groups not available yet (run add-groups.sql):', err);
     matchGroups = [];
@@ -1548,8 +1570,8 @@ async function loadData(){
   }
   try {
     const [pmRes, exRes] = await Promise.all([
-      db.from('event_payments').select('*'),
-      db.from('expenditures').select('*').order('date'),
+      db.from('event_payments').select('*').eq('society_id', societyId),
+      db.from('expenditures').select('*').eq('society_id', societyId).order('date'),
     ]);
     eventPayments = pmRes.data || [];
     expenditures = exRes.data || [];
@@ -1612,7 +1634,7 @@ function goTo(sectionName, opts){
   if (sectionName === 'leaderboard'){ goTo('scores'); return; }
   if (sectionName === 'groupings') renderGroupings();
   if (sectionName === 'accounts'){
-    if (db) db.from('event_payments').select('*').then(({data}) => { if(data){ eventPayments = data; renderAccounts(); }});
+    if (db) db.from('event_payments').select('*').eq('society_id', societyId).then(({data}) => { if(data){ eventPayments = data; renderAccounts(); }});
     renderAccounts();
   }
   setBottomNav(sectionName);
@@ -3495,15 +3517,17 @@ let liveScoresReady = false; // true once tables confirmed to exist
 async function loadLiveScoresData(eventId){
   if (!db) return;
   try {
-    const [scRes, hsRes] = await Promise.all([
-      db.from('scorecards').select('*').eq('event_id', eventId),
-      db.from('hole_scores').select('*'),
-    ]);
-    if (scRes.error || hsRes.error) throw (scRes.error || hsRes.error);
+    const scRes = await db.from('scorecards').select('*').eq('event_id', eventId);
+    if (scRes.error) throw scRes.error;
     scorecards = scRes.data || [];
-    // only keep hole_scores for scorecards in this event
-    const scIds = new Set(scorecards.map(s => s.id));
-    holeScores = (hsRes.data || []).filter(h => scIds.has(h.scorecard_id));
+    const scIds = scorecards.map(s => s.id);
+    if (scIds.length){
+      const hsRes = await db.from('hole_scores').select('*').in('scorecard_id', scIds);
+      if (hsRes.error) throw hsRes.error;
+      holeScores = hsRes.data || [];
+    } else {
+      holeScores = [];
+    }
     liveScoresReady = true;
     /* cache for offline use */
     try {
@@ -3987,7 +4011,7 @@ async function processScoreQueue(){
     const item = scoreQueue[0];
     try {
       const { error } = await db.from('hole_scores').upsert(
-        { scorecard_id: item.scorecard_id, hole_number: item.hole_number, points: item.points, updated_at: new Date().toISOString() },
+        { scorecard_id: item.scorecard_id, hole_number: item.hole_number, points: item.points, updated_at: new Date().toISOString(), society_id: societyId },
         { onConflict: 'scorecard_id,hole_number' }
       );
       if (error) throw error;
@@ -5380,7 +5404,7 @@ async function saveGroup(groupId){
   matchGroupPlayers = matchGroupPlayers.filter(gp => gp.group_id !== groupId);
 
   if (selectedIds.length){
-    const rows = selectedIds.map(pid => ({ group_id: groupId, player_id: pid, is_marker: false }));
+    const rows = selectedIds.map(pid => ({ group_id: groupId, player_id: pid, is_marker: false, society_id: societyId }));
     const { data: newGPs, error: ge } = await db.from('group_players').insert(rows).select();
     if (ge){ console.error(ge); setStatus('Players save failed.','error'); return; }
     if (newGPs) matchGroupPlayers.push(...newGPs);
