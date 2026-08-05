@@ -1731,7 +1731,7 @@ function isPaidRecord(rec){ return rec && (rec.paid === true || rec.paid === 1 |
 
 function attendeePillLi(p, eventId, isLoggedIn, isPaid){
   return `<li style="display:flex; align-items:center; justify-content:space-between; gap:.5rem;">
-    <span>${isPaid ? '<span class="paid-tick">✓</span>' : ''}${p.first_name} ${p.last_name}</span>
+    <span>${isPaid ? '<span class="paid-tick">✓</span>' : ''}${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</span>
     ${isLoggedIn ? `<button class="committee-edit-btn" style="color:var(--claret); border-color:var(--claret); flex-shrink:0;" onclick="removeSignup('${eventId}',${p.id})">✕ Remove</button>` : ''}
   </li>`;
 }
@@ -1755,7 +1755,7 @@ function eventDetailHtml(e){
   const playerOptions = [...players]
     .filter(p => p.active !== false)
     .sort((a,b) => a.first_name.localeCompare(b.first_name))
-    .map(p => `<option value="${p.id}">${p.first_name} ${p.last_name}</option>`)
+    .map(p => `<option value="${p.id}">${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</option>`)
     .join('');
 
   const editForm = (isLoggedIn && isEditing) ? `
@@ -1915,7 +1915,7 @@ function eventDetailHtml(e){
                       const amount = rec ? Number(rec.amount||fee) : fee;
                       return `<div class="payment-row ${isPaid?'paid':''}" data-event="${e.id}" data-player="${p.id}">
                         <input type="checkbox" ${isPaid?'checked':''} onchange="togglePayment('${e.id}',${p.id},'${amount.toFixed(2)}',this.checked)">
-                        <span class="pay-name">${p.first_name} ${p.last_name}</span>
+                        <span class="pay-name">${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</span>
                         <div style="display:flex; align-items:center; gap:.3rem; margin-left:auto;">
                           <span style="font-family:var(--body); font-size:.8rem; color:var(--text-muted);">£</span>
                           <input id="pay-amt-${e.id}-${p.id}" type="number" step="0.01" min="0" value="${amount.toFixed(2)}"
@@ -1981,7 +1981,7 @@ function eventDetailHtml(e){
                   const amount = rec ? Number(rec.amount||fee) : fee;
                   return `<div class="payment-row ${isPaid?'paid':''}" data-event="${e.id}" data-player="${p.id}">
                     <input type="checkbox" ${isPaid?'checked':''} onchange="togglePayment('${e.id}',${p.id},'${amount.toFixed(2)}',this.checked)">
-                    <span class="pay-name">${p.first_name} ${p.last_name}</span>
+                    <span class="pay-name">${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</span>
                     <div style="display:flex; align-items:center; gap:.3rem; margin-left:auto;">
                       <span style="font-family:var(--body); font-size:.8rem; color:var(--text-muted);">£</span>
                       <input id="pay-amt-${e.id}-${p.id}" type="number" step="0.01" min="0" value="${amount.toFixed(2)}"
@@ -2120,7 +2120,7 @@ function scoresEditorHtml(e){
       : (sc && allHoleScores.some(h => h.scorecard_id === sc.id) ? scTotal(sc) : '');
     return `
       <div style="display:flex; align-items:center; gap:.7rem; padding:.3rem 0;">
-        <span style="flex:1; font-size:.92rem;">${p.first_name} ${p.last_name}</span>
+        <span style="flex:1; font-size:.92rem;">${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</span>
         <input class="handicap-input" type="number" min="0" max="60" placeholder="pts"
           id="fs-${e.id}-${pid}" value="${val}">
       </div>`;
@@ -2133,7 +2133,7 @@ function scoresEditorHtml(e){
       <div style="display:flex; gap:.6rem; margin:.7rem 0; align-items:center;">
         <select id="fs-add-${e.id}" style="flex:1; font-family:var(--body); font-size:.9rem; padding:.5rem .65rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--paper);">
           <option value="">Add a player…</option>
-          ${others.map(p => `<option value="${p.id}">${p.first_name} ${p.last_name}</option>`).join('')}
+          ${others.map(p => `<option value="${p.id}">${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</option>`).join('')}
         </select>
         <button class="committee-edit-btn" onclick="addPlayerToScores('${e.id}')">Add</button>
       </div>
@@ -3172,14 +3172,14 @@ function renderPlayers(){
     const isExpanded = expandedPlayerIds.has(p.id);
     const isEditing = editingPlayerIds.has(p.id);
     const tab = playerTabState[p.id] || 'scores';
-    const initials = (p.first_name[0]||'') + (p.last_name[0]||'');
+    const initials = escapeHtml((p.first_name[0]||'') + (p.last_name[0]||''));
     const hcap = p.handicap != null ? `HCP ${p.handicap}` : 'No HCP';
 
     const editForm = isLoggedIn && isEditing ? `
       <div class="edit-form" style="margin:.6rem 0 0;" onclick="event.stopPropagation()">
         <div class="edit-form-grid">
-          <div><label>First name</label><input id="ep-fname-${p.id}" value="${p.first_name.replace(/"/g,'&quot;')}"></div>
-          <div><label>Last name</label><input id="ep-lname-${p.id}" value="${p.last_name.replace(/"/g,'&quot;')}"></div>
+          <div><label>First name</label><input id="ep-fname-${p.id}" value="${escapeHtml(p.first_name)}"></div>
+          <div><label>Last name</label><input id="ep-lname-${p.id}" value="${escapeHtml(p.last_name)}"></div>
           <div><label>Email</label><input type="email" id="ep-email-${p.id}" value="${(p.email||'').replace(/"/g,'&quot;')}"></div>
           <div><label>Handicap</label><input type="number" step="0.1" id="ep-hcap-${p.id}" value="${p.handicap??''}"></div>
           <div class="full" style="display:flex;align-items:center;gap:.6rem;">
@@ -3227,7 +3227,7 @@ function renderPlayers(){
       <div class="player-list-item ${isExpanded?'expanded':''}" onclick="togglePlayerHistory(${p.id})">
         <div class="pli-ini">${initials}</div>
         <div class="pli-info">
-          <div class="pli-name">${p.first_name} ${p.last_name}</div>
+          <div class="pli-name">${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</div>
           <div class="pli-sub">${hcap} · ${attended} event${attended===1?'':'s'}</div>
         </div>
         <div class="pli-right">
@@ -3767,7 +3767,7 @@ function renderSetupView(){
       const gPlayers = matchGroupPlayers.filter(gp => gp.group_id === g.id);
       const playerNames = gPlayers.map(gp => {
         const p = players.find(x => x.id === gp.player_id);
-        return p ? `${p.first_name} ${p.last_name}` : null;
+        return p ? `${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}` : null;
       }).filter(Boolean);
 
       const isSelected = gPlayers.length && gPlayers.every(gp => scoringPlayerIds.includes(gp.player_id))
@@ -3811,7 +3811,7 @@ function renderSetupView(){
     const sel = scoringPlayerIds.includes(p.id);
     return `<label class="player-pick-item ${sel?'selected':''}">
       <input type="checkbox" ${sel?'checked':''} onchange="toggleScoringPlayer(${p.id})">
-      <span class="pick-name">${p.first_name} ${p.last_name}</span>
+      <span class="pick-name">${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</span>
       <span class="pick-hcap">${p.handicap != null ? 'HCP '+p.handicap : ''}</span>
     </label>`;
   }).join('');
@@ -4388,7 +4388,7 @@ function renderHonours(){
         <ol style="columns:2; gap:1.4rem;">
           ${archived.map(p => `
             <li style="break-inside:avoid;">
-              <span class="tw-name">${p.first_name} ${p.last_name}</span>
+              <span class="tw-name">${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</span>
             </li>`).join('')}
         </ol>
       </div>`;
@@ -4471,7 +4471,7 @@ function honourPlayerSelectHtml(inputId){
   return `
     <select id="${inputId}">
       <option value="">— Select player —</option>
-      ${sorted.map(p => `<option value="${p.first_name} ${p.last_name}">${p.first_name} ${p.last_name}</option>`).join('')}
+      ${sorted.map(p => `<option value="${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}">${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</option>`).join('')}
     </select>`;
 }
 
@@ -4675,7 +4675,7 @@ function starPickerHtml(courseId, eventId){
   const pending = state.stars || 0;
   const pid = state.playerId || '';
   const playerOpts = [...players].sort((a,b) => a.first_name.localeCompare(b.first_name))
-    .map(p => `<option value="${p.id}" ${pid==p.id?'selected':''}>${p.first_name} ${p.last_name}</option>`).join('');
+    .map(p => `<option value="${p.id}" ${pid==p.id?'selected':''}>${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</option>`).join('');
 
   const stars = [1,2,3,4,5].map(i =>
     `<button class="star-btn ${i <= pending ? 'lit' : ''}"
@@ -4768,7 +4768,7 @@ function renderCoursesPanel(){
     const pendingStars = ratingStateC.stars || 0;
     const pid = ratingStateC.playerId || '';
     const playerOpts = [...players].filter(p => p.active !== false).sort((a,b) => a.first_name.localeCompare(b.first_name))
-      .map(p => `<option value="${p.id}" ${pid==p.id?'selected':''}>${p.first_name} ${p.last_name}</option>`).join('');
+      .map(p => `<option value="${p.id}" ${pid==p.id?'selected':''}>${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</option>`).join('');
     const starBtns = [1,2,3,4,5].map(i =>
       `<button class="star-btn ${i <= pendingStars ? 'lit' : ''}"
         onmouseenter="previewStars('${ratingKey}',${i})"
@@ -4958,7 +4958,7 @@ function renderAdminsList(){
     ${admins.length ? `<ul class="admin-list">${admins.map(p => `
       <li>
         <span>${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</span>
-        <button class="committee-edit-btn" onclick="goTo('players'); playerListSearch=${JSON.stringify(p.first_name + ' ' + p.last_name)}; expandedPlayerIds.add(${p.id}); renderPlayers();">View</button>
+        <button class="committee-edit-btn" onclick="goTo('players'); playerListSearch=${escapeHtml(JSON.stringify(p.first_name + ' ' + p.last_name))}; expandedPlayerIds.add(${p.id}); renderPlayers();">View</button>
       </li>`).join('')}</ul>` : '<p class="muted">No admins yet.</p>'}`;
 }
 
@@ -5292,7 +5292,7 @@ function renderGroupings(){
     const playerNames = gPlayers.map(gp => {
       const p = players.find(x => x.id === gp.player_id);
       if (!p) return '';
-      const name = `${p.first_name} ${p.last_name}`;
+      const name = `${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}`;
       return gp.is_marker ? `<strong>${name} ✎</strong>` : name;
     }).filter(Boolean);
 
@@ -5304,7 +5304,7 @@ function renderGroupings(){
           <div class="full">
             <label>Players (select all in this group · max 4 · signed up only)</label>
             <select id="eg-players-${g.id}" multiple style="height:140px; width:100%; font-family:var(--body); font-size:.88rem; padding:.3rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone);">
-              ${signupsForEvent(groupingsEventId).map(p => p && p.id ? `<option value="${p.id}" ${gPlayers.some(gp => gp.player_id===p.id)?'selected':''}>${p.first_name} ${p.last_name}</option>` : '').join('')}
+              ${signupsForEvent(groupingsEventId).map(p => p && p.id ? `<option value="${p.id}" ${gPlayers.some(gp => gp.player_id===p.id)?'selected':''}>${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</option>` : '').join('')}
             </select>
           </div>
           <div class="full">
@@ -5312,7 +5312,7 @@ function renderGroupings(){
             <select id="eg-marker-${g.id}">
               <option value="">— Select marker —</option>
               ${[...players].sort((a,b) => a.first_name.localeCompare(b.first_name)).map(p =>
-                `<option value="${p.id}" ${marker?.player_id===p.id?'selected':''}>${p.first_name} ${p.last_name}</option>`
+                `<option value="${p.id}" ${marker?.player_id===p.id?'selected':''}>${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</option>`
               ).join('')}
             </select>
           </div>
@@ -5414,7 +5414,7 @@ function renderGroupingsInScores(){
       const p = players.find(x => x.id === gp.player_id);
       if (!p) return '';
       return `<div style="display:flex; align-items:center; gap:.6rem; padding:.3rem 0; border-bottom:1px solid var(--line); font-size:.92rem;">
-        <span>${p.first_name} ${p.last_name}</span>
+        <span>${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</span>
       </div>`;
     }).filter(Boolean).join('');
 
@@ -5425,7 +5425,7 @@ function renderGroupingsInScores(){
           <div class="full">
             <label>Players <span style="font-family:var(--body); font-size:.7rem; color:var(--text-muted); font-weight:normal;">(max 4 · signed up only)</span></label>
             <select id="eg-players-${g.id}" multiple style="height:130px; width:100%; font-family:var(--body); font-size:.88rem; padding:.3rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone);">
-              ${signupsForEvent(liveEventId).map(p => p && p.id ? `<option value="${p.id}" ${gPlayers.some(gp => gp.player_id===p.id)?'selected':''}>${p.first_name} ${p.last_name}</option>` : '').join('')}
+              ${signupsForEvent(liveEventId).map(p => p && p.id ? `<option value="${p.id}" ${gPlayers.some(gp => gp.player_id===p.id)?'selected':''}>${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</option>` : '').join('')}
             </select>
           </div>
         </div>
