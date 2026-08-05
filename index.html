@@ -3268,13 +3268,14 @@ async function savePlayerEdit(id){
   const email      = (document.getElementById('ep-email-'+id)?.value||'').trim()||null;
   const handicap   = document.getElementById('ep-hcap-'+id)?.value !== '' ? Number(document.getElementById('ep-hcap-'+id)?.value) : null;
   const active     = document.getElementById('ep-active-'+id)?.checked !== false;
+  const is_committee = document.getElementById('ep-committee-'+id)?.checked === true;
   if (!first_name || !last_name){ setStatus('First and last name are required.','error'); return; }
   if (email && !isValidEmail(email)){ setStatus('Enter a valid email address (no spaces), or leave it blank.','error'); return; }
   setStatus('Saving\u2026','loading');
-  const { error } = await db.from('players').update({ first_name, last_name, email, handicap, active }).eq('id', id);
+  const { error } = await db.from('players').update({ first_name, last_name, email, handicap, active, is_committee }).eq('id', id);
   if (error){ console.error(error); setStatus('Save failed.','error'); return; }
   const p = players.find(x => x.id === id);
-  if (p) Object.assign(p, { first_name, last_name, email, handicap, active });
+  if (p) Object.assign(p, { first_name, last_name, email, handicap, active, is_committee });
   editingPlayerIds.delete(id);
   renderPlayers();
 
