@@ -5172,6 +5172,7 @@ async function renderPlatformAdmin(){
   allSocieties = data || [];
 
   el.innerHTML = `
+    <a class="btn ghost" href="https://savvyscone988.grafana.net/d/azg5k6/golf-app-platform-overview" target="_blank" rel="noopener" style="display:inline-block; margin-bottom:1.2rem;">📊 Open analytics dashboard ↗</a>
     <p class="player-count">${allSocieties.length} societ${allSocieties.length===1?'y':'ies'}</p>
     <div class="player-list">${allSocieties.map(soc => platformSocietyRowHtml(soc)).join('')}</div>
     <div style="margin-top:1rem;">
