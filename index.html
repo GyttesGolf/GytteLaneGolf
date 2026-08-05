@@ -2111,6 +2111,7 @@ async function submitSignup(eventId){
   }
 
   const { error: suError } = await db.from('signups').insert({ event_id: eventId, player_id: playerId, society_id: societyId });
+  if (!suError) logActivity('event_signup', { event_id: eventId, player_id: playerId });
   if (suError){
     if (suError.code === '23505'){
       setStatus('You\u2019re already signed up for this fixture.', 'notice');
@@ -2526,6 +2527,20 @@ let isMember = false;
    checked via the is_platform_admin() RPC rather than any players row,
    since a platform admin may not exist in any society's player list. */
 let isPlatformAdmin = false;
+let currentUserEmail = null;
+
+/* Fire-and-forget activity logging for the cross-society analytics
+   dashboards (Grafana Cloud reads this table directly) - never blocks or
+   fails the action it's attached to, just warns on failure. */
+function logActivity(eventType, metadata){
+  if (!db || !societyId) return;
+  db.from('activity_log').insert({
+    society_id: societyId,
+    event_type: eventType,
+    actor_email: currentUserEmail,
+    metadata: metadata || null
+  }).then(({error}) => { if (error) console.warn('Activity log failed:', error); });
+}
 
 function updateNavLock(){
   const platformTab = document.querySelector('.platform-admin-tab');
@@ -2584,6 +2599,7 @@ async function initAuth(){
   const { data: { session } } = await db.auth.getSession();
   if (session?.user){
     const email = session.user.email;
+    currentUserEmail = email;
     const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
     const isActivePlayer = !!(player && player.active !== false);
     isMember = isActivePlayer;
@@ -2596,6 +2612,7 @@ async function initAuth(){
   db.auth.onAuthStateChange(async (event, session) => {
     if (session?.user){
       const email = session.user.email;
+      currentUserEmail = email;
       const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
       const isActivePlayer = !!(player && player.active !== false);
       /* Any active player can sign in and becomes a "member" - is_committee
@@ -2604,7 +2621,9 @@ async function initAuth(){
       isLoggedIn = isActivePlayer && !!player.is_committee;
       const { data: pa } = await db.rpc('is_platform_admin');
       isPlatformAdmin = !!pa;
+      if (event === 'SIGNED_IN') logActivity('sign_in', { is_admin: isLoggedIn, is_platform_admin: isPlatformAdmin });
     } else {
+      currentUserEmail = null;
       isMember = false;
       isLoggedIn = false;
       isPlatformAdmin = false;
@@ -4986,6 +5005,7 @@ async function togglePayment(eventId, playerId, amountOrEl, paid){
       .select().single();
     if (error){ console.error('Insert error:', error); alert('Could not save: ' + error.message); return; }
   }
+  logActivity('payment_marked', { event_id: eventId, player_id: playerId, paid, amount });
   /* update row styling and summary directly */
   const row = document.querySelector(`.payment-row[data-player="${playerId}"][data-event="${eventId}"]`);
   if (row){
