@@ -36,6 +36,35 @@ Known tables (verified directly against the live schema, 2026-08-04 — grep `db
 
 **Analytics: Phase 4 (activity log + Grafana Cloud) is done as of 2026-08-05.** A new `activity_log` table (`society_id`, `event_type`, `actor_email`, `created_at`, `metadata jsonb`) is fed by `logActivity()`, a fire-and-forget insert wired up at three points so far: sign-in (the `SIGNED_IN` auth event), event sign-up, and payment marked — more call sites can be added the same way, this isn't exhaustive. RLS: insert is open to everyone (same reasoning as `signups`/`course_ratings` — sign-up itself is a public action), select is admin-scoped per society or platform-wide for platform admins. A dedicated `grafana_reader` Postgres role exists (`SELECT`-only, `BYPASSRLS`, random password not stored in this repo) for Grafana Cloud's native Postgres data source — deliberately allowed to bypass RLS, since cross-society visibility is the actual point of the Platform Admin's rollup dashboards. Grafana Cloud is connected and verified working (2026-08-05) — **via the connection pooler**, not the direct `db.*.supabase.co` host: that host resolves IPv6-only, and Grafana Cloud's network has no IPv6 egress, so a direct connection fails with "network is unreachable". Working pooler details: host `aws-1-eu-west-2.pooler.supabase.com`, port `6543` (transaction mode), database `postgres`, username `grafana_reader.noldemdyjbwfqxkuxmvy` (Supavisor requires `<role>.<project-ref>`, not just the bare role name), SSL mode `require`. If a future external tool needs direct Postgres access to this project, expect the same IPv6 issue and reach for the pooler by default rather than debugging it again from scratch.
 
+**Grafana Cloud setup**: stack is `savvyscone988` (`https://savvyscone988.grafana.net`). A "Golf App Platform Overview" dashboard exists (uid `azg5k6`, `https://savvyscone988.grafana.net/d/azg5k6/golf-app-platform-overview`) with 5 panels — societies count, activity events (30d), signups by society, payments collected by society, and a recent cross-society activity feed — all querying the `grafana-postgresql-datasource` (uid `cfuauhskrho8wd`) via raw SQL panels. Dashboards/panels were created via Grafana's HTTP API (`POST /api/dashboards/db`) using a Service Account token (role: Admin), not by hand in the UI — same token can be used to add/update panels later; it's stored as the `GRAFANA_API_TOKEN` Windows user env var on the machine this was built on (same registry-read gotcha as the Supabase/Netlify tokens — see below). `index.html`'s Platform section (`renderPlatformAdmin()`) has a plain link to this dashboard (opens in a new tab) — deliberately not embedded, since embedding would need the dashboard made public (bypassing `is_platform_admin()` entirely) or a real SSO bridge between Supabase Auth and Grafana's own login, neither of which was worth building for this.
+
+## Deleting a society and all its data
+
+Not exposed in the UI (deliberately — see the "should we add a delete button" discussion this was decided in; the plan was strong confirm-by-typing-the-name friction at minimum, never a bare button, and even that hasn't been built). To actually remove a society, run SQL directly against Supabase (via the Management API's `/database/query` endpoint, same as everything else in this file) deleting from every table that carries `society_id`, in this order (children before the `societies` row itself; verify this list is still current with `select table_name from information_schema.columns where column_name='society_id'` before trusting it, in case a table gains/loses the column later):
+
+```sql
+delete from activity_log where society_id = '<id>';
+delete from hole_scores where society_id = '<id>';
+delete from scorecards where society_id = '<id>';
+delete from group_players where society_id = '<id>';
+delete from groups where society_id = '<id>';
+delete from event_payments where society_id = '<id>';
+delete from expenditures where society_id = '<id>';
+delete from signups where society_id = '<id>';
+delete from course_ratings where society_id = '<id>';
+delete from courses where society_id = '<id>';
+delete from honours where society_id = '<id>';
+delete from rules where society_id = '<id>';
+delete from news where society_id = '<id>';
+delete from gallery where society_id = '<id>';
+delete from committee where society_id = '<id>';
+delete from players where society_id = '<id>';
+delete from events where society_id = '<id>';
+delete from societies where id = '<id>';
+```
+
+`platform_admins` has no `society_id` (deliberately independent, per Phase 3) — nothing to clean up there. If the society had a `logo_url` or any `gallery`/`committee` photos uploaded to the `photos` Storage bucket, those file objects aren't touched by the SQL above and would need deleting separately via `db.storage.from('photos').remove([...])` or the Supabase dashboard's Storage browser, or they'll just sit there as orphaned files (harmless but wastes the free-tier storage cap). Always `select count(*)` per table for that `society_id` *before* deleting, and confirm with the user first — this is fully destructive with no undo, per the same reasoning that kept it out of the UI.
+
 **Sharp edge found building the above, worth remembering**: requesting the inserted row back from a public insert (`.select()` chained in supabase-js, or `Prefer: return=representation` over raw REST) fails with an RLS error *even when the insert's own `WITH CHECK` passes*, if the row isn't visible under that table's `SELECT` policy for the calling role. PostgREST's implicit `RETURNING` is itself subject to `SELECT` RLS. `logActivity()` deliberately never chains `.select()` for this reason — anonymous/public inserts elsewhere in this codebase (`signups`, `course_ratings`) already avoid this by the same omission, but if you're adding a new public-insert call, don't chain `.select()` unless that table's `SELECT` policy actually allows the inserting role to read it back.
 
 **Product direction: this is meant to become a multi-tenant "Golf App" platform**, not just Gytte Lane's own site — the eventual goal is multiple golf societies running on this same codebase/database, with a "Golf App Platform Admin" role able to see activity across all of them (distinct from a single society's own `is_committee` admins, who should stay scoped to their own society once multi-tenancy is real). **Guiding principle for this direction: prefer the latest technology that offers the best value and stays manageable with Claude** — i.e. don't default to legacy/heavyweight enterprise tooling or infrastructure that needs its own ops burden; prefer modern, low-maintenance, high-leverage services (managed/cloud-hosted over self-hosted, API-accessible over dashboard-only) that fit this project's zero-build, zero-backend ethos and that Claude can actually help operate directly (e.g. via API access), not just advise on from the sidelines. This is why, for the analytics work being planned as of 2026-08-05, Grafana Cloud (managed, free tier, native Postgres data source) is favoured over self-hosting Grafana.
