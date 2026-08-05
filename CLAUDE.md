@@ -58,7 +58,7 @@ Stableford scoring by hole, entered per group. `SCORE_BLACKOUT_HOLE` (currently 
 
 ## Known follow-up work (not yet done)
 
-- **HTML escaping (2026-08-04): mostly fixed, one gap remains.** `escapeHtml()` now exists and is applied to the highest-risk fields — `gallery` caption/description (member-writable), and the main admin-writable public content: events, news, committee, honours, rules. **Not yet escaped**: player first/last names, which are interpolated unescaped (`${p.first_name} ${p.last_name}`) in ~15+ separate dropdown/list render spots across the file. Lower risk since `players` writes are admin-only post-RLS-fix, but still a real gap if you're asked to harden further — grep for `p.first_name` to find them all before assuming this is done.
+- **HTML escaping (2026-08-04): mostly fixed.** `escapeHtml()` now exists and is applied to essentially every field interpolated into `innerHTML` — `gallery` caption/description, events, news, committee, honours, rules, and (as of 2026-08-05) player first/last names across all ~25 dropdown/list/form render spots. Deliberately left unescaped: native `confirm()` dialog text, string search/filter comparisons, and the WhatsApp share text — none of those go through `innerHTML`. If new free-text fields get added later, remember to escape them too; there's no framework doing it automatically.
 
 ## Third-party services (all free tier — mind the limits)
 
