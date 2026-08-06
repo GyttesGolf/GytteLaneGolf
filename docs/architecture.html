@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Golf Society Platform — Component Architecture</title>
+<style>
+  :root{
+    --bg:#f5f6f8;
+    --surface:#ffffff;
+    --ink:#1b2026;
+    --muted:#5c6570;
+    --line:#d7dbe1;
+    --accent:#3a6e8f;
+
+    --c-github:#3a3f47;
+    --c-netlify:#0e7d6f;
+    --c-client:#3a6e8f;
+    --c-supabase:#1f7a4d;
+    --c-grafana:#b5590f;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#12151a;
+      --surface:#1a1e25;
+      --ink:#e7eaee;
+      --muted:#94a0ac;
+      --line:#2c333c;
+      --accent:#7fb3d5;
+
+      --c-github:#c7ccd3;
+      --c-netlify:#3fd6bf;
+      --c-client:#7fb3d5;
+      --c-supabase:#5fce93;
+      --c-grafana:#f2a35e;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#12151a; --surface:#1a1e25; --ink:#e7eaee; --muted:#94a0ac; --line:#2c333c; --accent:#7fb3d5;
+    --c-github:#c7ccd3; --c-netlify:#3fd6bf; --c-client:#7fb3d5; --c-supabase:#5fce93; --c-grafana:#f2a35e;
+  }
+  :root[data-theme="light"]{
+    --bg:#f5f6f8; --surface:#ffffff; --ink:#1b2026; --muted:#5c6570; --line:#d7dbe1; --accent:#3a6e8f;
+    --c-github:#3a3f47; --c-netlify:#0e7d6f; --c-client:#3a6e8f; --c-supabase:#1f7a4d; --c-grafana:#b5590f;
+  }
+
+  *{ box-sizing:border-box; }
+  body{ margin:0; }
+  .page{
+    background:var(--bg);
+    color:var(--ink);
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 2.5rem 1.5rem 3rem;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap: 0.35rem;
+  }
+  .eyebrow{
+    font: 600 0.72rem/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  h1{
+    font-size: clamp(1.4rem, 2.4vw, 1.85rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0.15rem 0 0.1rem;
+    text-wrap: balance;
+  }
+  .dek{
+    color: var(--muted);
+    font-size: 0.95rem;
+    max-width: 46rem;
+    text-align:center;
+    margin: 0 0 1.6rem;
+  }
+  figure{
+    margin: 0;
+    width: 100%;
+    max-width: 62rem;
+  }
+  .diagram-wrap{
+    overflow-x: auto;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 1.25rem 1rem;
+  }
+  svg{ display:block; width:100%; height:auto; }
+  figcaption{
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-align:center;
+    margin-top: 0.9rem;
+    max-width: 42rem;
+    margin-left:auto; margin-right:auto;
+  }
+  .legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap: 0.5rem 1.4rem;
+    justify-content:center;
+    margin-top: 1.3rem;
+    font: 500 0.78rem/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color: var(--muted);
+  }
+  .legend span{ display:inline-flex; align-items:center; gap:0.45rem; }
+  .legend i{ width:9px; height:9px; border-radius:2px; display:inline-block; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="eyebrow">Golf Society Platform</div>
+  <h1>What the platform is built from</h1>
+  <p class="dek">One deploy pipeline, one database, one client — shared by 2 societies today, isolated from each other by tenant. Every box below is a managed SaaS product: nothing here is self-hosted, and there's no server of your own to patch or scale.</p>
+
+  <figure>
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 1080 800" role="img" aria-label="Architecture diagram: pushing to GitHub main triggers a Netlify build that deploys one static site to two live society domains. Each visiting browser resolves which society it belongs to from its own hostname, looked up against Supabase's societies table by custom domain or subdomain, and that society_id then scopes every subsequent read and write through row-level security — one tenant cannot see or write another's data even via a direct API call. The browser talks to Supabase directly for Postgres data, Auth (passkey and magic-link sign-in), and Storage (gallery and logo uploads); Grafana Cloud connects to the same Postgres database read-only through a connection pooler, using a role that bypasses row-level security, to build dashboards that roll up activity across both societies. GitHub, Netlify, Supabase and Grafana Cloud are all managed SaaS platforms with no self-hosted infrastructure.">
+
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor" />
+          </marker>
+        </defs>
+
+        <!-- ===== Row 0: the two live society domains, resolving into the same client ===== -->
+        <rect x="700" y="10" width="150" height="40" rx="8" fill="var(--bg)" stroke="var(--c-client)" stroke-width="1.2"/>
+        <text x="775" y="34" text-anchor="middle" font-size="11" fill="var(--ink)">Society A · custom domain</text>
+
+        <rect x="870" y="10" width="150" height="40" rx="8" fill="var(--bg)" stroke="var(--c-client)" stroke-width="1.2"/>
+        <text x="945" y="34" text-anchor="middle" font-size="11" fill="var(--ink)">Society B · *.netlify.app</text>
+
+        <line x1="775" y1="50" x2="840" y2="90" stroke="currentColor" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="945" y1="50" x2="880" y2="90" stroke="currentColor" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <text x="860" y="70" text-anchor="middle" font-size="10.5" fill="var(--muted)" font-family="ui-monospace, monospace">2 societies live today</text>
+
+        <!-- ===== Row 1: GitHub -> Netlify -> Browser ===== -->
+
+        <!-- GitHub -->
+        <rect x="40" y="90" width="200" height="104" rx="10" fill="none" stroke="var(--c-github)" stroke-width="1.6"/>
+        <rect x="180" y="98" width="52" height="20" rx="10" fill="none" stroke="var(--c-github)" stroke-width="1"/>
+        <text x="206" y="112" text-anchor="middle" font-size="9" font-weight="600" fill="var(--c-github)" font-family="ui-monospace, monospace">SaaS</text>
+        <circle cx="70" cy="122" r="13" fill="var(--c-github)"/>
+        <text x="70" y="126" text-anchor="middle" font-size="12" font-weight="700" fill="var(--surface)" font-family="ui-monospace, monospace">gh</text>
+        <text x="94" y="127" font-size="15" font-weight="700" fill="var(--ink)">GitHub</text>
+        <text x="60" y="156" font-size="11.5" fill="var(--muted)">source of truth</text>
+        <text x="60" y="174" font-size="11.5" fill="var(--muted)">index.html · login.html · sw.js</text>
+
+        <!-- Netlify -->
+        <rect x="420" y="90" width="200" height="104" rx="10" fill="none" stroke="var(--c-netlify)" stroke-width="1.6"/>
+        <rect x="560" y="98" width="52" height="20" rx="10" fill="none" stroke="var(--c-netlify)" stroke-width="1"/>
+        <text x="586" y="112" text-anchor="middle" font-size="9" font-weight="600" fill="var(--c-netlify)" font-family="ui-monospace, monospace">SaaS</text>
+        <circle cx="450" cy="122" r="13" fill="var(--c-netlify)"/>
+        <text x="450" y="126" text-anchor="middle" font-size="12" font-weight="700" fill="var(--surface)" font-family="ui-monospace, monospace">N</text>
+        <text x="474" y="127" font-size="15" font-weight="700" fill="var(--ink)">Netlify</text>
+        <text x="440" y="156" font-size="11.5" fill="var(--muted)">Build + static hosting</text>
+        <text x="440" y="174" font-size="11.5" fill="var(--muted)">one build, every domain</text>
+
+        <!-- Browser / Client -->
+        <rect x="800" y="90" width="200" height="104" rx="10" fill="none" stroke="var(--c-client)" stroke-width="1.6"/>
+        <circle cx="830" cy="122" r="13" fill="var(--c-client)"/>
+        <path d="M823,122 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0 M823,122 h14 M830,115 v14" stroke="var(--surface)" stroke-width="1.3" fill="none"/>
+        <text x="854" y="127" font-size="15" font-weight="700" fill="var(--ink)">Browser</text>
+        <text x="820" y="156" font-size="11.5" fill="var(--muted)">visitor's device</text>
+        <text x="820" y="174" font-size="11.5" fill="var(--muted)">branded per resolved society</text>
+
+        <line x1="240" y1="142" x2="416" y2="142" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <text x="328" y="130" text-anchor="middle" font-size="11.5" fill="var(--muted)" font-family="ui-monospace, monospace">push → main</text>
+
+        <line x1="620" y1="142" x2="796" y2="142" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <text x="708" y="130" text-anchor="middle" font-size="11.5" fill="var(--muted)" font-family="ui-monospace, monospace">deploy on every push</text>
+
+        <!-- ===== Vertical: Browser -> Supabase ===== -->
+        <line x1="878" y1="194" x2="878" y2="336" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <text x="892" y="232" font-size="11.5" fill="var(--muted)" font-family="ui-monospace, monospace">reads / writes</text>
+        <text x="892" y="248" font-size="11.5" fill="var(--muted)" font-family="ui-monospace, monospace">anon key, RLS-scoped</text>
+        <text x="892" y="264" font-size="11.5" fill="var(--muted)" font-family="ui-monospace, monospace">to the resolved society_id</text>
+
+        <line x1="836" y1="336" x2="836" y2="194" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <text x="700" y="292" font-size="11.5" fill="var(--muted)" font-family="ui-monospace, monospace">passkey / magic link</text>
+        <text x="700" y="308" font-size="11.5" fill="var(--muted)" font-family="ui-monospace, monospace">(login.html)</text>
+
+        <!-- Tenant resolution callout -->
+        <rect x="40" y="230" width="330" height="86" rx="10" fill="var(--bg)" stroke="var(--line)" stroke-width="1.2" stroke-dasharray="4 3"/>
+        <text x="56" y="252" font-size="11.5" font-weight="700" fill="var(--ink)">Tenant resolution — every request</text>
+        <text x="56" y="270" font-size="11" fill="var(--muted)">hostname → societies.custom_domain,</text>
+        <text x="56" y="286" font-size="11" fill="var(--muted)">then societies.subdomain → society_id</text>
+        <text x="56" y="302" font-size="11" fill="var(--muted)">→ every table filtered + RLS-enforced by it</text>
+        <line x1="370" y1="273" x2="416" y2="273" stroke="currentColor" stroke-width="1.2" marker-end="url(#arrow)" stroke-dasharray="2 3"/>
+
+        <!-- ===== Supabase container ===== -->
+        <rect x="560" y="336" width="480" height="240" rx="12" fill="none" stroke="var(--c-supabase)" stroke-width="1.6"/>
+        <rect x="956" y="346" width="52" height="20" rx="10" fill="none" stroke="var(--c-supabase)" stroke-width="1"/>
+        <text x="982" y="360" text-anchor="middle" font-size="9" font-weight="600" fill="var(--c-supabase)" font-family="ui-monospace, monospace">SaaS</text>
+        <circle cx="590" cy="366" r="13" fill="var(--c-supabase)"/>
+        <path d="M590,358 l7,8 l-7,8 l-7,-8 z" fill="var(--surface)"/>
+        <text x="614" y="371" font-size="15" font-weight="700" fill="var(--ink)">Supabase</text>
+        <text x="640" y="371" font-size="11" fill="var(--muted)">— one project, multi-tenant</text>
+
+        <!-- sub components -->
+        <rect x="584" y="396" width="136" height="66" rx="8" fill="var(--bg)" stroke="var(--line)" stroke-width="1.2"/>
+        <text x="652" y="422" text-anchor="middle" font-size="12.5" font-weight="600" fill="var(--ink)">Postgres</text>
+        <text x="652" y="438" text-anchor="middle" font-size="10.5" fill="var(--muted)">+ RLS policies</text>
+
+        <rect x="738" y="396" width="136" height="66" rx="8" fill="var(--bg)" stroke="var(--line)" stroke-width="1.2"/>
+        <text x="806" y="422" text-anchor="middle" font-size="12.5" font-weight="600" fill="var(--ink)">Auth</text>
+        <text x="806" y="438" text-anchor="middle" font-size="10.5" fill="var(--muted)">passkey · magic link</text>
+
+        <rect x="892" y="396" width="128" height="66" rx="8" fill="var(--bg)" stroke="var(--line)" stroke-width="1.2"/>
+        <text x="956" y="422" text-anchor="middle" font-size="12.5" font-weight="600" fill="var(--ink)">Storage</text>
+        <text x="956" y="438" text-anchor="middle" font-size="10.5" fill="var(--muted)">gallery, logos</text>
+
+        <text x="584" y="490" font-size="11" fill="var(--muted)">is_admin(society_id) · is_platform_admin() functions gate every write policy —</text>
+        <text x="584" y="508" font-size="11" fill="var(--muted)">one society can never see or write another's row, even via a direct API call</text>
+        <text x="584" y="526" font-size="11" fill="var(--muted)">tables: societies · events · players · signups · scorecards · activity_log · 12 more</text>
+
+        <!-- ===== Supabase -> Grafana ===== -->
+        <line x1="652" y1="576" x2="652" y2="636" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <text x="666" y="600" font-size="11.5" fill="var(--muted)" font-family="ui-monospace, monospace">read-only, via pooler</text>
+        <text x="666" y="616" font-size="11.5" fill="var(--muted)" font-family="ui-monospace, monospace">grafana_reader (BYPASSRLS)</text>
+
+        <!-- Grafana Cloud -->
+        <rect x="552" y="636" width="200" height="76" rx="10" fill="none" stroke="var(--c-grafana)" stroke-width="1.6"/>
+        <rect x="680" y="644" width="52" height="20" rx="10" fill="none" stroke="var(--c-grafana)" stroke-width="1"/>
+        <text x="706" y="658" text-anchor="middle" font-size="9" font-weight="600" fill="var(--c-grafana)" font-family="ui-monospace, monospace">SaaS</text>
+        <circle cx="582" cy="667" r="12" fill="var(--c-grafana)"/>
+        <path d="M576,672 l6,-14 l4,9 l4,-6 l4,11" stroke="var(--surface)" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="604" y="672" font-size="14" font-weight="700" fill="var(--ink)">Grafana Cloud</text>
+        <text x="566" y="694" font-size="10.5" fill="var(--muted)">rolls up both societies</text>
+
+        <!-- Platform admin annotation -->
+        <text x="1080" y="672" text-anchor="end" font-size="10.5" fill="var(--muted)">viewed by Platform Admin</text>
+      </svg>
+    </div>
+    <figcaption>Every push to <code>main</code> redeploys one static build via Netlify, served at both societies' domains. Each browser resolves its own tenant from its hostname on load, and that <code>society_id</code> scopes and RLS-enforces every subsequent read and write to Supabase — one society's admin cannot see or write another's data. GitHub, Netlify, Supabase and Grafana Cloud are all managed SaaS: no server here is self-hosted or self-patched.</figcaption>
+  </figure>
+
+  <div class="legend">
+    <span><i style="background:var(--c-github)"></i>Source</span>
+    <span><i style="background:var(--c-netlify)"></i>Deploy</span>
+    <span><i style="background:var(--c-client)"></i>Client</span>
+    <span><i style="background:var(--c-supabase)"></i>Data + Auth</span>
+    <span><i style="background:var(--c-grafana)"></i>Analytics</span>
+  </div>
+</div>
+</body>
+</html>
