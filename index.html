@@ -241,12 +241,23 @@
 
   .next-fixture{
     background:var(--ink); color:var(--paper); border-radius:var(--radius);
-    padding:1.5rem 1.6rem; position:relative; overflow:hidden;
+    position:relative; overflow:hidden;
     box-shadow:0 10px 30px rgba(75,19,32,.28);
+    display:flex; align-items:stretch;
   }
   .next-fixture::before{
     content:""; position:absolute; inset:0 0 auto 0; height:3px;
-    background:var(--brass);
+    background:var(--brass); z-index:1;
+  }
+  .next-fixture-content{padding:1.5rem 1.6rem; flex:1 1 auto; min-width:0;}
+  .next-fixture-photo{
+    flex:0 0 38%; position:relative; min-width:110px;
+    clip-path:polygon(22% 0, 100% 0, 100% 100%, 0% 100%);
+    background:var(--ink);
+  }
+  .next-fixture-photo svg{width:100%; height:100%; display:block;}
+  @media (max-width:480px){
+    .next-fixture-photo{flex-basis:32%;}
   }
   .next-fixture .label{
     font-family:var(--body); font-size:.72rem; text-transform:uppercase; letter-spacing:.1em;
@@ -3556,6 +3567,32 @@ async function updateMembershipPaid(playerId, isChecked){
 }
 
 /* ===================== render: home ===================== */
+const NEXT_FIXTURE_PHOTO_SVG = `
+  <svg viewBox="0 0 200 260" preserveAspectRatio="xMidYMid slice" role="presentation" aria-hidden="true">
+    <defs>
+      <radialGradient id="nf-grass" cx="50%" cy="35%" r="75%">
+        <stop offset="0%" stop-color="#8fb373"/>
+        <stop offset="55%" stop-color="#5c8a4c"/>
+        <stop offset="100%" stop-color="#2f5230"/>
+      </radialGradient>
+      <radialGradient id="nf-ball" cx="38%" cy="34%" r="65%">
+        <stop offset="0%" stop-color="#ffffff"/>
+        <stop offset="70%" stop-color="#eef0ea"/>
+        <stop offset="100%" stop-color="#c9cfc2"/>
+      </radialGradient>
+    </defs>
+    <rect width="200" height="260" fill="url(#nf-grass)"/>
+    <ellipse cx="40" cy="60" rx="70" ry="40" fill="#3f6b3a" opacity=".55"/>
+    <ellipse cx="170" cy="200" rx="90" ry="55" fill="#3f6b3a" opacity=".45"/>
+    <circle cx="118" cy="150" r="46" fill="url(#nf-ball)"/>
+    <g fill="#c9cfc2" opacity=".8">
+      <circle cx="104" cy="132" r="2.3"/><circle cx="120" cy="128" r="2.3"/><circle cx="136" cy="136" r="2.3"/>
+      <circle cx="98" cy="148" r="2.3"/><circle cx="114" cy="146" r="2.3"/><circle cx="132" cy="150" r="2.3"/><circle cx="146" cy="146" r="2.3"/>
+      <circle cx="106" cy="164" r="2.3"/><circle cx="122" cy="166" r="2.3"/><circle cx="138" cy="162" r="2.3"/>
+    </g>
+    <ellipse cx="118" cy="198" rx="34" ry="8" fill="#1e3a1f" opacity=".35"/>
+  </svg>`;
+
 function renderHome(){
   const upcoming = events.filter(e => eventStatus(e) === 'upcoming').sort((a,b) => new Date(a.date) - new Date(b.date))[0];
   const slot = document.getElementById('next-fixture-slot');
@@ -3573,24 +3610,30 @@ function renderHome(){
     }
     slot.innerHTML = `
       <div class="next-fixture">
-        <div class="label">Next event</div>
-        <h3>${upcoming.name}</h3>
-        <dl>
-          <dt>Date</dt><dd>${fmtDate(upcoming.date)}</dd>
-          <dt>Course</dt><dd>${upcoming.course || 'TBC'}</dd>
-          <dt>Format</dt><dd>${upcoming.format || 'TBC'}</dd>
-        </dl>
-        ${countdownHtml}
-        <div style="margin-top:.7rem;"><a href="#" onclick="goTo('events'); return false;">Sign up &amp; all events &rarr;</a></div>
+        <div class="next-fixture-content">
+          <div class="label">Next event</div>
+          <h3>${upcoming.name}</h3>
+          <dl>
+            <dt>Date</dt><dd>${fmtDate(upcoming.date)}</dd>
+            <dt>Course</dt><dd>${upcoming.course || 'TBC'}</dd>
+            <dt>Format</dt><dd>${upcoming.format || 'TBC'}</dd>
+          </dl>
+          ${countdownHtml}
+          <div style="margin-top:.7rem;"><a href="#" onclick="goTo('events'); return false;">Sign up &amp; all events &rarr;</a></div>
+        </div>
+        <div class="next-fixture-photo">${NEXT_FIXTURE_PHOTO_SVG}</div>
       </div>`;
   } else {
     slot.innerHTML = `
       <div class="next-fixture">
-        <div class="label" style="margin-bottom:.6rem;">That's a wrap</div>
-        <p style="font-family:var(--display); font-size:1.2rem; font-weight:700; color:var(--paper); line-height:1.4; margin:0 0 .8rem;">
-          That's it for this year folks, thanks to everyone for coming and supporting the society. Swing free ⛳
-        </p>
-        <div style="margin-top:.7rem;"><a href="#" onclick="goTo('events'); return false;">View past events &rarr;</a></div>
+        <div class="next-fixture-content">
+          <div class="label" style="margin-bottom:.6rem;">That's a wrap</div>
+          <p style="font-family:var(--display); font-size:1.2rem; font-weight:700; color:var(--paper); line-height:1.4; margin:0 0 .8rem;">
+            That's it for this year folks, thanks to everyone for coming and supporting the society. Swing free ⛳
+          </p>
+          <div style="margin-top:.7rem;"><a href="#" onclick="goTo('events'); return false;">View past events &rarr;</a></div>
+        </div>
+        <div class="next-fixture-photo">${NEXT_FIXTURE_PHOTO_SVG}</div>
       </div>`;
   }
   const latestNews = [...news].sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0,2);
