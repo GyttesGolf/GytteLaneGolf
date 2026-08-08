@@ -1536,6 +1536,7 @@ let allHoleScores = [];
 let courses = [];
 let courseRatings = [];
 let ratingState = {};
+let societyPaymentDetails = null;
 let eventPayments = [];
 let expenditures = [];
 let editingExpenditureIds = new Set();
@@ -1720,6 +1721,16 @@ async function loadData(){
     console.warn('Courses not available yet (run add-courses.sql):', err);
     courses = [];
     courseRatings = [];
+  }
+
+  /* payment details — member-only via RLS; anonymous/non-member sessions
+     simply get an empty result back, which is the intended behaviour */
+  try {
+    const pdRes = await db.from('society_payment_details').select('*').eq('society_id', societyId).maybeSingle();
+    if (pdRes.error) throw pdRes.error;
+    societyPaymentDetails = pdRes.data || null;
+  } catch(err){
+    societyPaymentDetails = null;
   }
 
   /* groups + group_players (public, for the starting sheet) */
@@ -2157,14 +2168,15 @@ function eventDetailHtml(e){
             <span style="font-size:1.1rem;">🍴</span>
             <span>${escapeHtml(e.whats_included)}</span>
           </div>` : '';
-        const soc = currentSociety || {};
-        const payPanel = (fee && soc.payment_account_number && soc.payment_sort_code) ? `
-          <div class="event-detail-info" style="margin-bottom:.8rem;">
-            <div class="edi-row"><span class="edi-label">Pay by bank transfer</span><span class="edi-value">${escapeHtml(soc.payment_account_name||'')}</span></div>
-            <div class="edi-row"><span class="edi-label">Sort code</span><span class="edi-value">${escapeHtml(soc.payment_sort_code)}</span></div>
-            <div class="edi-row"><span class="edi-label">Account number</span><span class="edi-value">${escapeHtml(soc.payment_account_number)}</span></div>
-            ${soc.payment_reference_note ? `<div class="edi-row"><span class="edi-label">Reference</span><span class="edi-value">${escapeHtml(soc.payment_reference_note)}</span></div>` : ''}
-          </div>` : '';
+        const pd = societyPaymentDetails;
+        const payPanel = !fee ? '' : (pd && pd.payment_account_number && pd.payment_sort_code ? `
+            <div class="event-detail-info" style="margin-bottom:.8rem;">
+              <div class="edi-row"><span class="edi-label">Pay by bank transfer</span><span class="edi-value">${escapeHtml(pd.payment_account_name||'')}</span></div>
+              <div class="edi-row"><span class="edi-label">Sort code</span><span class="edi-value">${escapeHtml(pd.payment_sort_code)}</span></div>
+              <div class="edi-row"><span class="edi-label">Account number</span><span class="edi-value">${escapeHtml(pd.payment_account_number)}</span></div>
+              ${pd.payment_reference_note ? `<div class="edi-row"><span class="edi-label">Reference</span><span class="edi-value">${escapeHtml(pd.payment_reference_note)}</span></div>` : ''}
+            </div>`
+          : (!isMember ? `<p class="muted" style="font-size:.85rem; margin-bottom:.8rem;">Sign in to see payment details for this event.</p>` : ''));
         return `
           ${details.length ? `<div class="event-detail-info">${details.map(([k,v]) => `<div class="edi-row"><span class="edi-label">${k}</span><span class="edi-value">${escapeHtml(v)}</span></div>`).join('')}</div>` : ''}
           ${payPanel}
@@ -5414,17 +5426,17 @@ async function saveSocietyBranding(){
 }
 
 function renderPaymentsForm(){
-  const soc = currentSociety || {};
+  const pd = societyPaymentDetails || {};
   return `
     <p style="font-size:.85rem; color:var(--text-muted); margin:0 0 1rem; max-width:520px;">
-      Shown to members on the event sign-up page as the bank details to pay event fees into. Payments are still confirmed manually — an admin ticks a player off as paid on the event's Payment received page, same as before.
+      Shown to signed-in members on the event sign-up page as the bank details to pay event fees into. Kept separate from the society's public profile so these details are never publicly readable. Payments are still confirmed manually — an admin ticks a player off as paid on the event's Payment received page, same as before.
     </p>
     <div class="edit-form" style="max-width:520px;">
       <div class="edit-form-grid">
-        <div class="full"><label>Account name</label><input id="pay-account-name" value="${escapeHtml(soc.payment_account_name||'')}"></div>
-        <div><label>Sort code</label><input id="pay-sort-code" placeholder="00-00-00" value="${escapeHtml(soc.payment_sort_code||'')}"></div>
-        <div><label>Account number</label><input id="pay-account-number" placeholder="00000000" value="${escapeHtml(soc.payment_account_number||'')}"></div>
-        <div class="full"><label>Reference note (optional)</label><input id="pay-reference-note" placeholder="e.g. Use your name + event date as the reference" value="${escapeHtml(soc.payment_reference_note||'')}"></div>
+        <div class="full"><label>Account name</label><input id="pay-account-name" value="${escapeHtml(pd.payment_account_name||'')}"></div>
+        <div><label>Sort code</label><input id="pay-sort-code" placeholder="00-00-00" value="${escapeHtml(pd.payment_sort_code||'')}"></div>
+        <div><label>Account number</label><input id="pay-account-number" placeholder="00000000" value="${escapeHtml(pd.payment_account_number||'')}"></div>
+        <div class="full"><label>Reference note (optional)</label><input id="pay-reference-note" placeholder="e.g. Use your name + event date as the reference" value="${escapeHtml(pd.payment_reference_note||'')}"></div>
       </div>
       <div class="edit-form-actions">
         <button class="btn brass" onclick="saveSocietyPayment()">Save</button>
@@ -5440,15 +5452,16 @@ async function saveSocietyPayment(){
   };
   if (!db){ setStatus('Not connected.', 'error'); return; }
   const payload = {
+    society_id: societyId,
     payment_account_name: document.getElementById('pay-account-name')?.value.trim() || null,
     payment_sort_code: document.getElementById('pay-sort-code')?.value.trim() || null,
     payment_account_number: document.getElementById('pay-account-number')?.value.trim() || null,
     payment_reference_note: document.getElementById('pay-reference-note')?.value.trim() || null,
   };
   setStatus('Saving…', 'loading');
-  const { error } = await db.from('societies').update(payload).eq('id', societyId);
+  const { data, error } = await db.from('society_payment_details').upsert(payload, { onConflict: 'society_id' }).select().single();
   if (error){ console.error(error); setStatus('Save failed.', 'error'); return; }
-  if (currentSociety) Object.assign(currentSociety, payload);
+  societyPaymentDetails = data;
   setStatus('Saved!', 'success');
   renderEvents();
 }
