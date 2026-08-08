@@ -51,7 +51,7 @@
   }
 
   *{box-sizing:border-box;}
-  html{scroll-behavior:smooth;}
+  html{scroll-behavior:smooth; overflow-x:hidden;}
   @media (prefers-reduced-motion: reduce){
     html{scroll-behavior:auto;}
     *{animation-duration:0.01ms !important; transition-duration:0.01ms !important;}
@@ -77,11 +77,8 @@
   .skip-link:focus{left:0;}
 
   .stripe-band{
-    height:9px;
-    background:repeating-linear-gradient(45deg,
-      var(--ink) 0 12px,
-      var(--claret) 12px 24px,
-      var(--brass) 24px 36px);
+    height:3px;
+    background:var(--brass);
   }
 
   /* ---------- header ---------- */
@@ -131,22 +128,26 @@
   /* ---------- bottom nav (mobile only) ---------- */
   .bottom-nav{
     display:none;
-    position:fixed; bottom:0; left:0; right:0; z-index:90;
-    background:var(--paper); border-top:1px solid var(--line);
-    padding:.35rem 0 calc(.35rem + env(safe-area-inset-bottom));
+    position:fixed; left:12px; right:12px; bottom:calc(12px + env(safe-area-inset-bottom)); z-index:90;
   }
   .bottom-nav-inner{
     display:flex; justify-content:space-around; max-width:480px; margin:0 auto;
+    background:var(--ink); border-radius:999px; padding:.55rem .3rem;
+    box-shadow:0 10px 26px rgba(0,0,0,.32);
   }
   .bn-tab{
     display:flex; flex-direction:column; align-items:center; gap:.2rem;
     font-family:var(--body); font-size:.6rem; text-transform:uppercase; letter-spacing:.04em;
-    color:var(--text-muted); padding:.2rem .4rem; cursor:pointer; border:none; background:none;
-    min-width:52px;
+    color:var(--on-dark-muted); padding:.2rem .4rem; cursor:pointer; border:none; background:none;
+    min-width:52px; position:relative;
   }
-  .bn-tab.active{color:var(--ink);}
+  .bn-tab.active{color:var(--brass-light);}
   .bn-tab svg{width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.8; flex-shrink:0;}
-  .bn-tab.active svg{stroke:var(--claret);}
+  .bn-tab.active svg{stroke:var(--brass);}
+  .bn-tab.active::after{
+    content:""; position:absolute; bottom:-2px; left:50%; transform:translateX(-50%);
+    width:16px; height:2px; background:var(--brass); border-radius:1px;
+  }
 
   /* more drawer */
   .more-drawer-backdrop{
@@ -183,7 +184,7 @@
   @media(max-width:700px){
     .bottom-nav{display:block;}
     nav.tabs{display:none;}
-    main{padding-bottom:calc(60px + env(safe-area-inset-bottom));}
+    main{padding-bottom:calc(84px + env(safe-area-inset-bottom));}
   }
 
   /* ---------- committee login nav button & modal ---------- */
@@ -224,6 +225,17 @@
     margin:0 0 .9rem; color:var(--ink);
   }
   .hero p.intro{font-size:1.08rem; color:var(--text-muted); max-width:46ch; margin:0 0 1.4rem;}
+  .hero-photo{
+    position:relative; overflow:hidden;
+    width:100vw; margin-left:calc(50% - 50vw); margin-right:calc(50% - 50vw);
+    margin-top:-2.4rem; margin-bottom:1.5rem; padding:2.6rem 0;
+    background:
+      linear-gradient(180deg, rgba(20,20,10,.18) 0%, rgba(15,15,10,.72) 100%),
+      url('assets/hero-fairway.jpg') center 38% / cover no-repeat;
+  }
+  .hero-photo-inner{max-width:1080px; margin:0 auto; padding:0 1.5rem;}
+  .hero-photo h1{color:#fff; text-shadow:0 1px 12px rgba(0,0,0,.35);}
+  .hero-photo p.intro{color:rgba(255,255,255,.92); text-shadow:0 1px 8px rgba(0,0,0,.3);}
   .btn-row{display:flex; gap:.6rem; flex-wrap:wrap;}
   .home-btn-grid{
     display:grid; grid-template-columns:1fr 1fr; gap:.6rem;
@@ -244,12 +256,23 @@
 
   .next-fixture{
     background:var(--ink); color:var(--paper); border-radius:var(--radius);
-    padding:1.5rem 1.6rem; position:relative; overflow:hidden;
+    position:relative; overflow:hidden;
     box-shadow:0 10px 30px rgba(75,19,32,.28);
+    display:flex; align-items:stretch;
   }
   .next-fixture::before{
-    content:""; position:absolute; inset:0 0 auto 0; height:7px;
-    background:repeating-linear-gradient(45deg, var(--claret) 0 12px, var(--brass) 12px 24px);
+    content:""; position:absolute; inset:0 0 auto 0; height:3px;
+    background:var(--brass); z-index:1;
+  }
+  .next-fixture-content{padding:1.5rem 1.6rem; flex:1 1 auto; min-width:0;}
+  .next-fixture-photo{
+    flex:0 0 38%; position:relative; min-width:110px;
+    clip-path:polygon(22% 0, 100% 0, 100% 100%, 0% 100%);
+    background:var(--ink);
+  }
+  .next-fixture-photo img{width:100%; height:100%; display:block; object-fit:cover;}
+  @media (max-width:480px){
+    .next-fixture-photo{flex-basis:32%;}
   }
   .next-fixture .label{
     font-family:var(--body); font-size:.72rem; text-transform:uppercase; letter-spacing:.1em;
@@ -297,19 +320,28 @@
   .leaders-section{margin:0 0 2.2rem; padding-bottom:2.2rem; border-bottom:1px solid var(--line);}
   .leaders-row{display:flex; gap:1.2rem; flex-wrap:wrap;}
   .leader-card{
-    display:flex; align-items:center; gap:1rem; flex:1; min-width:230px;
-    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); padding:1rem 1.3rem;
+    display:flex; align-items:center; gap:1.1rem; flex:1; min-width:230px;
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); padding:1.2rem 1.4rem;
+    border-left:3px solid var(--brass);
+    box-shadow:0 6px 18px rgba(75,19,32,.12);
+    transition:transform .15s ease, box-shadow .15s ease;
   }
+  .leader-card:hover{transform:translateY(-2px); box-shadow:0 10px 26px rgba(75,19,32,.18);}
   .leader-photo{
-    width:64px; height:64px; min-width:64px; border-radius:50%; object-fit:cover;
+    width:80px; height:80px; min-width:80px; border-radius:50%; object-fit:cover;
     border:3px solid var(--brass); background:var(--stone);
+    box-shadow:0 4px 10px rgba(0,0,0,.22);
   }
   .leader-photo.placeholder{
     display:flex; align-items:center; justify-content:center;
     font-family:var(--body); font-size:1rem; letter-spacing:.03em; color:var(--ink);
   }
-  .leader-role{font-family:var(--body); font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:var(--claret);}
-  .leader-name{font-family:var(--display); font-size:1.15rem; font-weight:600; color:var(--ink); margin:.2rem 0 0;}
+  .leader-role{
+    display:inline-block; font-family:var(--body); font-size:.66rem; font-weight:700;
+    text-transform:uppercase; letter-spacing:.06em; color:var(--claret);
+    background:color-mix(in srgb, var(--claret) 14%, transparent); padding:.2rem .55rem; border-radius:999px;
+  }
+  .leader-name{font-family:var(--display); font-size:1.2rem; font-weight:600; color:var(--ink); margin:.5rem 0 0;}
   .home-col h3.mini-title{
     font-family:var(--body); font-size:.78rem; letter-spacing:.06em; text-transform:uppercase;
     color:var(--ink); border-bottom:2px solid var(--ink); padding-bottom:.5rem; margin:0 0 1rem;
@@ -616,8 +648,8 @@
     animation:fadein .3s ease;
   }
   .trophy-winners::before{
-    content:""; position:absolute; inset:0 0 auto 0; height:6px;
-    background:repeating-linear-gradient(45deg, var(--claret) 0 12px, var(--brass) 12px 24px);
+    content:""; position:absolute; inset:0 0 auto 0; height:3px;
+    background:var(--brass);
   }
   .trophy-winners h3{
     font-family:var(--display); font-size:1.35rem; margin:.3rem 0 1rem; color:var(--brass-light);
@@ -891,8 +923,7 @@
   }
   .tile-media{
     height:140px; display:flex; align-items:center; justify-content:center;
-    background:
-      repeating-linear-gradient(135deg, var(--ink-soft) 0 14px, var(--ink) 14px 28px);
+    background:var(--ink-soft);
     color:var(--brass-light); position:relative;
   }
   .tile-media.video::after{
@@ -922,8 +953,8 @@
     background:var(--ink); color:var(--paper); border-radius:var(--radius); padding:2.4rem 2rem;
     text-align:center; position:relative; overflow:hidden;
   }
-  .shop-banner::before{content:""; position:absolute; inset:0 0 auto 0; height:9px;
-    background:repeating-linear-gradient(45deg, var(--claret) 0 12px, var(--brass) 12px 24px);}
+  .shop-banner::before{content:""; position:absolute; inset:0 0 auto 0; height:3px;
+    background:var(--brass);}
   .shop-banner h2{font-family:var(--display); font-size:1.8rem; margin:.6rem 0 .6rem;}
   .shop-banner p{color:var(--on-dark-muted); max-width:46ch; margin:0 auto 1.4rem;}
 
@@ -1093,10 +1124,14 @@
 
   <!-- ============ HOME ============ -->
   <section class="section active" id="sec-home" data-section="home">
-    <div class="hero">
-      <div>
+    <div class="hero-photo">
+      <div class="hero-photo-inner">
         <h1 id="hero-tagline">Tradition on the fairway. Good company on the 19th.</h1>
         <p class="intro" id="hero-intro">Founded <span id="years-founded">32</span> years ago in Syresham, Northamptonshire. The Gyttes have played all over England, Wales and Ireland — with trips to France, Spain and Portugal along the way.</p>
+      </div>
+    </div>
+    <div class="hero">
+      <div>
         <div class="home-btn-grid">
           <button class="btn home-btn-primary" onclick="goTo('events')">See upcoming events</button>
           <button class="btn ghost home-btn-ghost" onclick="goTo('committee')">Meet the committee</button>
@@ -3560,6 +3595,8 @@ async function updateMembershipPaid(playerId, isChecked){
 }
 
 /* ===================== render: home ===================== */
+const NEXT_FIXTURE_PHOTO_SVG = `<img src="assets/GolfBall.jpg" alt="" loading="lazy">`;
+
 function renderHome(){
   const upcoming = events.filter(e => eventStatus(e) === 'upcoming').sort((a,b) => new Date(a.date) - new Date(b.date))[0];
   const slot = document.getElementById('next-fixture-slot');
@@ -3577,24 +3614,30 @@ function renderHome(){
     }
     slot.innerHTML = `
       <div class="next-fixture">
-        <div class="label">Next event</div>
-        <h3>${upcoming.name}</h3>
-        <dl>
-          <dt>Date</dt><dd>${fmtDate(upcoming.date)}</dd>
-          <dt>Course</dt><dd>${upcoming.course || 'TBC'}</dd>
-          <dt>Format</dt><dd>${upcoming.format || 'TBC'}</dd>
-        </dl>
-        ${countdownHtml}
-        <div style="margin-top:.7rem;"><a href="#" onclick="goTo('events'); return false;">Sign up &amp; all events &rarr;</a></div>
+        <div class="next-fixture-content">
+          <div class="label">Next event</div>
+          <h3>${upcoming.name}</h3>
+          <dl>
+            <dt>Date</dt><dd>${fmtDate(upcoming.date)}</dd>
+            <dt>Course</dt><dd>${upcoming.course || 'TBC'}</dd>
+            <dt>Format</dt><dd>${upcoming.format || 'TBC'}</dd>
+          </dl>
+          ${countdownHtml}
+          <div style="margin-top:.7rem;"><a href="#" onclick="goTo('events'); return false;">Sign up &amp; all events &rarr;</a></div>
+        </div>
+        <div class="next-fixture-photo">${NEXT_FIXTURE_PHOTO_SVG}</div>
       </div>`;
   } else {
     slot.innerHTML = `
       <div class="next-fixture">
-        <div class="label" style="margin-bottom:.6rem;">That's a wrap</div>
-        <p style="font-family:var(--display); font-size:1.2rem; font-weight:700; color:var(--paper); line-height:1.4; margin:0 0 .8rem;">
-          That's it for this year folks, thanks to everyone for coming and supporting the society. Swing free ⛳
-        </p>
-        <div style="margin-top:.7rem;"><a href="#" onclick="goTo('events'); return false;">View past events &rarr;</a></div>
+        <div class="next-fixture-content">
+          <div class="label" style="margin-bottom:.6rem;">That's a wrap</div>
+          <p style="font-family:var(--display); font-size:1.2rem; font-weight:700; color:var(--paper); line-height:1.4; margin:0 0 .8rem;">
+            That's it for this year folks, thanks to everyone for coming and supporting the society. Swing free ⛳
+          </p>
+          <div style="margin-top:.7rem;"><a href="#" onclick="goTo('events'); return false;">View past events &rarr;</a></div>
+        </div>
+        <div class="next-fixture-photo">${NEXT_FIXTURE_PHOTO_SVG}</div>
       </div>`;
   }
   const latestNews = [...news].sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0,2);
