@@ -1917,6 +1917,13 @@ function eventDetailHtml(e){
     .sort((a,b) => a.first_name.localeCompare(b.first_name))
     .map(p => `<option value="${p.id}">${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</option>`)
     .join('');
+  const knownTrophies = [...new Set(events.map(x => x.trophy).filter(Boolean))].sort((a,b) => {
+    const ia = TROPHY_ORDER.indexOf(a), ib = TROPHY_ORDER.indexOf(b);
+    if (ia !== -1 && ib !== -1) return ia - ib;
+    if (ia !== -1) return -1;
+    if (ib !== -1) return 1;
+    return a.localeCompare(b);
+  });
 
   const editForm = (isLoggedIn && isEditing) ? `
       <div class="edit-form">
@@ -1964,14 +1971,24 @@ function eventDetailHtml(e){
           </div>
           <div>
             <label>Trophy (feeds Hall of Fame)</label>
-            <select id="ef-trophy-${e.id}">
-              <option value="">None</option>
-              ${TROPHY_ORDER.map(t => `<option value="${t}" ${e.trophy===t?'selected':''}>${t}</option>`).join('')}
+            <select id="ef-trophy-${e.id}" onchange="onTrophySelected('${e.id}')">
+              <option value="" ${!e.trophy ? 'selected' : ''}></option>
+              ${knownTrophies.map(t => `<option value="${escapeHtml(t)}" ${e.trophy===t?'selected':''}>${escapeHtml(t)}</option>`).join('')}
+              <option value="__new__">＋ Create new trophy…</option>
             </select>
+            <div id="ef-new-trophy-form-${e.id}" style="display:none; margin-top:.5rem; background:var(--paper); padding:.7rem; border-radius:var(--radius); border:1px solid var(--line);">
+              <label style="font-size:.8rem; color:var(--text-muted); display:block; margin-bottom:.2rem;">Trophy name</label>
+              <input id="ef-nt-name-${e.id}" placeholder="e.g. Founders Cup" style="margin-bottom:.4rem; width:100%; font-family:var(--body); font-size:.9rem; padding:.5rem .65rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone); color:var(--text); box-sizing:border-box;">
+              <button class="committee-edit-btn" onclick="saveNewTrophyFromEvent('${e.id}')">Save &amp; select trophy</button>
+            </div>
           </div>
-          <div class="full">
-            <label>Description</label>
-            <textarea id="ef-desc-${e.id}">${escapeHtml(e.description||'')}</textarea>
+          <div>
+            <label>Nearest the Pin (1)</label>
+            <input id="ef-ntp1-${e.id}" placeholder="Winner's name" value="${escapeHtml(e.nearest_pin_1||'')}">
+          </div>
+          <div>
+            <label>Nearest the Pin (2)</label>
+            <input id="ef-ntp2-${e.id}" placeholder="Winner's name" value="${escapeHtml(e.nearest_pin_2||'')}">
           </div>
           <div>
             <label>Meeting time</label>
@@ -2025,12 +2042,6 @@ function eventDetailHtml(e){
 
   return `
     <div class="event-detail" onclick="event.stopPropagation();">
-      ${e.description
-        ? `<p class="event-description">${escapeHtml(e.description)}</p>`
-        : isLoggedIn
-          ? `<p class="event-description muted">No description yet — use "Edit event" below to add one.</p>`
-          : `<p class="event-description muted">No description added yet.</p>`}
-
       ${eventStatus(e) === 'past' ? (() => {
         const fullScores = eventFullScores(e.id);
         const played = fullScores.length || attendees.length;
@@ -2391,7 +2402,6 @@ function shareEventToWhatsApp(eventId){
     `\uD83D\uDCC5 ${fmtDate(e.date)}${e.course ? ' \u00B7 ' + e.course : ''}`,
   ];
   if (e.format) lines.push(e.format);
-  if (e.description) lines.push('', e.description);
   lines.push('', 'Sign up here: ' + window.location.origin);
   const msg = encodeURIComponent(lines.join('\n'));
   window.open('https://wa.me/?text=' + msg, '_blank', 'noopener');
@@ -2441,7 +2451,8 @@ async function saveEvent(eventId){
     postcode: coursePostcode,
     status: gv('ef-status-' + eventId),
     trophy: gv('ef-trophy-' + eventId) || null,
-    description: gv('ef-desc-' + eventId) || null,
+    nearest_pin_1: gv('ef-ntp1-' + eventId) || null,
+    nearest_pin_2: gv('ef-ntp2-' + eventId) || null,
     meeting_time: gv('ef-meeting-' + eventId) || null,
     tee_time: gv('ef-tee-' + eventId) || null,
     cost: gv('ef-cost-' + eventId) || null,
@@ -4431,6 +4442,10 @@ function trophySvg(baseName){
     <rect x="20" y="39" width="20" height="5" rx="1" fill="${d}"/>
     <rect x="40" y="39" width="20" height="5" rx="1" fill="${d}"/>
     <rect x="16" y="46" width="48" height="8" rx="1.5" fill="${dd}"/></svg>`;
+  if (n.includes('nearest the pin')) return `<svg viewBox="0 0 80 80" aria-hidden="true">
+    <line x1="30" y1="12" x2="30" y2="60" stroke="${b}" stroke-width="4"/>
+    <path d="M30 12 l24 9 l-24 9 z" fill="${d}"/>
+    <ellipse cx="30" cy="65" rx="18" ry="6" fill="${dd}"/></svg>`;
   if (n.includes('captain') || n.includes('memoriam')) {
     if (n.includes('memoriam')) return `<svg viewBox="0 0 80 80" aria-hidden="true">
       <circle cx="40" cy="22" r="12" fill="none" stroke="${b}" stroke-width="3.5"/>
@@ -4551,7 +4566,33 @@ function renderHonours(){
       </div>`;
   }
 
-  if (!groupNames.length && !captains.length && !archived.length){
+  /* Nearest the Pin tiles — only if at least one event records a winner */
+  const ntp1Events = events.filter(e => e.nearest_pin_1).sort((a,b) => new Date(b.date) - new Date(a.date));
+  const ntp2Events = events.filter(e => e.nearest_pin_2).sort((a,b) => new Date(b.date) - new Date(a.date));
+  const ntp1Selected = expandedTrophy === '__ntp1__';
+  const ntp2Selected = expandedTrophy === '__ntp2__';
+  if (ntp1Events.length){
+    shelf.innerHTML += `
+      <div class="trophy-card ${ntp1Selected ? 'selected' : ''}" role="button" tabindex="0"
+           onclick="toggleTrophy('__ntp1__')"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); toggleTrophy('__ntp1__');}">
+        ${trophySvg('Nearest the Pin')}
+        <h3>Nearest the Pin (1)</h3>
+        <div class="trophy-count">${ntp1Events.length} winner${ntp1Events.length===1?'':'s'}</div>
+      </div>`;
+  }
+  if (ntp2Events.length){
+    shelf.innerHTML += `
+      <div class="trophy-card ${ntp2Selected ? 'selected' : ''}" role="button" tabindex="0"
+           onclick="toggleTrophy('__ntp2__')"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); toggleTrophy('__ntp2__');}">
+        ${trophySvg('Nearest the Pin')}
+        <h3>Nearest the Pin (2)</h3>
+        <div class="trophy-count">${ntp2Events.length} winner${ntp2Events.length===1?'':'s'}</div>
+      </div>`;
+  }
+
+  if (!groupNames.length && !captains.length && !archived.length && !ntp1Events.length && !ntp2Events.length){
     shelf.innerHTML = '<p class="muted">No trophies recorded yet.</p>';
   }
 
@@ -4586,6 +4627,32 @@ function renderHonours(){
           ${archived.map(p => `
             <li style="break-inside:avoid;">
               <span class="tw-name">${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</span>
+            </li>`).join('')}
+        </ol>
+      </div>`;
+  } else if (expandedTrophy === '__ntp1__'){
+    winnersPanel.innerHTML = `
+      <div class="trophy-winners">
+        <h3>Nearest the Pin (1)</h3>
+        <ol>
+          ${ntp1Events.map(e => `
+            <li>
+              <span class="tw-year">${new Date(e.date+'T00:00:00').getFullYear()}</span>
+              <span class="tw-name">${escapeHtml(e.nearest_pin_1)}</span>
+              ${e.course ? `<span class="tw-course">${escapeHtml(e.course)}</span>` : ''}
+            </li>`).join('')}
+        </ol>
+      </div>`;
+  } else if (expandedTrophy === '__ntp2__'){
+    winnersPanel.innerHTML = `
+      <div class="trophy-winners">
+        <h3>Nearest the Pin (2)</h3>
+        <ol>
+          ${ntp2Events.map(e => `
+            <li>
+              <span class="tw-year">${new Date(e.date+'T00:00:00').getFullYear()}</span>
+              <span class="tw-name">${escapeHtml(e.nearest_pin_2)}</span>
+              ${e.course ? `<span class="tw-course">${escapeHtml(e.course)}</span>` : ''}
             </li>`).join('')}
         </ol>
       </div>`;
@@ -4863,6 +4930,31 @@ async function saveNewCourseFromEvent(eventId){
   if (newCourseForm) newCourseForm.style.display = 'none';
   setStatus('');
   renderCoursesPanel();
+}
+
+function onTrophySelected(eventId){
+  const sel = document.getElementById('ef-trophy-' + eventId);
+  const newTrophyForm = document.getElementById('ef-new-trophy-form-' + eventId);
+  if (!sel) return;
+  if (sel.value === '__new__'){
+    if (newTrophyForm) newTrophyForm.style.display = 'block';
+    return;
+  }
+  if (newTrophyForm) newTrophyForm.style.display = 'none';
+}
+
+function saveNewTrophyFromEvent(eventId){
+  const name = (document.getElementById('ef-nt-name-' + eventId)?.value || '').trim();
+  if (!name) return;
+  const sel = document.getElementById('ef-trophy-' + eventId);
+  if (sel){
+    const opt = document.createElement('option');
+    opt.value = name; opt.text = name; opt.selected = true;
+    sel.insertBefore(opt, sel.querySelector('option[value="__new__"]'));
+    sel.value = name;
+  }
+  const newTrophyForm = document.getElementById('ef-new-trophy-form-' + eventId);
+  if (newTrophyForm) newTrophyForm.style.display = 'none';
 }
 
 /* star rating on past events */
