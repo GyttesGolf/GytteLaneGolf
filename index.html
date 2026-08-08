@@ -4290,7 +4290,7 @@ async function syncHonourForEvent(eventId, winnerName){
       if (error) throw error;
       Object.assign(existing, { year, title, winner: winnerName });
     } else {
-      const { data, error } = await db.from('honours').insert({ year, title, winner: winnerName, event_id: eventId }).select().single();
+      const { data, error } = await db.from('honours').insert({ year, title, winner: winnerName, event_id: eventId, society_id: societyId }).select().single();
       if (error) throw error;
       if (data) honours.push(data);
     }
@@ -4877,7 +4877,7 @@ async function saveNewHonour(){
   }
 
   setStatus('Saving\u2026', 'loading');
-  const { data, error } = await db.from('honours').insert({ year, title, winner }).select().single();
+  const { data, error } = await db.from('honours').insert({ year, title, winner, society_id: societyId }).select().single();
   if (error){ console.error(error); setStatus('Save failed. Please try again.', 'error'); return; }
   honours.push(data);
   addHonourMode = null;
@@ -4902,7 +4902,7 @@ async function submitCourseRating(courseId, key){
     if (error){ console.error(error); setStatus('Save failed.', 'error'); return; }
     existing.stars = state.stars;
   } else {
-    const { data, error } = await db.from('course_ratings').insert({ course_id: Number(courseId), event_id: null, player_id: Number(state.playerId), stars: state.stars }).select().single();
+    const { data, error } = await db.from('course_ratings').insert({ course_id: Number(courseId), event_id: null, player_id: Number(state.playerId), stars: state.stars, society_id: societyId }).select().single();
     if (error){ console.error(error); setStatus('Save failed.', 'error'); return; }
     if (data) courseRatings.push(data);
   }
@@ -5060,7 +5060,7 @@ async function submitRating(courseId, eventId){
     if (error){ console.error(error); setStatus('Save failed.', 'error'); return; }
     existing.stars = state.stars;
   } else {
-    const { data, error } = await db.from('course_ratings').insert({ course_id: Number(courseId), event_id: eventId, player_id: Number(state.playerId), stars: state.stars }).select().single();
+    const { data, error } = await db.from('course_ratings').insert({ course_id: Number(courseId), event_id: eventId, player_id: Number(state.playerId), stars: state.stars, society_id: societyId }).select().single();
     if (error){ console.error(error); setStatus('Save failed.', 'error'); return; }
     if (data) courseRatings.push(data);
   }
