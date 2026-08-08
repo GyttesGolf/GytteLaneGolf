@@ -2157,8 +2157,17 @@ function eventDetailHtml(e){
             <span style="font-size:1.1rem;">🍴</span>
             <span>${escapeHtml(e.whats_included)}</span>
           </div>` : '';
+        const soc = currentSociety || {};
+        const payPanel = (fee && soc.payment_account_number && soc.payment_sort_code) ? `
+          <div class="event-detail-info" style="margin-bottom:.8rem;">
+            <div class="edi-row"><span class="edi-label">Pay by bank transfer</span><span class="edi-value">${escapeHtml(soc.payment_account_name||'')}</span></div>
+            <div class="edi-row"><span class="edi-label">Sort code</span><span class="edi-value">${escapeHtml(soc.payment_sort_code)}</span></div>
+            <div class="edi-row"><span class="edi-label">Account number</span><span class="edi-value">${escapeHtml(soc.payment_account_number)}</span></div>
+            ${soc.payment_reference_note ? `<div class="edi-row"><span class="edi-label">Reference</span><span class="edi-value">${escapeHtml(soc.payment_reference_note)}</span></div>` : ''}
+          </div>` : '';
         return `
           ${details.length ? `<div class="event-detail-info">${details.map(([k,v]) => `<div class="edi-row"><span class="edi-label">${k}</span><span class="edi-value">${escapeHtml(v)}</span></div>`).join('')}</div>` : ''}
+          ${payPanel}
           ${foodPanel}
           <div class="signup-block">
             <h4>Sign up for this event</h4>
@@ -5275,7 +5284,7 @@ let accountsYear = new Date().getFullYear();
 /* The Admin section is a small hub - "Accounts" (financials) today, "Admins"
    (who has is_committee) added alongside it, more tabs expected over time.
    Follows the same sub-tab pattern as Live Scores' setLiveSubView(). */
-let adminSubView = 'accounts'; // 'accounts' | 'admins'
+let adminSubView = 'accounts'; // 'accounts' | 'admins' | 'branding' | 'payments'
 
 function setAdminSubView(view){
   adminSubView = view;
@@ -5402,6 +5411,46 @@ async function saveSocietyBranding(){
   if (currentSociety) Object.assign(currentSociety, payload);
   applyBranding(currentSociety);
   setStatus('Saved!', 'success');
+}
+
+function renderPaymentsForm(){
+  const soc = currentSociety || {};
+  return `
+    <p style="font-size:.85rem; color:var(--text-muted); margin:0 0 1rem; max-width:520px;">
+      Shown to members on the event sign-up page as the bank details to pay event fees into. Payments are still confirmed manually — an admin ticks a player off as paid on the event's Payment received page, same as before.
+    </p>
+    <div class="edit-form" style="max-width:520px;">
+      <div class="edit-form-grid">
+        <div class="full"><label>Account name</label><input id="pay-account-name" value="${escapeHtml(soc.payment_account_name||'')}"></div>
+        <div><label>Sort code</label><input id="pay-sort-code" placeholder="00-00-00" value="${escapeHtml(soc.payment_sort_code||'')}"></div>
+        <div><label>Account number</label><input id="pay-account-number" placeholder="00000000" value="${escapeHtml(soc.payment_account_number||'')}"></div>
+        <div class="full"><label>Reference note (optional)</label><input id="pay-reference-note" placeholder="e.g. Use your name + event date as the reference" value="${escapeHtml(soc.payment_reference_note||'')}"></div>
+      </div>
+      <div class="edit-form-actions">
+        <button class="btn brass" onclick="saveSocietyPayment()">Save</button>
+        <div class="edit-status" id="pay-status"></div>
+      </div>
+    </div>`;
+}
+
+async function saveSocietyPayment(){
+  const setStatus = (msg, kind) => {
+    const el = document.getElementById('pay-status');
+    if (el){ el.textContent = msg; el.className = 'edit-status ' + (kind||''); }
+  };
+  if (!db){ setStatus('Not connected.', 'error'); return; }
+  const payload = {
+    payment_account_name: document.getElementById('pay-account-name')?.value.trim() || null,
+    payment_sort_code: document.getElementById('pay-sort-code')?.value.trim() || null,
+    payment_account_number: document.getElementById('pay-account-number')?.value.trim() || null,
+    payment_reference_note: document.getElementById('pay-reference-note')?.value.trim() || null,
+  };
+  setStatus('Saving…', 'loading');
+  const { error } = await db.from('societies').update(payload).eq('id', societyId);
+  if (error){ console.error(error); setStatus('Save failed.', 'error'); return; }
+  if (currentSociety) Object.assign(currentSociety, payload);
+  setStatus('Saved!', 'success');
+  renderEvents();
 }
 
 /* ===================== platform admin ===================== */
@@ -5573,6 +5622,7 @@ function renderAccounts(){
     <button class="admin-sub-tab ${adminSubView==='accounts'?'active':''}" onclick="setAdminSubView('accounts')">Accounts</button>
     <button class="admin-sub-tab ${adminSubView==='admins'?'active':''}" onclick="setAdminSubView('admins')">Admins</button>
     <button class="admin-sub-tab ${adminSubView==='branding'?'active':''}" onclick="setAdminSubView('branding')">Branding</button>
+    <button class="admin-sub-tab ${adminSubView==='payments'?'active':''}" onclick="setAdminSubView('payments')">Payments</button>
   </div>`;
 
   if (adminSubView === 'admins'){
@@ -5582,6 +5632,11 @@ function renderAccounts(){
 
   if (adminSubView === 'branding'){
     el.innerHTML = subTabs + renderBrandingForm();
+    return;
+  }
+
+  if (adminSubView === 'payments'){
+    el.innerHTML = subTabs + renderPaymentsForm();
     return;
   }
 
