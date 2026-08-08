@@ -51,7 +51,7 @@
   }
 
   *{box-sizing:border-box;}
-  html{scroll-behavior:smooth; overflow-x:hidden;}
+  html{scroll-behavior:smooth;}
   @media (prefers-reduced-motion: reduce){
     html{scroll-behavior:auto;}
     *{animation-duration:0.01ms !important; transition-duration:0.01ms !important;}
@@ -63,7 +63,6 @@
     font-family:var(--body);
     line-height:1.55;
     -webkit-font-smoothing:antialiased;
-    overflow-x:hidden;
   }
   a{color:var(--bracken);text-decoration:none;}
   a:hover{text-decoration:underline;}
@@ -225,12 +224,12 @@
   .hero-photo{
     position:relative; overflow:hidden;
     width:100vw; margin-left:calc(50% - 50vw); margin-right:calc(50% - 50vw);
-    margin-bottom:1.5rem; padding:2.6rem 1.5rem;
+    margin-top:-2.4rem; margin-bottom:1.5rem; padding:2.6rem 0;
     background:
       linear-gradient(180deg, rgba(20,20,10,.18) 0%, rgba(15,15,10,.72) 100%),
       url('assets/hero-fairway.jpg') center 38% / cover no-repeat;
   }
-  .hero-photo-inner{max-width:1080px; margin:0 auto;}
+  .hero-photo-inner{max-width:1080px; margin:0 auto; padding:0 1.5rem;}
   .hero-photo h1{color:#fff; text-shadow:0 1px 12px rgba(0,0,0,.35);}
   .hero-photo p.intro{color:rgba(255,255,255,.92); text-shadow:0 1px 8px rgba(0,0,0,.3);}
   .btn-row{display:flex; gap:.6rem; flex-wrap:wrap;}
@@ -1117,14 +1116,14 @@
 
   <!-- ============ HOME ============ -->
   <section class="section active" id="sec-home" data-section="home">
+    <div class="hero-photo">
+      <div class="hero-photo-inner">
+        <h1 id="hero-tagline">Tradition on the fairway. Good company on the 19th.</h1>
+        <p class="intro" id="hero-intro">Founded <span id="years-founded">32</span> years ago in Syresham, Northamptonshire. The Gyttes have played all over England, Wales and Ireland — with trips to France, Spain and Portugal along the way.</p>
+      </div>
+    </div>
     <div class="hero">
       <div>
-        <div class="hero-photo">
-          <div class="hero-photo-inner">
-            <h1 id="hero-tagline">Tradition on the fairway. Good company on the 19th.</h1>
-            <p class="intro" id="hero-intro">Founded <span id="years-founded">32</span> years ago in Syresham, Northamptonshire. The Gyttes have played all over England, Wales and Ireland — with trips to France, Spain and Portugal along the way.</p>
-          </div>
-        </div>
         <div class="home-btn-grid">
           <button class="btn home-btn-primary" onclick="goTo('events')">See upcoming events</button>
           <button class="btn ghost home-btn-ghost" onclick="goTo('committee')">Meet the committee</button>
