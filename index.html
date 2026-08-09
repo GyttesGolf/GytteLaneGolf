@@ -2747,7 +2747,7 @@ async function deleteCommitteeMember(id){
 
 async function addCommitteeMember(){
   if (!db) return;
-  const payload = { name: 'New member', first_name: 'New', last_name: 'Member', role: 'Role', sort_order: committee.length + 1 };
+  const payload = { name: 'New member', first_name: 'New', last_name: 'Member', role: 'Role', sort_order: committee.length + 1, society_id: societyId };
   const { data, error } = await db.from('committee').insert(payload).select().single();
   if (error){ console.error(error); alert('Could not add member. Please try again.'); return; }
   committee.push(data);
@@ -3170,6 +3170,7 @@ async function submitBulkGallery(){
       description: item.desc.trim() || null,
       event_id: item.eventId || null,
       media_url: urlData.publicUrl,
+      society_id: societyId,
     };
     const { error: dbError } = await db.from('gallery').insert(payload);
     if (dbError){ console.error(dbError); item.status = 'error'; renderGallery(); continue; }
@@ -3402,7 +3403,7 @@ async function deleteNews(newsId){
 async function addNewNews(){
   if (!db) return;
   const id = 'news-' + Date.now();
-  const payload = { id, title: 'New post', date: new Date().toISOString().slice(0,10), excerpt: '', event_id: null };
+  const payload = { id, title: 'New post', date: new Date().toISOString().slice(0,10), excerpt: '', event_id: null, society_id: societyId };
   const { error } = await db.from('news').insert(payload);
   if (error){ console.error(error); alert('Could not create news post. Please try again.'); return; }
   news.push({ ...payload, eventId: null });
@@ -4503,7 +4504,7 @@ async function deleteRule(id){
 
 async function addRule(){
   if (!db) return;
-  const payload = { title: 'New rule', body: '', sort_order: rules.length + 1 };
+  const payload = { title: 'New rule', body: '', sort_order: rules.length + 1, society_id: societyId };
   const { data, error } = await db.from('rules').insert(payload).select().single();
   if (error){ console.error(error); alert('Could not add rule. Please try again.'); return; }
   rules.push(data);
@@ -5916,7 +5917,7 @@ function openAddExpenditure(){
 async function saveNewExpenditure(){
   const setStatus = (msg, kind) => { const el = document.getElementById('nex-status'); if(el){el.textContent=msg; el.className='edit-status '+(kind||'');} };
   if (!db){ setStatus('Not connected.','error'); return; }
-  const payload = { description: gv('nex-desc'), amount: parseFloat(gv('nex-amount'))||0, date: gv('nex-date')||null, category: gv('nex-cat')||'other', year: accountsYear };
+  const payload = { description: gv('nex-desc'), amount: parseFloat(gv('nex-amount'))||0, date: gv('nex-date')||null, category: gv('nex-cat')||'other', year: accountsYear, society_id: societyId };
   if (!payload.description){ setStatus('Description required.','error'); return; }
   setStatus('Saving\u2026','loading');
   const { data, error } = await db.from('expenditures').insert(payload).select().single();
