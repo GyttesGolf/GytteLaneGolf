@@ -1,6 +1,6 @@
 # Golf App Platform
 
-A multi-tenant platform for golf society websites — one codebase and database serving multiple societies, each isolated by tenant and reachable on their own domain.
+A multi-tenant platform for golf societies — one codebase and database serving multiple societies, each isolated by tenant and reachable on their own domain.
 
 It started as a dedicated website for **Gytte Lane Golf Society** (Syresham, Northamptonshire, founded 1994), live at **[gyttelanegolf.co.uk](https://gyttelanegolf.co.uk)**, and later grew into a platform. Gytte Lane remains the first society onboarded and the only one live in production today.
 
