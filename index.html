@@ -7,6 +7,8 @@
 <meta name="description" content="Gytte Lane Golf Society, Syresham. Founded 1994. Events, results, committee, gallery and news.">
 <link rel="icon" id="site-favicon" href="">
 <link rel="apple-touch-icon" id="apple-touch-icon" sizes="180x180" href="">
+<link rel="manifest" id="site-manifest" href="">
+<meta name="theme-color" id="theme-color-meta" content="#4B1320">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -1474,10 +1476,11 @@ function placeholderCrestDataUri(soc){
   return 'data:image/svg+xml;base64,' + btoa(svg);
 }
 
-/* iOS (and most browsers) need a raster favicon/touch-icon, not an SVG —
-   a real uploaded logo already is one, but the generated placeholder crest
-   is SVG, so rasterise it to PNG via canvas before using it as an icon. */
-function rasterizeToPng(svgDataUri, size){
+/* iOS/Android and most browsers need a raster icon at a known pixel size,
+   not an arbitrary source — a real uploaded logo might be any resolution,
+   and the generated placeholder crest is SVG, so always render both onto a
+   canvas at the exact size being declared, rather than trust the source. */
+function rasterizeToPng(srcDataUri, size){
   return new Promise(resolve => {
     const img = new Image();
     img.onload = () => {
@@ -1485,21 +1488,57 @@ function rasterizeToPng(svgDataUri, size){
       canvas.width = size; canvas.height = size;
       canvas.getContext('2d').drawImage(img, 0, 0, size, size);
       try { resolve(canvas.toDataURL('image/png')); }
-      catch(e){ resolve(svgDataUri); }
+      catch(e){ resolve(srcDataUri); }
     };
-    img.onerror = () => resolve(svgDataUri);
-    img.src = svgDataUri;
+    img.onerror = () => resolve(srcDataUri);
+    img.src = srcDataUri;
   });
 }
 
+let manifestBlobUrl = null;
+
+/* Favicon, apple-touch-icon, and a dynamically-generated Web App Manifest —
+   Android's "Add to Home Screen" relies on the manifest's icons for a
+   reliable result rather than just falling back to apple-touch-icon. Built
+   as a Blob URL per society since there's no static per-tenant file to
+   point a real manifest.json at. */
 async function updateHomeScreenIcon(soc){
   const touchIcon = document.getElementById('apple-touch-icon');
   const favicon = document.getElementById('site-favicon');
-  if (!touchIcon && !favicon) return;
-  const isRaster = soc.logo_url && /^data:image\/(png|jpe?g)|\.(png|jpe?g)(\?.*)?$/i.test(soc.logo_url);
-  const href = isRaster ? soc.logo_url : await rasterizeToPng(placeholderCrestDataUri(soc), 180);
-  if (touchIcon) touchIcon.setAttribute('href', href);
-  if (favicon) favicon.setAttribute('href', href);
+  const manifestLink = document.getElementById('site-manifest');
+  const themeColorMeta = document.getElementById('theme-color-meta');
+  const baseSrc = soc.logo_url || placeholderCrestDataUri(soc);
+  const primaryColour = soc.primary_colour || '#4B1320';
+
+  if (themeColorMeta) themeColorMeta.setAttribute('content', primaryColour);
+  if (!touchIcon && !favicon && !manifestLink) return;
+
+  const [icon180, icon192, icon512] = await Promise.all([
+    rasterizeToPng(baseSrc, 180),
+    rasterizeToPng(baseSrc, 192),
+    rasterizeToPng(baseSrc, 512),
+  ]);
+  if (touchIcon) touchIcon.setAttribute('href', icon180);
+  if (favicon) favicon.setAttribute('href', icon180);
+
+  if (manifestLink){
+    const manifest = {
+      name: soc.name || 'Golf Society',
+      short_name: (soc.name || 'Golf Society').split(' ').slice(0, 2).join(' '),
+      start_url: '.',
+      display: 'standalone',
+      background_color: primaryColour,
+      theme_color: primaryColour,
+      icons: [
+        { src: icon192, sizes: '192x192', type: 'image/png' },
+        { src: icon512, sizes: '512x512', type: 'image/png' },
+      ],
+    };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/json' }));
+    if (manifestBlobUrl) URL.revokeObjectURL(manifestBlobUrl);
+    manifestBlobUrl = url;
+    manifestLink.setAttribute('href', url);
+  }
 }
 
 function applyBranding(soc){
