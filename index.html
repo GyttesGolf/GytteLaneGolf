@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gytte Lane Golf Society — Syresham</title>
 <meta name="description" content="Gytte Lane Golf Society, Syresham. Founded 1994. Events, results, committee, gallery and news.">
+<link rel="icon" id="site-favicon" href="">
+<link rel="apple-touch-icon" id="apple-touch-icon" sizes="180x180" href="">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -1472,6 +1474,34 @@ function placeholderCrestDataUri(soc){
   return 'data:image/svg+xml;base64,' + btoa(svg);
 }
 
+/* iOS (and most browsers) need a raster favicon/touch-icon, not an SVG —
+   a real uploaded logo already is one, but the generated placeholder crest
+   is SVG, so rasterise it to PNG via canvas before using it as an icon. */
+function rasterizeToPng(svgDataUri, size){
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      canvas.getContext('2d').drawImage(img, 0, 0, size, size);
+      try { resolve(canvas.toDataURL('image/png')); }
+      catch(e){ resolve(svgDataUri); }
+    };
+    img.onerror = () => resolve(svgDataUri);
+    img.src = svgDataUri;
+  });
+}
+
+async function updateHomeScreenIcon(soc){
+  const touchIcon = document.getElementById('apple-touch-icon');
+  const favicon = document.getElementById('site-favicon');
+  if (!touchIcon && !favicon) return;
+  const isRaster = soc.logo_url && /^data:image\/(png|jpe?g)|\.(png|jpe?g)(\?.*)?$/i.test(soc.logo_url);
+  const href = isRaster ? soc.logo_url : await rasterizeToPng(placeholderCrestDataUri(soc), 180);
+  if (touchIcon) touchIcon.setAttribute('href', href);
+  if (favicon) favicon.setAttribute('href', href);
+}
+
 function applyBranding(soc){
   if (!soc) return;
   const root = document.documentElement.style;
@@ -1487,6 +1517,7 @@ function applyBranding(soc){
   }
   const img = document.getElementById('site-crest');
   if (img) img.src = soc.logo_url || placeholderCrestDataUri(soc);
+  updateHomeScreenIcon(soc);
 
   const yearsEl = document.getElementById('years-founded');
   if (yearsEl && soc.founded) yearsEl.textContent = new Date().getFullYear() - soc.founded;
