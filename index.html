@@ -2332,6 +2332,16 @@ async function removeSignup(eventId, playerId){
     .select();
   if (error){ console.error('Remove signup error:', error); alert('Could not remove — please try again.'); return; }
   signups = signups.filter(s => !(s.event_id === eventId && s.player_id === playerId));
+
+  /* also drop any payment record for them on this event — otherwise it's
+     left orphaned and still counts as "outstanding" on the Accounts page
+     even though they're no longer signed up at all. */
+  const { error: payError } = await db.from('event_payments').delete()
+    .eq('event_id', eventId)
+    .eq('player_id', playerId);
+  if (payError) console.warn('Could not remove orphaned payment record:', payError);
+  eventPayments = eventPayments.filter(p => !(String(p.event_id) === String(eventId) && p.player_id === playerId));
+
   renderEvents();
 }
 
