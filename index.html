@@ -1610,6 +1610,7 @@ let societyPaymentDetails = null;
 let eventPayments = [];
 let expenditures = [];
 let editingExpenditureIds = new Set();
+let accountBalances = [];
 let matchGroups = [];       // all groups across events
 let matchGroupPlayers = []; // all group_players records // { eventId: { playerId, stars } }
 let players = [];
@@ -1832,6 +1833,16 @@ async function loadData(){
     console.warn('Payments not available yet (run add-payments.sql):', err);
     eventPayments = [];
     expenditures = [];
+  }
+
+  /* account starting balances — admin-only via RLS, same graceful-empty
+     pattern as payment details: a non-admin session just gets nothing back */
+  try {
+    const abRes = await db.from('account_balances').select('*').eq('society_id', societyId);
+    if (abRes.error) throw abRes.error;
+    accountBalances = abRes.data || [];
+  } catch(err){
+    accountBalances = [];
   }
 
   /* Save everything for offline use */
@@ -5779,6 +5790,11 @@ function renderAccounts(){
   const totalExp = yearExp.reduce((s,x) => s + Number(x.amount||0), 0);
   const surplus = totalIncome - totalExp;
 
+  /* starting balance for this year, and the running balance it implies */
+  const balanceRow = accountBalances.find(b => b.year === accountsYear);
+  const startingBalance = balanceRow ? Number(balanceRow.starting_balance) : null;
+  const runningBalance = startingBalance !== null ? startingBalance + surplus : null;
+
   /* expenditure by category */
   const expByCat = {};
   EXPENSE_CATEGORIES.forEach(c => expByCat[c] = []);
@@ -5837,6 +5853,23 @@ function renderAccounts(){
       <div class="accounts-surplus">
         <span class="ar-label">${surplus >= 0 ? 'Surplus' : 'Deficit'} for ${accountsYear}</span>
         <span class="ar-amount">${surplus >= 0 ? '+' : ''}£${Math.abs(surplus).toFixed(2)}</span>
+      </div>
+
+      ${runningBalance !== null ? `
+      <div class="accounts-surplus" style="background:${runningBalance >= startingBalance ? 'var(--bracken)' : 'var(--claret)'}; margin-top:.7rem;">
+        <span class="ar-label">Current balance &mdash; ${runningBalance >= startingBalance ? 'above' : 'below'} the £${startingBalance.toFixed(2)} starting balance</span>
+        <span class="ar-amount">£${runningBalance.toFixed(2)}</span>
+      </div>` : ''}
+
+      <div class="edit-form" style="max-width:420px; margin-top:1rem;">
+        <label style="font-size:.8rem; color:var(--text-muted); display:block; margin-bottom:.3rem;">Starting balance for ${accountsYear}</label>
+        <div style="display:flex; gap:.5rem; align-items:center;">
+          <input id="ab-starting-${accountsYear}" type="number" step="0.01" placeholder="0.00"
+            value="${startingBalance !== null ? startingBalance : ''}"
+            style="flex:1; font-family:var(--body); font-size:.9rem; padding:.5rem .65rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone); color:var(--text);">
+          <button class="btn brass" onclick="saveStartingBalance(${accountsYear})">Save</button>
+        </div>
+        <div class="edit-status" id="ab-status-${accountsYear}"></div>
       </div>
     </div>
 
@@ -5901,6 +5934,22 @@ async function deleteExpenditure(id){
   if (error){ console.error(error); alert('Delete failed.'); return; }
   expenditures = expenditures.filter(x => x.id !== id);
   editingExpenditureIds.delete(id);
+  renderAccounts();
+}
+
+async function saveStartingBalance(year){
+  const setStatus = (msg, kind) => { const el = document.getElementById('ab-status-'+year); if(el){el.textContent=msg; el.className='edit-status '+(kind||'');} };
+  if (!db){ setStatus('Not connected.', 'error'); return; }
+  const raw = document.getElementById('ab-starting-'+year)?.value;
+  const starting_balance = raw === '' ? NaN : parseFloat(raw);
+  if (isNaN(starting_balance)){ setStatus('Enter a valid amount.', 'error'); return; }
+  setStatus('Saving…', 'loading');
+  const { data, error } = await db.from('account_balances')
+    .upsert({ society_id: societyId, year, starting_balance }, { onConflict: 'society_id,year' })
+    .select().single();
+  if (error){ console.error(error); setStatus('Save failed.', 'error'); return; }
+  const existing = accountBalances.find(b => b.year === year);
+  if (existing) Object.assign(existing, data); else accountBalances.push(data);
   renderAccounts();
 }
 
