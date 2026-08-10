@@ -5563,15 +5563,22 @@ let allSocieties = [];
 let editingSocietyIds = new Set();
 let addSocietyFormOpen = false;
 
+let allPlatformAdmins = [];
+let addPlatformAdminFormOpen = false;
+
 async function renderPlatformAdmin(){
   const el = document.getElementById('platform-content');
   if (!el) return;
   if (!isPlatformAdmin){ el.innerHTML = '<p class="muted">This section is for platform admins only.</p>'; return; }
 
   if (!db){ el.innerHTML = '<p class="muted">Not connected.</p>'; return; }
-  const { data, error } = await db.from('societies').select('*').order('name');
-  if (error){ console.error(error); el.innerHTML = '<p class="muted">Could not load societies.</p>'; return; }
-  allSocieties = data || [];
+  const [socRes, paRes] = await Promise.all([
+    db.from('societies').select('*').order('name'),
+    db.from('platform_admins').select('*').order('created_at'),
+  ]);
+  if (socRes.error){ console.error(socRes.error); el.innerHTML = '<p class="muted">Could not load societies.</p>'; return; }
+  allSocieties = socRes.data || [];
+  allPlatformAdmins = paRes.data || [];
 
   el.innerHTML = `
     <a class="btn ghost" href="https://savvyscone988.grafana.net/d/azg5k6/golf-app-platform-overview" target="_blank" rel="noopener" style="display:inline-block; margin-bottom:1.2rem;">📊 Open analytics dashboard ↗</a>
@@ -5579,7 +5586,54 @@ async function renderPlatformAdmin(){
     <div class="player-list">${allSocieties.map(soc => platformSocietyRowHtml(soc)).join('')}</div>
     <div style="margin-top:1rem;">
       ${addSocietyFormOpen ? newSocietyFormHtml() : `<button class="add-item-btn" onclick="addSocietyFormOpen=true; renderPlatformAdmin();">+ Add society</button>`}
+    </div>
+
+    <div style="margin-top:2.2rem; padding-top:1.4rem; border-top:1px solid var(--line);">
+      <h3 class="mini-title" style="margin-bottom:1rem;">Platform admins</h3>
+      <p style="font-size:.85rem; color:var(--text-muted); margin:0 0 1rem; max-width:520px;">
+        Platform admins can manage every society and see cross-society analytics — separate from a society's own admins, and not tied to being a player anywhere.
+      </p>
+      ${allPlatformAdmins.length ? `<ul class="admin-list">${allPlatformAdmins.map(pa => `
+        <li>
+          <span>${escapeHtml(pa.email)}${pa.email.toLowerCase() === (currentUserEmail||'').toLowerCase() ? ' <span class="status-pill" style="background:var(--stone); color:var(--text-muted);">you</span>' : ''}</span>
+          <button class="delete-btn" onclick="removePlatformAdmin('${escapeHtml(pa.email).replace(/'/g,"\\'")}')">Remove</button>
+        </li>`).join('')}</ul>` : '<p class="muted">No platform admins found.</p>'}
+      <div style="margin-top:.8rem;">
+        ${addPlatformAdminFormOpen ? `
+          <div class="edit-form" style="max-width:420px;">
+            <label>Email</label>
+            <input type="email" id="new-pa-email" placeholder="name@example.com">
+            <div class="edit-form-actions">
+              <button class="btn brass" onclick="addPlatformAdmin()">Add</button>
+              <button class="btn ghost" onclick="addPlatformAdminFormOpen=false; renderPlatformAdmin();">Cancel</button>
+              <div class="edit-status" id="new-pa-status"></div>
+            </div>
+          </div>` : `<button class="add-item-btn" onclick="addPlatformAdminFormOpen=true; renderPlatformAdmin();">+ Add platform admin</button>`}
+      </div>
     </div>`;
+}
+
+async function addPlatformAdmin(){
+  const setStatus = (msg, kind) => { const el = document.getElementById('new-pa-status'); if(el){el.textContent=msg; el.className='edit-status '+(kind||'');} };
+  if (!db){ setStatus('Not connected.', 'error'); return; }
+  const email = (document.getElementById('new-pa-email')?.value || '').trim();
+  if (!email || !isValidEmail(email)){ setStatus('Enter a valid email.', 'error'); return; }
+  setStatus('Adding…', 'loading');
+  const { error } = await db.from('platform_admins').insert({ email });
+  if (error){ console.error(error); setStatus(error.code === '23505' ? 'Already a platform admin.' : 'Could not add.', 'error'); return; }
+  addPlatformAdminFormOpen = false;
+  renderPlatformAdmin();
+}
+
+async function removePlatformAdmin(email){
+  if (email.toLowerCase() === (currentUserEmail||'').toLowerCase()){
+    if (!confirm('This is your own account — removing it will lock you out of Platform Admin. Continue?')) return;
+  } else if (!confirm(`Remove ${email} as a platform admin?`)) return;
+  if (!db) return;
+  const { error } = await db.from('platform_admins').delete().eq('email', email);
+  if (error){ console.error(error); alert('Could not remove — please try again.'); return; }
+  allPlatformAdmins = allPlatformAdmins.filter(pa => pa.email !== email);
+  renderPlatformAdmin();
 }
 
 function platformSocietyRowHtml(soc){
