@@ -5996,44 +5996,156 @@ async function downloadAccountsPdf(year){
   if (!jsPDF){ alert('PDF library not loaded — use Print instead.'); return; }
   const doc = new jsPDF();
   const yr = accountsYear;
+  const socName = currentSociety?.name || 'Gytte Lane Golf Society';
+
+  /* income — same richer breakdown (with outstanding) as the on-screen report */
   const yearEvents = events.filter(e => new Date(e.date+'T00:00:00').getFullYear() === yr);
   const incomeRows = yearEvents.map(e => {
-    const paidList = eventPayments.filter(p => String(p.event_id) === String(e.id) && isPaidRecord(p));
-    const total = paidList.reduce((s,p) => s + Number(p.amount||0), 0);
-    return total > 0 ? { label: e.name, sub: `${paidList.length} @ ${e.cost||'?'}`, amount: total } : null;
+    const eid = String(e.id);
+    const paidList = eventPayments.filter(p => String(p.event_id) === eid && isPaidRecord(p));
+    const allPayments = eventPayments.filter(p => String(p.event_id) === eid);
+    const collected = paidList.reduce((s,p) => s + Number(p.amount||0), 0);
+    const fee = parseFloat((e.cost||'').replace(/[^0-9.]/g,'')) || 0;
+    const signedUp = signupsForEvent(e.id).length;
+    const expected = allPayments.length ? allPayments.reduce((s,p) => s + Number(p.amount||fee), 0) : signedUp * fee;
+    const outstanding = expected - collected;
+    return collected > 0 || outstanding > 0
+      ? { label: e.name, sub: `${paidList.length}/${signedUp} paid`, amount: collected, outstanding }
+      : null;
   }).filter(Boolean);
   const membersPaidPdf = players.filter(p => p.membership_paid_year === yr);
-  if (membersPaidPdf.length) incomeRows.push({ label: 'Annual Membership', sub: `${membersPaidPdf.length} members × £10`, amount: membersPaidPdf.length * 10 });
+  if (membersPaidPdf.length) incomeRows.push({ label: 'Annual Membership', sub: `${membersPaidPdf.length} members × £10`, amount: membersPaidPdf.length * 10, outstanding: 0 });
   const totalIncome = incomeRows.reduce((s,r) => s + r.amount, 0);
+  const totalOutstanding = incomeRows.reduce((s,r) => s + (r.outstanding || 0), 0);
+
+  /* expenditure — grouped by category, matching the on-screen report */
   const yearExp = expenditures.filter(x => x.year === yr);
   const totalExp = yearExp.reduce((s,x) => s + Number(x.amount||0), 0);
-  const surplus = totalIncome - totalExp;
+  const expByCat = {};
+  EXPENSE_CATEGORIES.forEach(c => expByCat[c] = []);
+  yearExp.forEach(x => (expByCat[x.category] = expByCat[x.category] || []).push(x));
 
+  const surplus = totalIncome - totalExp;
+  const balanceRow = accountBalances.find(b => b.year === yr);
+  const startingBalance = balanceRow ? Number(balanceRow.starting_balance) : null;
+  const closingBalance = startingBalance !== null ? startingBalance + surplus : null;
+
+  const LEFT = 20, RIGHT = 190, LABEL_X = 22, CAT_X = 26;
   let y = 20;
-  doc.setFontSize(16); doc.setFont('helvetica','bold');
-  doc.text(currentSociety?.name || 'Gytte Lane Golf Society', 105, y, {align:'center'}); y+=8;
+  const ensureRoom = (need = 6) => { if (y + need > 275){ doc.addPage(); y = 20; } };
+  const money = n => `£${Math.abs(n).toFixed(2)}`;
+
+  doc.setFontSize(17); doc.setFont('helvetica','bold');
+  doc.text(socName, 105, y, {align:'center'}); y += 8;
   doc.setFontSize(12); doc.setFont('helvetica','normal');
-  doc.text(`Financial Year ${yr}`, 105, y, {align:'center'}); y+=14;
+  doc.text('Statement of Accounts', 105, y, {align:'center'}); y += 6;
+  doc.text(`For the year ended 31 December ${yr}`, 105, y, {align:'center'}); y += 7;
+  doc.setFontSize(9); doc.setTextColor(120);
+  doc.text(`Prepared on ${new Date().toLocaleDateString('en-GB', {day:'numeric', month:'long', year:'numeric'})}`, 105, y, {align:'center'});
+  doc.setTextColor(0); y += 12;
+
+  /* opening balance, up top, if one's been set for this year */
+  if (startingBalance !== null){
+    doc.setFontSize(10); doc.setFont('helvetica','bold');
+    doc.text('Balance brought forward (1 Jan)', LABEL_X, y);
+    doc.text(money(startingBalance), RIGHT, y, {align:'right'}); y += 10;
+  }
 
   doc.setFontSize(11); doc.setFont('helvetica','bold');
-  doc.text('INCOME', 20, y); y+=6;
+  doc.text('RECEIPTS', LABEL_X, y); y += 7;
   doc.setFont('helvetica','normal'); doc.setFontSize(10);
-  incomeRows.forEach(r => { doc.text(r.label, 22, y); doc.text(`£${r.amount.toFixed(2)}`, 175, y, {align:'right'}); y+=6; });
+  if (!incomeRows.length){
+    doc.setFont('helvetica','italic'); doc.text('No receipts recorded for this year.', LABEL_X, y); doc.setFont('helvetica','normal'); y += 6;
+  }
+  incomeRows.forEach(r => {
+    ensureRoom();
+    doc.text(r.label, LABEL_X, y); doc.text(money(r.amount), RIGHT, y, {align:'right'}); y += 5;
+    doc.setFontSize(8); doc.setTextColor(120);
+    doc.text(r.sub + (r.outstanding > 0 ? ` · ${money(r.outstanding)} outstanding` : ''), LABEL_X, y);
+    doc.setTextColor(0); doc.setFontSize(10); y += 6;
+  });
+  ensureRoom(10);
   doc.setFont('helvetica','bold');
-  doc.text('Total Income', 22, y); doc.text(`£${totalIncome.toFixed(2)}`, 175, y, {align:'right'}); y+=12;
+  doc.text('Total receipts', LABEL_X, y); doc.text(money(totalIncome), RIGHT, y, {align:'right'}); y += 6;
+  if (totalOutstanding > 0){
+    doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(120);
+    doc.text(`(of which ${money(totalOutstanding)} still outstanding)`, LABEL_X, y);
+    doc.setTextColor(0); doc.setFontSize(10); doc.setFont('helvetica','normal'); y += 6;
+  }
+  y += 6;
 
-  doc.text('EXPENDITURE', 20, y); y+=6;
-  doc.setFont('helvetica','normal');
-  yearExp.forEach(x => { doc.text(x.description, 22, y); doc.text(`£${Number(x.amount).toFixed(2)}`, 175, y, {align:'right'}); y+=6; if(y>270){doc.addPage(); y=20;} });
+  ensureRoom(14);
+  doc.setFont('helvetica','bold'); doc.setFontSize(11);
+  doc.text('PAYMENTS', LABEL_X, y); y += 7;
+  doc.setFontSize(10);
+  const catsUsed = EXPENSE_CATEGORIES.filter(c => expByCat[c]?.length);
+  if (!catsUsed.length){
+    doc.setFont('helvetica','italic'); doc.text('No payments recorded for this year.', LABEL_X, y); doc.setFont('helvetica','normal'); y += 6;
+  }
+  catsUsed.forEach(cat => {
+    ensureRoom(12);
+    doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(90);
+    doc.text(cat.charAt(0).toUpperCase() + cat.slice(1), CAT_X, y);
+    doc.setTextColor(0); doc.setFontSize(10); doc.setFont('helvetica','normal'); y += 5;
+    expByCat[cat].forEach(x => {
+      ensureRoom();
+      doc.text(x.description + (x.recurring_id ? ' (recurring)' : ''), CAT_X + 2, y);
+      doc.text(money(Number(x.amount)), RIGHT, y, {align:'right'}); y += 5;
+      if (x.date){
+        doc.setFontSize(8); doc.setTextColor(120);
+        doc.text(fmtDate(x.date), CAT_X + 2, y);
+        doc.setTextColor(0); doc.setFontSize(10); y += 5;
+      }
+    });
+    const catTotal = expByCat[cat].reduce((s,x) => s + Number(x.amount||0), 0);
+    doc.setFont('helvetica','bold');
+    doc.text(`Subtotal — ${cat}`, CAT_X, y); doc.text(money(catTotal), RIGHT, y, {align:'right'});
+    doc.setFont('helvetica','normal'); y += 7;
+  });
+  ensureRoom(8);
   doc.setFont('helvetica','bold');
-  doc.text('Total Expenditure', 22, y); doc.text(`£${totalExp.toFixed(2)}`, 175, y, {align:'right'}); y+=12;
+  doc.text('Total payments', LABEL_X, y); doc.text(money(totalExp), RIGHT, y, {align:'right'}); y += 10;
 
-  doc.line(20, y, 190, y); y+=6;
+  ensureRoom(20);
+  doc.setLineWidth(0.4); doc.line(LEFT, y, RIGHT, y); y += 8;
   doc.setFontSize(12);
-  doc.text(surplus >= 0 ? 'SURPLUS' : 'DEFICIT', 22, y);
-  doc.text(`${surplus>=0?'+':''}£${Math.abs(surplus).toFixed(2)}`, 175, y, {align:'right'});
+  doc.text(surplus >= 0 ? 'Net surplus for the year' : 'Net deficit for the year', LABEL_X, y);
+  doc.text(`${surplus>=0?'+':'-'}${money(surplus)}`, RIGHT, y, {align:'right'}); y += 12;
 
-  doc.save(`GLGS-Accounts-${yr}.pdf`);
+  if (startingBalance !== null){
+    ensureRoom(30);
+    doc.setFontSize(11); doc.setFont('helvetica','bold');
+    doc.text('RECONCILIATION OF FUNDS', LABEL_X, y); y += 8;
+    doc.setFont('helvetica','normal'); doc.setFontSize(10);
+    doc.text('Balance brought forward (1 Jan)', LABEL_X, y); doc.text(money(startingBalance), RIGHT, y, {align:'right'}); y += 6;
+    doc.text(surplus >= 0 ? 'Net surplus for the year' : 'Net deficit for the year', LABEL_X, y);
+    doc.text(`${surplus>=0?'+':'-'}${money(surplus)}`, RIGHT, y, {align:'right'}); y += 5;
+    doc.line(LEFT, y, RIGHT, y); y += 6;
+    doc.setFont('helvetica','bold');
+    doc.text('Balance carried forward (31 Dec)', LABEL_X, y); doc.text(money(closingBalance), RIGHT, y, {align:'right'}); y += 14;
+  } else {
+    ensureRoom(10);
+    doc.setFontSize(9); doc.setFont('helvetica','italic'); doc.setTextColor(120);
+    doc.text('No starting balance set for this year — set one in Admin → Accounts to show a full reconciliation of funds.', LABEL_X, y);
+    doc.setTextColor(0); doc.setFont('helvetica','normal'); y += 14;
+  }
+
+  ensureRoom(24);
+  doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.text('Approved by (Treasurer): ______________________________', LABEL_X, y); y += 12;
+  doc.text('Date: ______________________________', LABEL_X, y);
+
+  /* page footer, once the full page count is known */
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++){
+    doc.setPage(i);
+    doc.setFontSize(8); doc.setTextColor(140);
+    doc.text(`${socName} · Financial Year ${yr}`, LEFT, 290);
+    doc.text(`Page ${i} of ${pageCount}`, RIGHT, 290, {align:'right'});
+    doc.setTextColor(0);
+  }
+
+  doc.save(`${socName.replace(/[^a-z0-9]+/gi,'-')}-Accounts-${yr}.pdf`);
 }
 
 /* ===================== bottom nav ===================== */
