@@ -2021,23 +2021,26 @@ function updatePaymentSummary(eventId){
 
 function isPaidRecord(rec){ return rec && (rec.paid === true || rec.paid === 1 || rec.paid === 'true'); }
 
-function attendeePillLi(p, eventId, isLoggedIn, isPaid){
+function attendeePillLi(p, eventId, isLoggedIn, isPaid, fee){
   return `<li style="display:flex; align-items:center; justify-content:space-between; gap:.5rem;">
     <span>${isPaid ? '<span class="paid-tick">✓</span>' : ''}${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</span>
-    ${isLoggedIn ? `<button class="committee-edit-btn" style="color:var(--claret); border-color:var(--claret); flex-shrink:0;" onclick="removeSignup('${eventId}',${p.id})">✕ Remove</button>` : ''}
+    <span style="display:flex; gap:.4rem; flex-shrink:0;">
+      ${!isPaid && fee > 0 ? `<button class="committee-edit-btn" style="color:var(--bracken); border-color:var(--bracken);" onclick="payWithStripe('${eventId}',${p.id},this)">Pay now</button>` : ''}
+      ${isLoggedIn ? `<button class="committee-edit-btn" style="color:var(--claret); border-color:var(--claret);" onclick="removeSignup('${eventId}',${p.id})">✕ Remove</button>` : ''}
+    </span>
   </li>`;
 }
 
 /* Groups attendees into "Paid" / "Awaiting payment" so it's obvious at a
    glance who still needs to pay, without relying on a colour-coded pill
    that'd be easy to miss scanning a long list. */
-function renderAttendeeGroups(players, paidIds, eventId, isLoggedIn){
+function renderAttendeeGroups(players, paidIds, eventId, isLoggedIn, fee){
   if (!players.length) return '';
   const paid = players.filter(p => paidIds.has(p.id));
   const unpaid = players.filter(p => !paidIds.has(p.id));
   const group = (label, list) => list.length ? `
     <p class="attendee-group-label">${label} (${list.length})</p>
-    <ul>${list.map(p => attendeePillLi(p, eventId, isLoggedIn, paidIds.has(p.id))).join('')}</ul>` : '';
+    <ul>${list.map(p => attendeePillLi(p, eventId, isLoggedIn, paidIds.has(p.id), fee)).join('')}</ul>` : '';
   return group('Paid', paid) + group('Awaiting payment', unpaid);
 }
 
@@ -2281,7 +2284,7 @@ function eventDetailHtml(e){
           <div class="attendee-list">
             <h4>Who's playing (${attendees.length})</h4>
             ${attendees.length
-              ? renderAttendeeGroups(attendees, paidIds, e.id, isLoggedIn)
+              ? renderAttendeeGroups(attendees, paidIds, e.id, isLoggedIn, fee)
               : '<p class="muted">No one signed up yet — be the first.</p>'}
           </div>
           ${isLoggedIn && signedUp.length ? `
@@ -2335,6 +2338,28 @@ function toggleEventEdit(eventId){
   if (editingEventIds.has(eventId)) editingEventIds.delete(eventId);
   else editingEventIds.add(eventId);
   renderEvents();
+}
+
+/* Starts a Stripe Checkout redirect for one signed-up player's event fee.
+   The Edge Function looks the real price up server-side — nothing about
+   the amount is trusted from here. A plain redirect to the returned URL
+   is enough; there's no need to load Stripe.js just to get there. */
+async function payWithStripe(eventId, playerId, buttonEl){
+  if (!db){ alert('Not connected — please try again.'); return; }
+  if (buttonEl){ buttonEl.disabled = true; buttonEl.textContent = 'Redirecting…'; }
+  try {
+    const { data, error } = await db.functions.invoke('create-checkout-session', {
+      body: { event_id: eventId, player_id: playerId, origin: window.location.origin },
+    });
+    if (error || !data?.url){
+      throw new Error(data?.error || error?.message || 'Could not start checkout.');
+    }
+    window.location.href = data.url;
+  } catch (err){
+    console.error('Stripe checkout error:', err);
+    alert(err.message || 'Could not start checkout — please try again, or pay by bank transfer instead.');
+    if (buttonEl){ buttonEl.disabled = false; buttonEl.textContent = 'Pay now'; }
+  }
 }
 
 async function removeSignup(eventId, playerId){
@@ -6671,6 +6696,24 @@ async function init(){
   renderAccounts();
   renderGroupings();
   renderHome();
+
+  /* returning from a Stripe Checkout redirect — the webhook usually beats
+     this redirect back, but re-fetch payments just in case it hasn't yet,
+     then show what happened and clean the URL so a refresh doesn't repeat it */
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('stripe')){
+    const outcome = params.get('stripe');
+    window.history.replaceState({}, '', window.location.pathname);
+    goTo('events');
+    if (outcome === 'success'){
+      const { data } = await db.from('event_payments').select('*').eq('society_id', societyId);
+      if (data) eventPayments = data;
+      renderEvents(currentEventFilter);
+      alert('Payment received — thanks!');
+    } else if (outcome === 'cancelled'){
+      alert('Checkout was cancelled — no payment was taken. You can try again or pay by bank transfer instead.');
+    }
+  }
 }
 init();
 </script>
