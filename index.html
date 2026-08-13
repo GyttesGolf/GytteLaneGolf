@@ -6577,7 +6577,7 @@ function shareGroupingsWhatsApp(){
 async function addGroupFromScores(eventId){
   if (!db) return;
   const { data, error } = await db.from('groups')
-    .insert({ event_id: eventId, tee_time: '09:00', group_number: matchGroups.filter(g => g.event_id === eventId).length + 1 })
+    .insert({ event_id: eventId, tee_time: '09:00', group_number: matchGroups.filter(g => g.event_id === eventId).length + 1, society_id: societyId })
     .select().single();
   if (error){ console.error(error); alert('Could not add group.'); return; }
   matchGroups.push(data);
