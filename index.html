@@ -6478,24 +6478,32 @@ function computeGroupSizes(n){
   return [...Array(fours).fill(4), ...Array(threes).fill(3)];
 }
 
-function openRandomizer(){
-  randomizerEventId = groupingsEventId;
+/* Groupings has two entry points — the standalone Groupings page and the
+   Live Scores > Groupings tab — each with their own render function, so
+   every randomiser state change needs to refresh whichever is on screen. */
+function refreshGroupingsViews(){
+  renderGroupings();
+  renderLiveScores();
+}
+
+function openRandomizer(defaultEventId){
+  randomizerEventId = defaultEventId || groupingsEventId || liveEventId;
   randomizerSizes = computeGroupSizes(ungroupedPlayersForEvent(randomizerEventId).length);
   randomizerOpen = true;
   randomizerAnimating = false;
-  renderGroupings();
+  refreshGroupingsViews();
 }
 
 function closeRandomizer(){
   randomizerOpen = false;
   randomizerAnimating = false;
-  renderGroupings();
+  refreshGroupingsViews();
 }
 
 function randomizerEventChanged(eventId){
   randomizerEventId = eventId;
   randomizerSizes = computeGroupSizes(ungroupedPlayersForEvent(randomizerEventId).length);
-  renderGroupings();
+  refreshGroupingsViews();
 }
 
 function adjustRandomizerGroupCount(delta){
@@ -6506,14 +6514,14 @@ function adjustRandomizerGroupCount(delta){
   } else if (randomizerSizes.length > 1){
     randomizerSizes.pop();
   }
-  renderGroupings();
+  refreshGroupingsViews();
 }
 
 function adjustRandomizerGroupSize(idx, delta){
   const next = randomizerSizes[idx] + delta;
   if (next < 1 || next > 6) return;
   randomizerSizes[idx] = next;
-  renderGroupings();
+  refreshGroupingsViews();
 }
 
 function shuffled(arr){
@@ -6536,7 +6544,7 @@ async function runRandomizer(){
   }
 
   randomizerAnimating = true;
-  renderGroupings();
+  refreshGroupingsViews();
 
   setTimeout(async () => {
     const players = shuffled(pool);
@@ -6576,7 +6584,7 @@ async function runRandomizer(){
     justRandomizedGroupIds = new Set(newGroupIds);
     randomizerOpen = false;
     randomizerAnimating = false;
-    renderGroupings();
+    refreshGroupingsViews();
     setTimeout(() => { justRandomizedGroupIds.clear(); }, 1500);
   }, 1300);
 }
@@ -6585,6 +6593,60 @@ function addMinutesToTime(hhmm, mins){
   const [h, m] = (hhmm || '09:00').split(':').map(Number);
   const total = (h * 60 + m + mins + 1440) % 1440;
   return `${String(Math.floor(total/60)).padStart(2,'0')}:${String(total%60).padStart(2,'0')}`;
+}
+
+/* Shared by both Groupings entry points (the standalone page and the Live
+   Scores > Groupings tab) so the randomiser only needs building once. */
+function randomizerModalHtml(){
+  const pool = ungroupedPlayersForEvent(randomizerEventId);
+  const total = randomizerSizes.reduce((s,n) => s+n, 0);
+  const mismatch = total !== pool.length;
+
+  if (randomizerAnimating){
+    return `
+      <div class="edit-form" style="margin-top:1rem; text-align:center; padding:2rem 1rem;">
+        <div class="dice-spin">🎲</div>
+        <p style="margin-top:1rem; font-family:var(--body); font-weight:600; color:var(--ink);">Shuffling ${pool.length} player${pool.length===1?'':'s'}…</p>
+        <div style="margin-top:1rem;">
+          ${pool.map((p,i) => `<span class="shuffle-chip" style="animation-delay:${(i%6)*0.06}s;">${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</span>`).join('')}
+        </div>
+      </div>`;
+  }
+
+  const sortedEvents = [...events].sort((a,b) => new Date(b.date) - new Date(a.date));
+  return `
+    <div class="edit-form" style="margin-top:1rem;">
+      <h4>🎲 Randomise groups</h4>
+      <div class="edit-form-grid">
+        <div class="full">
+          <label>Event</label>
+          <select onchange="randomizerEventChanged(this.value)">
+            ${sortedEvents.map(e => `<option value="${e.id}" ${e.id===randomizerEventId?'selected':''}>${e.name} — ${fmtDate(e.date)}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <p style="font-family:var(--body); font-size:.82rem; color:var(--text-muted); margin:.6rem 0;">
+        ${pool.length} player${pool.length===1?'':'s'} not yet in a group for this event.
+      </p>
+      ${pool.length ? `
+        <div style="display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin-bottom:.8rem;">
+          ${randomizerSizes.map((size, idx) => `
+            <span style="display:inline-flex; align-items:center; gap:.3rem; background:var(--stone); border:1px solid var(--line); border-radius:999px; padding:.3rem .5rem;">
+              <button class="committee-edit-btn" style="padding:.1rem .5rem;" onclick="adjustRandomizerGroupSize(${idx},-1)">−</button>
+              <span style="font-family:var(--body); font-size:.85rem; min-width:3.4rem; text-align:center;">Grp ${idx+1}: ${size}</span>
+              <button class="committee-edit-btn" style="padding:.1rem .5rem;" onclick="adjustRandomizerGroupSize(${idx},1)">+</button>
+            </span>`).join('')}
+          <button class="committee-edit-btn" onclick="adjustRandomizerGroupCount(1)">+ Group</button>
+          ${randomizerSizes.length > 1 ? `<button class="committee-edit-btn" onclick="adjustRandomizerGroupCount(-1)">− Group</button>` : ''}
+        </div>
+        <p style="font-family:var(--body); font-size:.8rem; ${mismatch ? 'color:var(--claret);' : 'color:var(--text-muted);'} margin-bottom:.8rem;">
+          ${total} of ${pool.length} players assigned${mismatch ? ' — adjust the sizes above to match exactly' : ' ✓'}
+        </p>` : ''}
+      <div class="edit-form-actions">
+        <button class="btn brass" ${mismatch || !pool.length ? 'disabled' : ''} onclick="runRandomizer()">🎲 Shuffle &amp; create groups</button>
+        <button class="btn ghost" onclick="closeRandomizer()">Cancel</button>
+      </div>
+    </div>`;
 }
 
 function renderGroupings(){
@@ -6681,59 +6743,10 @@ function renderGroupings(){
   const addGroupBtn = isLoggedIn ? `
     <div style="display:flex; gap:.6rem; flex-wrap:wrap;">
       <button class="add-item-btn" style="width:auto; flex:1; min-width:140px;" onclick="addGroup('${groupingsEventId}')">+ Add group</button>
-      <button class="add-item-btn" style="width:auto; flex:1; min-width:140px; border-style:solid; border-color:var(--brass);" onclick="openRandomizer()">🎲 Randomise groups</button>
+      <button class="add-item-btn" style="width:auto; flex:1; min-width:140px; border-style:solid; border-color:var(--brass);" onclick="openRandomizer('${groupingsEventId}')">🎲 Randomise groups</button>
     </div>` : '';
 
-  const randomizerModal = (isLoggedIn && randomizerOpen) ? (() => {
-    const pool = ungroupedPlayersForEvent(randomizerEventId);
-    const total = randomizerSizes.reduce((s,n) => s+n, 0);
-    const mismatch = total !== pool.length;
-
-    if (randomizerAnimating){
-      return `
-        <div class="edit-form" style="margin-top:1rem; text-align:center; padding:2rem 1rem;">
-          <div class="dice-spin">🎲</div>
-          <p style="margin-top:1rem; font-family:var(--body); font-weight:600; color:var(--ink);">Shuffling ${pool.length} player${pool.length===1?'':'s'}…</p>
-          <div style="margin-top:1rem;">
-            ${pool.map((p,i) => `<span class="shuffle-chip" style="animation-delay:${(i%6)*0.06}s;">${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</span>`).join('')}
-          </div>
-        </div>`;
-    }
-
-    return `
-      <div class="edit-form" style="margin-top:1rem;">
-        <h4>🎲 Randomise groups</h4>
-        <div class="edit-form-grid">
-          <div class="full">
-            <label>Event</label>
-            <select onchange="randomizerEventChanged(this.value)">
-              ${sortedEvents.map(e => `<option value="${e.id}" ${e.id===randomizerEventId?'selected':''}>${e.name} — ${fmtDate(e.date)}</option>`).join('')}
-            </select>
-          </div>
-        </div>
-        <p style="font-family:var(--body); font-size:.82rem; color:var(--text-muted); margin:.6rem 0;">
-          ${pool.length} player${pool.length===1?'':'s'} not yet in a group for this event.
-        </p>
-        ${pool.length ? `
-          <div style="display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin-bottom:.8rem;">
-            ${randomizerSizes.map((size, idx) => `
-              <span style="display:inline-flex; align-items:center; gap:.3rem; background:var(--stone); border:1px solid var(--line); border-radius:999px; padding:.3rem .5rem;">
-                <button class="committee-edit-btn" style="padding:.1rem .5rem;" onclick="adjustRandomizerGroupSize(${idx},-1)">−</button>
-                <span style="font-family:var(--body); font-size:.85rem; min-width:3.4rem; text-align:center;">Grp ${idx+1}: ${size}</span>
-                <button class="committee-edit-btn" style="padding:.1rem .5rem;" onclick="adjustRandomizerGroupSize(${idx},1)">+</button>
-              </span>`).join('')}
-            <button class="committee-edit-btn" onclick="adjustRandomizerGroupCount(1)">+ Group</button>
-            ${randomizerSizes.length > 1 ? `<button class="committee-edit-btn" onclick="adjustRandomizerGroupCount(-1)">− Group</button>` : ''}
-          </div>
-          <p style="font-family:var(--body); font-size:.8rem; ${mismatch ? 'color:var(--claret);' : 'color:var(--text-muted);'} margin-bottom:.8rem;">
-            ${total} of ${pool.length} players assigned${mismatch ? ' — adjust the sizes above to match exactly' : ' ✓'}
-          </p>` : ''}
-        <div class="edit-form-actions">
-          <button class="btn brass" ${mismatch || !pool.length ? 'disabled' : ''} onclick="runRandomizer()">🎲 Shuffle &amp; create groups</button>
-          <button class="btn ghost" onclick="closeRandomizer()">Cancel</button>
-        </div>
-      </div>`;
-  })() : '';
+  const randomizerModal = (isLoggedIn && randomizerOpen) ? randomizerModalHtml() : '';
 
   el.innerHTML = `
     ${eventSelector}
@@ -6837,7 +6850,7 @@ function renderGroupingsInScores(){
       </div>` : '';
 
     return `
-      <div style="background:var(--paper); border:1px solid var(--line); border-left:4px solid var(--brass); border-radius:var(--radius); padding:.9rem 1.1rem; margin-bottom:.7rem;">
+      <div class="${justRandomizedGroupIds.has(g.id) ? 'group-reveal' : ''}" style="background:var(--paper); border:1px solid var(--line); border-left:4px solid var(--brass); border-radius:var(--radius); padding:.9rem 1.1rem; margin-bottom:.7rem;">
         <div style="display:flex; align-items:baseline; gap:.8rem; margin-bottom:.5rem; flex-wrap:wrap;">
           <span style="font-family:var(--body); font-size:1.3rem; font-weight:700; color:var(--ink);">${g.tee_time}</span>
           <span style="font-family:var(--body); font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Group ${idx+1}</span>
@@ -6849,7 +6862,12 @@ function renderGroupingsInScores(){
   }).join('');
 
   const addBtn = isLoggedIn ? `
-    <button class="add-item-btn" style="margin-top:.4rem;" onclick="addGroupFromScores('${liveEventId}')">+ Add group</button>` : '';
+    <div style="display:flex; gap:.6rem; flex-wrap:wrap; margin-top:.4rem;">
+      <button class="add-item-btn" style="width:auto; flex:1; min-width:140px;" onclick="addGroupFromScores('${liveEventId}')">+ Add group</button>
+      <button class="add-item-btn" style="width:auto; flex:1; min-width:140px; border-style:solid; border-color:var(--brass);" onclick="openRandomizer('${liveEventId}')">🎲 Randomise groups</button>
+    </div>` : '';
+
+  const randomizerModal = (isLoggedIn && randomizerOpen) ? randomizerModalHtml() : '';
 
   const emptyMsg = evGroups.length ? '' : `<p class="muted">No groups set up yet${isLoggedIn ? ' — add one below.' : '.'}</p>`;
 
@@ -6863,7 +6881,8 @@ function renderGroupingsInScores(){
       <button class="wa-share-btn" style="margin-top:.6rem;" onclick="shareGroupingsWhatsApp()">
         ${WA_ICON} Share groupings on WhatsApp
       </button>` : ''}
-    ${addBtn}`;
+    ${addBtn}
+    ${randomizerModal}`;
 }
 
 function shareGroupingsWhatsApp(){
