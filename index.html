@@ -6471,9 +6471,15 @@ function renderGroupings(){
         <div class="edit-form-grid">
           <div><label>Tee time</label><input type="time" id="eg-time-${g.id}" value="${g.tee_time}"></div>
           <div class="full">
-            <label>Players (select all in this group · max 4 · signed up only)</label>
+            <label>Players (select all in this group · max 4 · signed up, ungrouped only)</label>
             <select id="eg-players-${g.id}" multiple style="height:140px; width:100%; font-family:var(--body); font-size:.88rem; padding:.3rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone);">
-              ${signupsForEvent(groupingsEventId).map(p => p && p.id ? `<option value="${p.id}" ${gPlayers.some(gp => gp.player_id===p.id)?'selected':''}>${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</option>` : '').join('')}
+              ${(() => {
+                const assignedElsewhere = new Set(matchGroupPlayers.filter(gp => gp.group_id !== g.id && evGroups.some(gg => gg.id === gp.group_id)).map(gp => gp.player_id));
+                return signupsForEvent(groupingsEventId)
+                  .filter(p => p && p.id && !assignedElsewhere.has(p.id))
+                  .map(p => `<option value="${p.id}" ${gPlayers.some(gp => gp.player_id===p.id)?'selected':''}>${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</option>`)
+                  .join('');
+              })()}
             </select>
           </div>
           <div class="full">
@@ -6592,9 +6598,15 @@ function renderGroupingsInScores(){
         <div class="edit-form-grid">
           <div><label>Tee time</label><input type="time" id="eg-time-${g.id}" value="${g.tee_time}"></div>
           <div class="full">
-            <label>Players <span style="font-family:var(--body); font-size:.7rem; color:var(--text-muted); font-weight:normal;">(max 4 · signed up only)</span></label>
+            <label>Players <span style="font-family:var(--body); font-size:.7rem; color:var(--text-muted); font-weight:normal;">(max 4 · signed up, ungrouped only)</span></label>
             <select id="eg-players-${g.id}" multiple style="height:130px; width:100%; font-family:var(--body); font-size:.88rem; padding:.3rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--stone);">
-              ${signupsForEvent(liveEventId).map(p => p && p.id ? `<option value="${p.id}" ${gPlayers.some(gp => gp.player_id===p.id)?'selected':''}>${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</option>` : '').join('')}
+              ${(() => {
+                const assignedElsewhere = new Set(matchGroupPlayers.filter(gp => gp.group_id !== g.id && evGroups.some(gg => gg.id === gp.group_id)).map(gp => gp.player_id));
+                return signupsForEvent(liveEventId)
+                  .filter(p => p && p.id && !assignedElsewhere.has(p.id))
+                  .map(p => `<option value="${p.id}" ${gPlayers.some(gp => gp.player_id===p.id)?'selected':''}>${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</option>`)
+                  .join('');
+              })()}
             </select>
           </div>
         </div>
