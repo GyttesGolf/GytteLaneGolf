@@ -4272,7 +4272,7 @@ function renderEntryView(){
     const btns = [0,1,2,3,4,5].map(pts => {
       const isSel = curScore === pts;
       return `<button class="points-btn ${isSel ? (pts===0?'selected-0':'selected') : ''}"
-        onclick="setHoleScore(${JSON.stringify(sc.id)}, ${currentHole}, ${pts})">${pts}</button>`;
+        onclick="setHoleScore(${JSON.stringify(sc.id).replace(/"/g, '&quot;')}, ${currentHole}, ${pts})">${pts}</button>`;
     }).join('');
     return `<div class="player-score-row">
       <div class="player-score-header">
