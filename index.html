@@ -6547,46 +6547,56 @@ async function runRandomizer(){
   refreshGroupingsViews();
 
   setTimeout(async () => {
-    const players = shuffled(pool);
-    const existing = matchGroups.filter(g => g.event_id === eventId);
-    let nextGroupNumber = existing.length + 1;
-    let nextTee = existing.length
-      ? addMinutesToTime(existing.map(g => g.tee_time).sort().slice(-1)[0], 8)
-      : (eventById(eventId)?.tee_time || '09:00');
-
     const newGroupIds = [];
-    let cursor = 0;
-    for (const size of randomizerSizes){
-      const slice = players.slice(cursor, cursor + size);
-      cursor += size;
-      try {
+    try {
+      const players = shuffled(pool);
+      const existing = matchGroups.filter(g => g.event_id === eventId);
+      let nextGroupNumber = existing.length + 1;
+      let nextTee = existing.length
+        ? addMinutesToTime(existing.map(g => g.tee_time).sort().slice(-1)[0], 8)
+        : (eventById(eventId)?.tee_time || '09:00');
+
+      let cursor = 0;
+      for (const size of randomizerSizes){
+        const slice = players.slice(cursor, cursor + size);
+        cursor += size;
         const { data: group, error } = await db.from('groups')
           .insert({ event_id: eventId, tee_time: nextTee, group_number: nextGroupNumber, society_id: societyId })
           .select().single();
         if (error) throw error;
-        matchGroups.push(group);
         newGroupIds.push(group.id);
         if (slice.length){
           const rows = slice.map(p => ({ group_id: group.id, player_id: p.id, is_marker: false, society_id: societyId }));
-          const { data: gps, error: gpErr } = await db.from('group_players').insert(rows).select();
+          const { error: gpErr } = await db.from('group_players').insert(rows);
           if (gpErr) throw gpErr;
-          if (gps) matchGroupPlayers.push(...gps);
         }
-      } catch(err){
-        console.error('Randomiser could not create a group:', err);
-        alert('Something went wrong creating the groups — please check what was created and finish off manually.');
-        break;
+        nextGroupNumber++;
+        nextTee = addMinutesToTime(nextTee, 8);
       }
-      nextGroupNumber++;
-      nextTee = addMinutesToTime(nextTee, 8);
-    }
 
-    justRandomizedGroupIds = new Set(newGroupIds);
-    randomizerOpen = false;
-    randomizerAnimating = false;
-    refreshGroupingsViews();
-    setTimeout(() => { justRandomizedGroupIds.clear(); }, 1500);
-  }, 1300);
+      // Re-fetch this event's groups/players straight from the DB rather
+      // than trusting the incremental local push — this is exactly what a
+      // manual page refresh was doing to "fix" it, so do that automatically.
+      const { data: freshGroups, error: fgErr } = await db.from('groups').select('*').eq('event_id', eventId);
+      if (fgErr) throw fgErr;
+      const freshGroupIds = new Set((freshGroups || []).map(g => g.id));
+      const { data: freshGroupPlayers, error: fgpErr } = freshGroupIds.size
+        ? await db.from('group_players').select('*').in('group_id', [...freshGroupIds])
+        : { data: [], error: null };
+      if (fgpErr) throw fgpErr;
+      matchGroups = [...matchGroups.filter(g => g.event_id !== eventId), ...(freshGroups || [])];
+      matchGroupPlayers = [...matchGroupPlayers.filter(gp => !freshGroupIds.has(gp.group_id)), ...(freshGroupPlayers || [])];
+    } catch(err){
+      console.error('Randomiser could not finish creating groups:', err);
+      alert('Something went wrong creating the groups — please check what was created and finish off manually.');
+    } finally {
+      justRandomizedGroupIds = new Set(newGroupIds);
+      randomizerOpen = false;
+      randomizerAnimating = false;
+      refreshGroupingsViews();
+      setTimeout(() => { justRandomizedGroupIds.clear(); }, 1500);
+    }
+  }, 2600);
 }
 
 function addMinutesToTime(hhmm, mins){
