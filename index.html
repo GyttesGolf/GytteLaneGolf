@@ -3892,8 +3892,10 @@ async function loadLiveScoresData(eventId){
     } catch(e){ liveScoresReady = false; }
     if (!liveScoresReady) liveScoresReady = false;
   }
-  /* Whatever the source, overlay any locally queued (unsynced) scores so the
-     marker always sees their own latest taps */
+  /* Whatever the source, overlay any locally queued (unsynced) scorecards
+     and scores so the marker always sees their own latest taps, even if
+     the group was set up with no signal and hasn't synced yet */
+  mergeScorecardQueueIntoScorecards();
   mergeQueueIntoHoleScores();
 }
 
@@ -4217,26 +4219,23 @@ function toggleScoringPlayer(playerId){
   renderLiveScores();
 }
 
-async function startScoring(){
+function startScoring(){
   if (!db || !scoringPlayerIds.length) return;
-  // Create scorecards for any players who don't have one yet.
-  // This one step needs signal — best done at the clubhouse before teeing off.
+  // Create scorecards for any players who don't have one yet. Same pattern
+  // as hole scores: set up locally with a temp id straight away so scoring
+  // can start with no signal, then queue the real insert to sync in the
+  // background (and once it lands, every reference to the temp id gets
+  // swapped for the real one — see processScorecardQueue).
   const needCreating = scoringPlayerIds.filter(pid =>
     !scorecards.find(s => s.event_id === liveEventId && s.player_id === pid));
-  if (needCreating.length && !navigator.onLine){
-    alert('Setting up a new group needs a connection — best done at the clubhouse before you tee off. Once set up, scoring works fine without signal.');
-    return;
-  }
   for (const pid of needCreating){
-    try {
-      const { data, error } = await db.from('scorecards').insert({ event_id: liveEventId, player_id: pid, society_id: societyId }).select().single();
-      if (error) throw error;
-      if (data) scorecards.push(data);
-    } catch(err){
-      console.error('Could not create scorecard:', err);
-      alert('Could not set up the group — check your connection and try again.');
-      return;
-    }
+    const tempId = `local-${liveEventId}-${pid}-${Date.now()}`;
+    scorecards.push({ id: tempId, event_id: liveEventId, player_id: pid, society_id: societyId, _pending: true });
+    scorecardQueue.push({ tempId, event_id: liveEventId, player_id: pid, society_id: societyId });
+  }
+  if (needCreating.length){
+    persistScorecardQueue();
+    processScorecardQueue();
   }
   // Start from the last hole they've scored, or hole 1
   const myScorecardIds = scorecards
@@ -4273,7 +4272,7 @@ function renderEntryView(){
     const btns = [0,1,2,3,4,5].map(pts => {
       const isSel = curScore === pts;
       return `<button class="points-btn ${isSel ? (pts===0?'selected-0':'selected') : ''}"
-        onclick="setHoleScore(${sc.id}, ${currentHole}, ${pts})">${pts}</button>`;
+        onclick="setHoleScore(${JSON.stringify(sc.id).replace(/"/g, '&quot;')}, ${currentHole}, ${pts})">${pts}</button>`;
     }).join('');
     return `<div class="player-score-row">
       <div class="player-score-header">
@@ -4320,13 +4319,84 @@ function changeHole(hole){
 /* ===================== offline score queue =====================
    Every score tap saves locally first, then syncs to Supabase.
    No signal? Scores wait in the queue on this phone and upload
-   automatically the moment connectivity returns. */
+   automatically the moment connectivity returns.
+
+   Setting up a new group works the same way: startScoring() gives each
+   player a temp local scorecard id straight away (see the 'local-' prefix)
+   so scoring can begin with no signal at all, and processScorecardQueue()
+   syncs the real scorecard rows in the background — remapping every
+   holeScores/scoreQueue entry from the temp id to the real one the
+   moment it lands, so nothing entered offline is lost or orphaned. */
 let scoreQueue = [];
 try { scoreQueue = JSON.parse(localStorage.getItem('glgs-score-queue') || '[]'); } catch(e){ scoreQueue = []; }
 let queueProcessing = false;
 
+let scorecardQueue = [];
+try { scorecardQueue = JSON.parse(localStorage.getItem('glgs-scorecard-queue') || '[]'); } catch(e){ scorecardQueue = []; }
+let scorecardQueueProcessing = false;
+
 function persistScoreQueue(){
   try { localStorage.setItem('glgs-score-queue', JSON.stringify(scoreQueue)); } catch(e){}
+}
+
+function persistScorecardQueue(){
+  try { localStorage.setItem('glgs-scorecard-queue', JSON.stringify(scorecardQueue)); } catch(e){}
+}
+
+function isPendingScorecardId(id){ return typeof id === 'string' && id.startsWith('local-'); }
+
+/* Merges any not-yet-synced local scorecards for this event into `scorecards`
+   after a fresh load, so a group started offline survives navigating away
+   and back (or a realtime refresh) before it's finished syncing. */
+function mergeScorecardQueueIntoScorecards(){
+  for (const item of scorecardQueue){
+    if (item.event_id !== liveEventId) continue;
+    if (scorecards.find(s => s.event_id === item.event_id && s.player_id === item.player_id)) continue;
+    scorecards.push({ id: item.tempId, event_id: item.event_id, player_id: item.player_id, society_id: item.society_id, _pending: true });
+  }
+}
+
+async function processScorecardQueue(){
+  if (scorecardQueueProcessing || !db || !scorecardQueue.length || !navigator.onLine){ updateSyncIndicator(); return; }
+  scorecardQueueProcessing = true;
+  updateSyncIndicator();
+  const remaining = [];
+  for (const item of scorecardQueue){
+    let resolved = null;
+    try {
+      const { data, error } = await db.from('scorecards')
+        .insert({ event_id: item.event_id, player_id: item.player_id, society_id: item.society_id })
+        .select().single();
+      if (error) throw error;
+      resolved = data;
+    } catch(err){
+      if (err && err.code === '23505'){
+        // Another device already set up this scorecard — adopt it instead of erroring.
+        try {
+          const { data: existing } = await db.from('scorecards').select('*')
+            .eq('event_id', item.event_id).eq('player_id', item.player_id).single();
+          resolved = existing || null;
+        } catch(e2){ resolved = null; }
+      }
+      if (!resolved){
+        console.warn('Group setup sync failed — will retry when connection improves:', err);
+        remaining.push(item);
+        continue;
+      }
+    }
+    const local = scorecards.find(s => s.id === item.tempId);
+    if (local) Object.assign(local, resolved, { _pending: false });
+    else scorecards.push(resolved);
+    holeScores.forEach(h => { if (h.scorecard_id === item.tempId) h.scorecard_id = resolved.id; });
+    scoreQueue.forEach(q => { if (q.scorecard_id === item.tempId) q.scorecard_id = resolved.id; });
+    persistScoreQueue();
+  }
+  scorecardQueue = remaining;
+  persistScorecardQueue();
+  scorecardQueueProcessing = false;
+  updateSyncIndicator();
+  renderLiveScores();
+  processScoreQueue();
 }
 
 async function setHoleScore(scorecardId, hole, points){
@@ -4351,21 +4421,27 @@ async function processScoreQueue(){
   if (!navigator.onLine){ updateSyncIndicator(); return; }
   queueProcessing = true;
   updateSyncIndicator();
-  while (scoreQueue.length){
-    const item = scoreQueue[0];
+  if (scorecardQueue.length) await processScorecardQueue();
+  const remaining = [];
+  for (const item of scoreQueue){
+    if (isPendingScorecardId(item.scorecard_id)){
+      // Its scorecard hasn't synced yet (still offline) — leave it queued.
+      remaining.push(item);
+      continue;
+    }
     try {
       const { error } = await db.from('hole_scores').upsert(
         { scorecard_id: item.scorecard_id, hole_number: item.hole_number, points: item.points, updated_at: new Date().toISOString(), society_id: societyId },
         { onConflict: 'scorecard_id,hole_number' }
       );
       if (error) throw error;
-      scoreQueue.shift();
-      persistScoreQueue();
     } catch(err){
       console.warn('Score sync failed — will retry when connection improves:', err);
-      break;
+      remaining.push(item);
     }
   }
+  scoreQueue = remaining;
+  persistScoreQueue();
   queueProcessing = false;
   updateSyncIndicator();
 }
@@ -4373,21 +4449,22 @@ async function processScoreQueue(){
 function updateSyncIndicator(){
   const el = document.getElementById('sync-indicator');
   if (!el) return;
-  if (!scoreQueue.length){
+  const pending = scoreQueue.length + scorecardQueue.length;
+  if (!pending){
     el.innerHTML = '\u2713 All scores synced';
     el.className = 'sync-indicator synced';
   } else if (!navigator.onLine){
-    el.innerHTML = `\uD83D\uDCF4 No signal — ${scoreQueue.length} score${scoreQueue.length===1?'':'s'} saved on this phone, will sync automatically`;
+    el.innerHTML = `\uD83D\uDCF4 No signal — ${pending} update${pending===1?'':'s'} saved on this phone, will sync automatically`;
     el.className = 'sync-indicator offline';
   } else {
-    el.innerHTML = `\u21BB Syncing ${scoreQueue.length} score${scoreQueue.length===1?'':'s'}\u2026`;
+    el.innerHTML = `\u21BB Syncing ${pending} update${pending===1?'':'s'}\u2026`;
     el.className = 'sync-indicator syncing';
   }
 }
 
-window.addEventListener('online', () => { processScoreQueue(); updateSyncIndicator(); });
+window.addEventListener('online', () => { processScorecardQueue(); processScoreQueue(); updateSyncIndicator(); });
 window.addEventListener('offline', updateSyncIndicator);
-setInterval(() => { if (scoreQueue.length) processScoreQueue(); }, 20000);
+setInterval(() => { if (scorecardQueue.length) processScorecardQueue(); if (scoreQueue.length) processScoreQueue(); }, 20000);
 
 /* --- finalise --- */
 /* When a trophy fixture's winner is confirmed, write/update the matching
