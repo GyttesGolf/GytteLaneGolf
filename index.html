@@ -3767,7 +3767,9 @@ function renderHome(){
       countdownHtml = `<div class="fixture-countdown"><span class="cd-num">${daysTo}</span><span class="cd-label">days to go</span></div>`;
     }
     slot.innerHTML = `
-      <div class="next-fixture">
+      <div class="next-fixture" role="button" tabindex="0" style="cursor:pointer;"
+        onclick="goTo('events',{highlightEvent:'${upcoming.id}'})"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); goTo('events',{highlightEvent:'${upcoming.id}'});}">
         <div class="next-fixture-content">
           <div class="label">Next event</div>
           <h3>${upcoming.name}</h3>
@@ -3777,7 +3779,7 @@ function renderHome(){
             <dt>Format</dt><dd>${upcoming.format || 'TBC'}</dd>
           </dl>
           ${countdownHtml}
-          <div style="margin-top:.7rem;"><a href="#" onclick="goTo('events'); return false;">Sign up &amp; all events &rarr;</a></div>
+          <div style="margin-top:.7rem;"><a href="#" onclick="event.stopPropagation(); goTo('events'); return false;">Sign up &amp; all events &rarr;</a></div>
         </div>
         <div class="next-fixture-photo">${NEXT_FIXTURE_PHOTO_SVG}</div>
       </div>`;
