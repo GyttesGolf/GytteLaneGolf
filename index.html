@@ -552,6 +552,31 @@
   }
   .add-item-btn:hover{border-color:var(--brass); color:var(--ink);}
 
+  /* ---------- group randomiser ---------- */
+  @keyframes dice-spin{
+    0%{ transform:rotate(0deg) scale(1); }
+    50%{ transform:rotate(180deg) scale(1.18); }
+    100%{ transform:rotate(360deg) scale(1); }
+  }
+  .dice-spin{ display:inline-block; font-size:2.4rem; animation:dice-spin 1s linear infinite; }
+  @keyframes shuffle-jitter{
+    0%,100%{ transform:translate(0,0) rotate(0deg); }
+    20%{ transform:translate(-4px,3px) rotate(-6deg); }
+    40%{ transform:translate(3px,-4px) rotate(5deg); }
+    60%{ transform:translate(-3px,-3px) rotate(-4deg); }
+    80%{ transform:translate(4px,3px) rotate(6deg); }
+  }
+  .shuffle-chip{
+    display:inline-block; padding:.35rem .75rem; margin:.25rem; border-radius:999px;
+    background:var(--paper); border:1px solid var(--brass); font-family:var(--body); font-size:.8rem;
+    animation:shuffle-jitter .5s ease-in-out infinite;
+  }
+  @keyframes group-reveal{
+    from{ opacity:0; transform:translateY(10px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+  .group-reveal{ animation:group-reveal .4s ease both; }
+
   /* ---------- courses panel ---------- */
   .courses-panel{margin-top:0;}
   .events-page-layout{display:grid; grid-template-columns:1fr; gap:2rem;}
@@ -6423,6 +6448,142 @@ function closeMoreDrawer(){
 /* ===================== groupings ===================== */
 let groupingsEventId = null;
 let editingGroupId = null;
+let randomizerOpen = false;
+let randomizerEventId = null;
+let randomizerSizes = [];
+let randomizerAnimating = false;
+let justRandomizedGroupIds = new Set();
+
+/* Players signed up for an event who aren't already in a group for it —
+   the same "ungrouped only" pool the manual group editor now uses. */
+function ungroupedPlayersForEvent(eventId){
+  const evGroupIds = new Set(matchGroups.filter(g => g.event_id === eventId).map(g => g.id));
+  const assigned = new Set(matchGroupPlayers.filter(gp => evGroupIds.has(gp.group_id)).map(gp => gp.player_id));
+  return signupsForEvent(eventId).filter(p => p && p.id && !assigned.has(p.id));
+}
+
+/* Splits a player count into groups of 3 or 4 (fewest groups, biggest
+   first) — e.g. 14 -> [4,4,3,3]. Totals under 6 or exactly 5 can't split
+   cleanly into that range, so they're left as one group for the admin to
+   adjust by hand afterward. */
+function computeGroupSizes(n){
+  if (n <= 0) return [];
+  if (n < 6) return [n];
+  let g = Math.ceil(n / 4);
+  while (g * 3 > n) g++;
+  const fours = n - g * 3;
+  const threes = g - fours;
+  return [...Array(fours).fill(4), ...Array(threes).fill(3)];
+}
+
+function openRandomizer(){
+  randomizerEventId = groupingsEventId;
+  randomizerSizes = computeGroupSizes(ungroupedPlayersForEvent(randomizerEventId).length);
+  randomizerOpen = true;
+  randomizerAnimating = false;
+  renderGroupings();
+}
+
+function closeRandomizer(){
+  randomizerOpen = false;
+  randomizerAnimating = false;
+  renderGroupings();
+}
+
+function randomizerEventChanged(eventId){
+  randomizerEventId = eventId;
+  randomizerSizes = computeGroupSizes(ungroupedPlayersForEvent(randomizerEventId).length);
+  renderGroupings();
+}
+
+function adjustRandomizerGroupCount(delta){
+  const total = ungroupedPlayersForEvent(randomizerEventId).length;
+  if (delta > 0){
+    const used = randomizerSizes.reduce((s,n) => s+n, 0);
+    randomizerSizes.push(Math.max(0, Math.min(4, total - used)));
+  } else if (randomizerSizes.length > 1){
+    randomizerSizes.pop();
+  }
+  renderGroupings();
+}
+
+function adjustRandomizerGroupSize(idx, delta){
+  const next = randomizerSizes[idx] + delta;
+  if (next < 1 || next > 6) return;
+  randomizerSizes[idx] = next;
+  renderGroupings();
+}
+
+function shuffled(arr){
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+async function runRandomizer(){
+  if (!db) return;
+  const eventId = randomizerEventId;
+  const pool = ungroupedPlayersForEvent(eventId);
+  const total = randomizerSizes.reduce((s,n) => s+n, 0);
+  if (!randomizerSizes.length || total !== pool.length){
+    alert(`Group sizes add up to ${total}, but there are ${pool.length} ungrouped players — adjust the sizes to match.`);
+    return;
+  }
+
+  randomizerAnimating = true;
+  renderGroupings();
+
+  setTimeout(async () => {
+    const players = shuffled(pool);
+    const existing = matchGroups.filter(g => g.event_id === eventId);
+    let nextGroupNumber = existing.length + 1;
+    let nextTee = existing.length
+      ? addMinutesToTime(existing.map(g => g.tee_time).sort().slice(-1)[0], 8)
+      : (eventById(eventId)?.tee_time || '09:00');
+
+    const newGroupIds = [];
+    let cursor = 0;
+    for (const size of randomizerSizes){
+      const slice = players.slice(cursor, cursor + size);
+      cursor += size;
+      try {
+        const { data: group, error } = await db.from('groups')
+          .insert({ event_id: eventId, tee_time: nextTee, group_number: nextGroupNumber, society_id: societyId })
+          .select().single();
+        if (error) throw error;
+        matchGroups.push(group);
+        newGroupIds.push(group.id);
+        if (slice.length){
+          const rows = slice.map(p => ({ group_id: group.id, player_id: p.id, is_marker: false, society_id: societyId }));
+          const { data: gps, error: gpErr } = await db.from('group_players').insert(rows).select();
+          if (gpErr) throw gpErr;
+          if (gps) matchGroupPlayers.push(...gps);
+        }
+      } catch(err){
+        console.error('Randomiser could not create a group:', err);
+        alert('Something went wrong creating the groups — please check what was created and finish off manually.');
+        break;
+      }
+      nextGroupNumber++;
+      nextTee = addMinutesToTime(nextTee, 8);
+    }
+
+    justRandomizedGroupIds = new Set(newGroupIds);
+    randomizerOpen = false;
+    randomizerAnimating = false;
+    renderGroupings();
+    setTimeout(() => { justRandomizedGroupIds.clear(); }, 1500);
+  }, 1300);
+}
+
+function addMinutesToTime(hhmm, mins){
+  const [h, m] = (hhmm || '09:00').split(':').map(Number);
+  const total = (h * 60 + m + mins + 1440) % 1440;
+  return `${String(Math.floor(total/60)).padStart(2,'0')}:${String(total%60).padStart(2,'0')}`;
+}
 
 function renderGroupings(){
   const el = document.getElementById('groupings-content');
@@ -6501,7 +6662,7 @@ function renderGroupings(){
       </div>` : '';
 
     return `
-      <div style="background:var(--paper); border:1px solid var(--line); border-left:4px solid var(--brass); border-radius:var(--radius); padding:1rem 1.2rem; margin-bottom:.8rem;">
+      <div class="${justRandomizedGroupIds.has(g.id) ? 'group-reveal' : ''}" style="background:var(--paper); border:1px solid var(--line); border-left:4px solid var(--brass); border-radius:var(--radius); padding:1rem 1.2rem; margin-bottom:.8rem;">
         <div style="display:flex; align-items:baseline; gap:1rem; margin-bottom:.6rem; flex-wrap:wrap;">
           <span style="font-family:var(--body); font-size:1.4rem; font-weight:700; color:var(--ink);">${g.tee_time}</span>
           <span style="font-family:var(--body); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Group ${idx+1}</span>
@@ -6516,7 +6677,61 @@ function renderGroupings(){
   }).join('');
 
   const addGroupBtn = isLoggedIn ? `
-    <button class="add-item-btn" onclick="addGroup('${groupingsEventId}')">+ Add group</button>` : '';
+    <div style="display:flex; gap:.6rem; flex-wrap:wrap;">
+      <button class="add-item-btn" style="width:auto; flex:1; min-width:140px;" onclick="addGroup('${groupingsEventId}')">+ Add group</button>
+      <button class="add-item-btn" style="width:auto; flex:1; min-width:140px; border-style:solid; border-color:var(--brass);" onclick="openRandomizer()">🎲 Randomise groups</button>
+    </div>` : '';
+
+  const randomizerModal = (isLoggedIn && randomizerOpen) ? (() => {
+    const pool = ungroupedPlayersForEvent(randomizerEventId);
+    const total = randomizerSizes.reduce((s,n) => s+n, 0);
+    const mismatch = total !== pool.length;
+
+    if (randomizerAnimating){
+      return `
+        <div class="edit-form" style="margin-top:1rem; text-align:center; padding:2rem 1rem;">
+          <div class="dice-spin">🎲</div>
+          <p style="margin-top:1rem; font-family:var(--body); font-weight:600; color:var(--ink);">Shuffling ${pool.length} player${pool.length===1?'':'s'}…</p>
+          <div style="margin-top:1rem;">
+            ${pool.map((p,i) => `<span class="shuffle-chip" style="animation-delay:${(i%6)*0.06}s;">${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</span>`).join('')}
+          </div>
+        </div>`;
+    }
+
+    return `
+      <div class="edit-form" style="margin-top:1rem;">
+        <h4>🎲 Randomise groups</h4>
+        <div class="edit-form-grid">
+          <div class="full">
+            <label>Event</label>
+            <select onchange="randomizerEventChanged(this.value)">
+              ${sortedEvents.map(e => `<option value="${e.id}" ${e.id===randomizerEventId?'selected':''}>${e.name} — ${fmtDate(e.date)}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <p style="font-family:var(--body); font-size:.82rem; color:var(--text-muted); margin:.6rem 0;">
+          ${pool.length} player${pool.length===1?'':'s'} not yet in a group for this event.
+        </p>
+        ${pool.length ? `
+          <div style="display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin-bottom:.8rem;">
+            ${randomizerSizes.map((size, idx) => `
+              <span style="display:inline-flex; align-items:center; gap:.3rem; background:var(--stone); border:1px solid var(--line); border-radius:999px; padding:.3rem .5rem;">
+                <button class="committee-edit-btn" style="padding:.1rem .5rem;" onclick="adjustRandomizerGroupSize(${idx},-1)">−</button>
+                <span style="font-family:var(--body); font-size:.85rem; min-width:3.4rem; text-align:center;">Grp ${idx+1}: ${size}</span>
+                <button class="committee-edit-btn" style="padding:.1rem .5rem;" onclick="adjustRandomizerGroupSize(${idx},1)">+</button>
+              </span>`).join('')}
+            <button class="committee-edit-btn" onclick="adjustRandomizerGroupCount(1)">+ Group</button>
+            ${randomizerSizes.length > 1 ? `<button class="committee-edit-btn" onclick="adjustRandomizerGroupCount(-1)">− Group</button>` : ''}
+          </div>
+          <p style="font-family:var(--body); font-size:.8rem; ${mismatch ? 'color:var(--claret);' : 'color:var(--text-muted);'} margin-bottom:.8rem;">
+            ${total} of ${pool.length} players assigned${mismatch ? ' — adjust the sizes above to match exactly' : ' ✓'}
+          </p>` : ''}
+        <div class="edit-form-actions">
+          <button class="btn brass" ${mismatch || !pool.length ? 'disabled' : ''} onclick="runRandomizer()">🎲 Shuffle &amp; create groups</button>
+          <button class="btn ghost" onclick="closeRandomizer()">Cancel</button>
+        </div>
+      </div>`;
+  })() : '';
 
   el.innerHTML = `
     ${eventSelector}
@@ -6524,7 +6739,8 @@ function renderGroupings(){
       ${ev.name} &nbsp;·&nbsp; ${fmtDate(ev.date)}${ev.course ? ' &nbsp;·&nbsp; ' + ev.course : ''}
     </h3>
     ${evGroups.length ? groupCards : `<p class="muted">No groups set up yet${isLoggedIn ? ' — add one below' : '.'}.</p>`}
-    ${addGroupBtn}`;
+    ${addGroupBtn}
+    ${randomizerModal}`;
 }
 
 async function addGroup(eventId){
