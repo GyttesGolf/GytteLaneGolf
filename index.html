@@ -4014,7 +4014,10 @@ async function switchLiveEvent(eventId){
   liveEventId = eventId;
   scoringPlayerIds = [];
   currentHole = 1;
-  liveSubView = 'leaderboard';
+  // Stay on whichever tab the admin was on (Groupings, Leaderboard, etc.)
+  // — only "entry" doesn't make sense any more, since it was mid-round for
+  // the old event, so drop back to picking a group for the new one.
+  if (liveSubView === 'entry') liveSubView = 'setup';
   await loadLiveScoresData(eventId);
   subscribeToLiveScores(eventId);
   renderLiveScores();
