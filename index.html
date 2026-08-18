@@ -1000,6 +1000,7 @@
   .news-list{display:flex; flex-direction:column; gap:1.3rem;}
   .news-card{padding:1.3rem 0; border-bottom:1px solid var(--line);}
   .news-card:last-child{border-bottom:none;}
+  .news-card-image{width:100%; max-height:280px; object-fit:cover; border-radius:var(--radius); margin-bottom:.9rem; display:block;}
   .news-card time{font-family:var(--body); font-size:.74rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em;}
   .news-card h3{font-family:var(--display); font-size:1.3rem; margin:.3rem 0 .5rem; color:var(--ink);}
   .news-card p{margin:0 0 .6rem; color:var(--text-muted); max-width:62ch;}
@@ -3399,6 +3400,13 @@ function newsCardHtml(n){
     `<option value="${e.id}" ${n.eventId===e.id?'selected':''}>${e.name}</option>`
   ).join('');
 
+  const uploadBlock = (isLoggedIn && isEditing) ? `
+    <div class="committee-photo-upload">
+      <input type="file" accept="image/*" id="news-photo-input-${n.id}" onchange="uploadNewsImage('${n.id}', this)">
+      <label class="upload-label" for="news-photo-input-${n.id}">${n.image_url ? 'Replace' : 'Upload'} photo</label>
+      <div class="upload-status" id="news-upload-status-${n.id}"></div>
+    </div>` : '';
+
   const editForm = (isLoggedIn && isEditing) ? `
     <div class="edit-form" style="margin-top:.8rem;">
       <h4>Edit post</h4>
@@ -3423,6 +3431,7 @@ function newsCardHtml(n){
           <textarea id="nf-excerpt-${n.id}">${escapeHtml(n.excerpt||'')}</textarea>
         </div>
       </div>
+      ${uploadBlock}
       <div class="edit-form-actions">
         <button class="btn brass" onclick="saveNews('${n.id}')">Save</button>
         <button class="btn ghost" onclick="toggleNewsEdit('${n.id}')">Cancel</button>
@@ -3437,6 +3446,7 @@ function newsCardHtml(n){
 
   return `
     <article class="news-card">
+      ${n.image_url ? `<img class="news-card-image" src="${n.image_url}" alt="" loading="lazy">` : ''}
       <time>${fmtDate(n.date)}${editToggle}</time>
       <h3>${escapeHtml(n.title)}</h3>
       <p>${escapeHtml(n.excerpt)}</p>
@@ -3482,6 +3492,48 @@ async function saveNews(newsId){
     const el = document.getElementById('nf-status-' + newsId);
     if (el){ el.textContent = 'Saved!'; el.className = 'edit-status success'; }
   }, 0);
+}
+
+async function uploadNewsImage(newsId, inputEl){
+  const file = inputEl.files && inputEl.files[0];
+  if (!file) return;
+  const setStatus = (msg, kind) => {
+    const el = document.getElementById('news-upload-status-' + newsId);
+    if (el){ el.textContent = msg; el.className = 'upload-status ' + kind; }
+  };
+
+  if (!db){ setStatus('Not connected to Supabase.', 'error'); return; }
+  if (!file.type.startsWith('image/')){ setStatus('Please choose an image file.', 'error'); return; }
+  if (file.size > 5 * 1024 * 1024){ setStatus('Image is too large (max 5MB).', 'error'); return; }
+
+  setStatus('Uploading…', 'loading');
+
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const path = `news/${newsId}-${Date.now()}.${ext}`;
+
+  const { error: upError } = await db.storage.from('photos').upload(path, file, { upsert: true, cacheControl: '3600' });
+  if (upError){
+    console.error('Storage upload error:', upError);
+    setStatus('Upload failed — check that the "photos" bucket has been set up. See console for details.', 'error');
+    return;
+  }
+
+  const { data: urlData } = db.storage.from('photos').getPublicUrl(path);
+  const publicUrl = urlData.publicUrl;
+
+  const { error: dbError } = await db.from('news').update({ image_url: publicUrl }).eq('id', newsId);
+  if (dbError){
+    console.error('Update news error:', dbError);
+    setStatus('Photo uploaded, but saving it failed. Please try again.', 'error');
+    return;
+  }
+
+  const item = news.find(n => n.id === newsId);
+  if (item) item.image_url = publicUrl;
+
+  renderNews();
+  renderHome();
+  setTimeout(() => setStatus('Photo updated!', 'success'), 0);
 }
 
 async function deleteNews(newsId){
@@ -3879,7 +3931,7 @@ function renderHighlightsCarousel(){
     .map(n => ({
       sortKey: new Date(n.date).getTime() || 0,
       html: highlightCardHtml({
-        tag: 'Latest news', image: null, title: n.title, meta: fmtDate(n.date), desc: n.excerpt,
+        tag: 'Latest news', image: n.image_url, title: n.title, meta: fmtDate(n.date), desc: n.excerpt,
         ctaLabel: 'Read more', ctaOnClick: "goTo('news')",
       }),
     }));
