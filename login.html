@@ -112,6 +112,18 @@ body{
       <input class="inp-field" type="email" id="email-input" placeholder="your@email.com" autocomplete="email">
     </div>
     <button class="btn-gold" onclick="handleEmailSubmit()">Continue →</button>
+    <!-- Some email providers/security scanners "click" the link automatically
+         to check it's safe, which uses up its one-time token before the
+         person themselves gets to it. The code is immune to that - there's
+         no link for anything to prefetch. -->
+    <div class="hidden" id="email-code-fallback">
+      <div class="divider">or enter the code from the email</div>
+      <div class="inp-wrap">
+        <span class="inp-ico">#</span>
+        <input class="inp-field" type="text" inputmode="numeric" id="email-code-input" placeholder="123456" autocomplete="one-time-code">
+      </div>
+      <button class="btn-gold" onclick="verifyEmailCode()">Verify code →</button>
+    </div>
   </div>
 
   <!-- Returning member panel — password first, passkey and reset as fallbacks -->
@@ -349,8 +361,33 @@ async function handleEmailSubmit(){
     });
     if (error) throw error;
     setStatus('Magic link sent to ' + email + ' — check your email and tap the link to sign in.', 'success');
+    document.getElementById('email-code-fallback').classList.remove('hidden');
   } catch(err) {
     setStatus('Could not send link: ' + err.message, 'error');
+  }
+}
+
+async function verifyEmailCode(){
+  const email = document.getElementById('email-input').value.trim();
+  const code = document.getElementById('email-code-input').value.trim();
+  if (!email || !isValidEmailLogin(email)){ setStatus('Enter your email address above first.', 'error'); return; }
+  if (!code){ setStatus('Enter the code from the email.', 'error'); return; }
+  setStatus('Checking code…', 'loading');
+  /* Claimed before calling verifyOtp(), not after - the resulting SIGNED_IN
+     event can fire as part of that call itself, and setupHandled is what
+     stops onAuthStateChange's own listener from redirecting straight to
+     the home page and racing the showSetupPanel() call below. */
+  setupHandled = true;
+  try {
+    const { data, error } = await sb.auth.verifyOtp({ email, token: code, type: 'email' });
+    if (error) throw error;
+    if (data.user){
+      const result = await completeLogin(data.user, { noRedirect: true });
+      if (result) showSetupPanel(result.player?.first_name);
+    }
+  } catch(err) {
+    setupHandled = false; // let a subsequent real attempt still work
+    setStatus('Incorrect or expired code — request a new link/code and try again.', 'error');
   }
 }
 
@@ -490,11 +527,15 @@ function showRecoveryPanel(){
 
 let isPasswordRecovery = false;
 let setupHandled = false;
+/* Captured once, at parse time - maybeHandleSetup() strips this param from
+   the URL as soon as it acts on it, so re-reading window.location.search
+   from inside the auth listener later (which can fire more than once,
+   e.g. INITIAL_SESSION then SIGNED_IN) would see it already gone and
+   wrongly take the "no setup wanted" branch on the second firing. */
+const initialWantsSetup = new URLSearchParams(window.location.search).get('setup') === '1';
 
 async function maybeHandleSetup(user){
-  if (setupHandled) return;
-  const wantsSetup = new URLSearchParams(window.location.search).get('setup') === '1';
-  if (!wantsSetup) return;
+  if (setupHandled || !initialWantsSetup) return;
   setupHandled = true;
   /* Strip the param immediately so a refresh/back-nav can't re-trigger it */
   window.history.replaceState({}, '', window.location.pathname);
@@ -518,10 +559,14 @@ sb.auth.onAuthStateChange(async (event, session) => {
   }
   if (!session?.user) return;
   if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION'){
-    const wantsSetup = new URLSearchParams(window.location.search).get('setup') === '1';
-    if (wantsSetup){
+    if (initialWantsSetup){
       await maybeHandleSetup(session.user);
-    } else if (!isPasswordRecovery){
+    } else if (!isPasswordRecovery && !setupHandled){
+      /* setupHandled doubles as "something else (e.g. the code-entry
+         fallback below) is already taking responsibility for this
+         sign-in" - without this check, this listener firing for that
+         same sign-in would race it straight to the home page instead of
+         letting it show the setup panel. */
       window.location.replace('/');
     }
   }
