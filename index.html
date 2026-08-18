@@ -300,8 +300,6 @@
   }
   .fixture-countdown.today .cd-num{font-size:1.4rem;}
 
-  .home-grid{display:grid; grid-template-columns:1.4fr 1fr; gap:2.4rem;}
-
   .map-section{margin-bottom:2.2rem;}
   #events-map{
     height:320px; width:100%; border-radius:var(--radius); border:1px solid var(--line);
@@ -346,15 +344,48 @@
     background:color-mix(in srgb, var(--claret) 14%, transparent); padding:.2rem .55rem; border-radius:999px;
   }
   .leader-name{font-family:var(--display); font-size:1.2rem; font-weight:600; color:var(--ink); margin:.5rem 0 0;}
-  .home-col h3.mini-title{
+  .mini-title{
     font-family:var(--body); font-size:.78rem; letter-spacing:.06em; text-transform:uppercase;
     color:var(--ink); border-bottom:2px solid var(--ink); padding-bottom:.5rem; margin:0 0 1rem;
   }
-  .mini-news-item{padding:.9rem 0; border-bottom:1px solid var(--line);}
-  .mini-news-item:last-child{border-bottom:none;}
-  .mini-news-item time{font-family:var(--body); font-size:.72rem; color:var(--text-muted);}
-  .mini-news-item h4{margin:.2rem 0 .25rem; font-family:var(--display); font-size:1.05rem; font-weight:600;}
-  .mini-news-item p{margin:0; font-size:.92rem; color:var(--text-muted);}
+
+  /* ---------- highlights carousel (home: news + gallery) ---------- */
+  .highlights-header{display:flex; align-items:baseline; justify-content:space-between; gap:1rem; margin-bottom:1rem; border-bottom:2px solid var(--ink); padding-bottom:.5rem;}
+  .highlights-header .mini-title{border-bottom:none; padding-bottom:0; margin:0;}
+  .highlights-hint{font-family:var(--body); font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); white-space:nowrap;}
+  .highlights-carousel{
+    display:flex; gap:1rem; overflow-x:auto; scroll-snap-type:x mandatory;
+    margin:0 -1.2rem; padding:.1rem 1.2rem 1rem;
+    -webkit-overflow-scrolling:touch; scrollbar-width:none;
+  }
+  .highlights-carousel::-webkit-scrollbar{display:none;}
+  .highlight-card{
+    flex:0 0 78%; max-width:300px; scroll-snap-align:start;
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
+    overflow:hidden; display:flex; flex-direction:column;
+  }
+  .highlight-card-media{position:relative; aspect-ratio:4/3; background:var(--stone); overflow:hidden;}
+  .highlight-card-media img, .highlight-card-media video{width:100%; height:100%; object-fit:cover; display:block;}
+  .highlight-tag{
+    position:absolute; top:.7rem; left:.7rem; background:var(--ink); color:var(--paper);
+    font-family:var(--body); font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+    padding:.3rem .65rem; border-radius:999px;
+  }
+  .highlight-card-body{padding:1.1rem 1.2rem 1.3rem; display:flex; flex-direction:column; flex:1;}
+  .highlight-card-body time{font-family:var(--body); font-size:.72rem; color:var(--text-muted);}
+  .highlight-card-body h4{font-family:var(--display); font-size:1.05rem; margin:.3rem 0 .45rem; color:var(--ink); line-height:1.25;}
+  .highlight-card-body p{
+    font-size:.88rem; color:var(--text-muted); margin:0 0 1rem; flex:1;
+    display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .highlight-cta{
+    align-self:flex-start; background:var(--claret); color:#fff !important; border:none; border-radius:999px;
+    padding:.55rem 1.2rem; font-family:var(--body); font-size:.76rem; font-weight:600; text-transform:uppercase;
+    letter-spacing:.04em; cursor:pointer; text-decoration:none; display:inline-block;
+  }
+  .highlights-dots{display:flex; justify-content:center; gap:.4rem; margin-top:.7rem;}
+  .highlights-dots span{width:6px; height:6px; border-radius:50%; background:var(--line); transition:background .2s, transform .2s; flex-shrink:0;}
+  .highlights-dots span.active{background:var(--brass); transform:scale(1.4);}
 
   /* ---------- cards generic ---------- */
   .card{background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); padding:1.3rem 1.4rem;}
@@ -379,6 +410,7 @@
   .event-card:hover{border-color:var(--brass);}
   .event-card.is-past .event-date{background:var(--text-muted);}
   .event-card.highlight{border-color:var(--brass); box-shadow:0 0 0 3px var(--brass-light);}
+  .committee-card.highlight{border-color:var(--brass); box-shadow:0 0 0 3px var(--brass-light);}
   .event-card[aria-expanded="true"]{border-color:var(--brass); border-bottom-left-radius:0; border-bottom-right-radius:0;}
   .event-date{background:var(--ink); padding:.8rem .5rem; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center;}
   .event-date .d-month{font-family:var(--body); font-size:.6rem; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.55);}
@@ -1071,7 +1103,7 @@
   footer p{margin:.2rem 0; font-size:.84rem;}
 
   @media (max-width:760px){
-    .hero, .home-grid{grid-template-columns:1fr;}
+    .hero{grid-template-columns:1fr;}
     .event-card{grid-template-columns:52px 1fr;}
     .event-links{align-items:flex-start;}
   }
@@ -1183,15 +1215,13 @@
       <p class="map-empty-note" id="map-empty-note" style="display:none;">Add a postcode to a fixture in Supabase to see it plotted here.</p>
     </div>
 
-    <div class="home-grid">
-      <div class="home-col">
-        <h3 class="mini-title">Latest news</h3>
-        <div id="home-news-slot"></div>
+    <div class="highlights-section">
+      <div class="highlights-header">
+        <h3 class="mini-title">Highlights &amp; updates</h3>
+        <span class="highlights-hint">Swipe for more &rsaquo;</span>
       </div>
-      <div class="home-col">
-        <h3 class="mini-title">From the gallery</h3>
-        <div id="home-gallery-slot" class="gallery-grid" style="grid-template-columns:1fr 1fr;"></div>
-      </div>
+      <div class="highlights-carousel" id="highlights-carousel"></div>
+      <div class="highlights-dots" id="highlights-dots"></div>
     </div>
   </section>
 
@@ -1921,6 +1951,7 @@ function goTo(sectionName, opts){
   document.querySelectorAll('.tab-btn').forEach(b => b.setAttribute('aria-selected', b.dataset.section === sectionName ? 'true' : 'false'));
   window.scrollTo({ top:0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   if (opts && opts.highlightEvent) highlightEvent(opts.highlightEvent);
+  if (opts && opts.highlightCommittee) highlightCommitteeMember(opts.highlightCommittee);
   if (sectionName === 'home' && eventsMapInstance){
     setTimeout(() => eventsMapInstance.invalidateSize(), 0);
   }
@@ -1941,6 +1972,16 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 function highlightEvent(eventId){
   setTimeout(() => {
     const card = document.querySelector('.event-card[data-id="' + eventId + '"]');
+    if (!card) return;
+    card.classList.add('highlight');
+    card.scrollIntoView({ block:'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    setTimeout(() => card.classList.remove('highlight'), 2200);
+  }, 60);
+}
+
+function highlightCommitteeMember(memberId){
+  setTimeout(() => {
+    const card = document.querySelector('.committee-card[data-id="' + memberId + '"]');
     if (!card) return;
     card.classList.add('highlight');
     card.scrollIntoView({ block:'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
@@ -2735,7 +2776,7 @@ function renderCommittee(){
       : '';
 
     return `
-      <div class="committee-card">
+      <div class="committee-card" data-id="${m.id}">
         <div class="committee-card-top">
           ${photo}
           <div>
@@ -2985,7 +3026,9 @@ function renderLeaders(){
       ? `<img class="leader-photo" src="${member.photo_url}" alt="${first} ${last}">`
       : `<div class="leader-photo placeholder">${initials}</div>`;
     return `
-      <div class="leader-card">
+      <div class="leader-card" role="button" tabindex="0" style="cursor:pointer;"
+        onclick="goTo('committee',{highlightCommittee:${member.id}})"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); goTo('committee',{highlightCommittee:${member.id}});}">
         ${photo}
         <div>
           <div class="leader-role">${label} &middot; ${yr}</div>
@@ -3796,21 +3839,87 @@ function renderHome(){
         <div class="next-fixture-photo">${NEXT_FIXTURE_PHOTO_SVG}</div>
       </div>`;
   }
-  const latestNews = [...news].sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0,2);
-  document.getElementById('home-news-slot').innerHTML = latestNews.map(n => `
-    <div class="mini-news-item">
-      <time>${fmtDate(n.date)}</time>
-      <h4>${escapeHtml(n.title)}</h4>
-      <p>${escapeHtml(n.excerpt)}</p>
-    </div>
-  `).join('') + `<div style="margin-top:.6rem;"><a href="#" onclick="goTo('news'); return false;">All news &rarr;</a></div>`;
-
-  const galleryPreview = [...gallery]
-    .sort((a, b) => (b.media_url ? 1 : 0) - (a.media_url ? 1 : 0))
-    .slice(0, 4);
-  document.getElementById('home-gallery-slot').innerHTML = galleryPreview.map(g => galleryTileHtml(g, { compact:true })).join('');
-
+  renderHighlightsCarousel();
   renderEventsMap();
+}
+
+/* id format is 'g-<timestamp>-<i>' (see submitBulkGallery) — parsed out so
+   the home carousel can show the most recently uploaded items first. */
+function galleryTimestamp(g){
+  return parseInt((g.id || '').split('-')[1], 10) || 0;
+}
+
+function highlightCardHtml({ tag, image, isVideo, title, meta, desc, ctaLabel, ctaOnClick }){
+  const media = image
+    ? (isVideo ? `<video src="${image}" muted playsinline></video>` : `<img src="${image}" alt="" loading="lazy">`)
+    : `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-family:var(--body); font-size:.8rem;">${escapeHtml(tag)}</div>`;
+  return `
+    <div class="highlight-card">
+      <div class="highlight-card-media">
+        <span class="highlight-tag">${escapeHtml(tag)}</span>
+        ${media}
+      </div>
+      <div class="highlight-card-body">
+        ${meta ? `<time>${escapeHtml(meta)}</time>` : ''}
+        <h4>${escapeHtml(title)}</h4>
+        ${desc ? `<p>${escapeHtml(desc)}</p>` : ''}
+        <a href="#" class="highlight-cta" onclick="${ctaOnClick}; return false;">${escapeHtml(ctaLabel)}</a>
+      </div>
+    </div>`;
+}
+
+function renderHighlightsCarousel(){
+  const track = document.getElementById('highlights-carousel');
+  const dots = document.getElementById('highlights-dots');
+  if (!track || !dots) return;
+
+  const newsCards = [...news]
+    .sort((a,b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 4)
+    .map(n => ({
+      sortKey: new Date(n.date).getTime() || 0,
+      html: highlightCardHtml({
+        tag: 'Latest news', image: null, title: n.title, meta: fmtDate(n.date), desc: n.excerpt,
+        ctaLabel: 'Read more', ctaOnClick: "goTo('news')",
+      }),
+    }));
+
+  const galleryCards = [...gallery]
+    .filter(g => g.media_url)
+    .sort((a,b) => galleryTimestamp(b) - galleryTimestamp(a))
+    .slice(0, 4)
+    .map(g => ({
+      sortKey: galleryTimestamp(g),
+      html: highlightCardHtml({
+        tag: 'From the gallery', image: g.media_url, isVideo: g.type === 'video',
+        title: g.caption || 'Gallery', meta: null, desc: g.description,
+        ctaLabel: 'View gallery', ctaOnClick: "goTo('gallery')",
+      }),
+    }));
+
+  const cards = [...newsCards, ...galleryCards].sort((a,b) => b.sortKey - a.sortKey);
+
+  if (!cards.length){
+    track.innerHTML = '';
+    dots.innerHTML = '';
+    track.style.display = 'none';
+    return;
+  }
+  track.style.display = '';
+  track.innerHTML = cards.map(c => c.html).join('');
+  dots.innerHTML = cards.map((c, i) => `<span class="${i===0?'active':''}"></span>`).join('');
+
+  const dotEls = [...dots.children];
+  const cardEls = [...track.children];
+  track.onscroll = () => {
+    const trackCenter = track.scrollLeft + track.clientWidth / 2;
+    let closest = 0, closestDist = Infinity;
+    cardEls.forEach((el, i) => {
+      const dist = Math.abs((el.offsetLeft + el.offsetWidth / 2) - trackCenter);
+      if (dist < closestDist){ closestDist = dist; closest = i; }
+    });
+    dotEls.forEach((d, i) => d.classList.toggle('active', i === closest));
+  };
 }
 
 /* ===================== events map ===================== */
