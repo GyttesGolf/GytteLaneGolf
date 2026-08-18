@@ -313,6 +313,15 @@ async function completeLogin(user, opts){
 
 function isValidEmailLogin(email){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
 
+/* Builds this page's own URL, collapsing any accidental repeated slashes
+   in the path first - a stray double slash here (seen in the wild on at
+   least one real device, cause unconfirmed) breaks the redirect Supabase
+   embeds in the email, so this is defensive regardless of how it happens. */
+function loginPageUrl(query){
+  const path = ('/' + window.location.pathname).replace(/\/+/g, '/');
+  return window.location.origin + path + (query || '');
+}
+
 async function handleEmailSubmit(){
   const email = document.getElementById('email-input').value.trim();
   if (!email || !isValidEmailLogin(email)){
@@ -335,7 +344,7 @@ async function handleEmailSubmit(){
         /* Points back at wherever this page is actually hosted, so this
            doesn't need to be hand-edited if the login page's path changes.
            Must also be present in Supabase's Redirect URLs allow list. */
-        emailRedirectTo: window.location.origin + window.location.pathname + '?setup=1'
+        emailRedirectTo: loginPageUrl('?setup=1')
       }
     });
     if (error) throw error;
@@ -376,7 +385,7 @@ async function handleForgotPassword(){
        auth event rather than just signing someone in. It works the same
        whether they forgot an existing password or never set one at all. */
     const { error } = await sb.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + window.location.pathname
+      redirectTo: loginPageUrl()
     });
     if (error) throw error;
     setStatus('Password reset link sent to ' + email + ' — check your email.', 'success');
