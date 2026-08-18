@@ -479,34 +479,40 @@ function showRecoveryPanel(){
   showPanel('panel-recovery');
 }
 
-/* Fires as soon as a password-recovery link's session is established -
-   this can happen before or after the 'load' handler below runs, so it's
-   registered immediately rather than inside that handler, and the flag it
-   sets is checked there to skip the normal redirect-straight-in logic. */
 let isPasswordRecovery = false;
-sb.auth.onAuthStateChange((event) => {
+let setupHandled = false;
+
+async function maybeHandleSetup(user){
+  if (setupHandled) return;
+  const wantsSetup = new URLSearchParams(window.location.search).get('setup') === '1';
+  if (!wantsSetup) return;
+  setupHandled = true;
+  /* Strip the param immediately so a refresh/back-nav can't re-trigger it */
+  window.history.replaceState({}, '', window.location.pathname);
+  const result = await completeLogin(user, { noRedirect: true });
+  if (result) showSetupPanel(result.player?.first_name);
+}
+
+/* Everything below is driven off onAuthStateChange rather than a one-shot
+   getSession() check on 'load' - a session arriving from a magic-link or
+   password-reset URL is established asynchronously by Supabase's own
+   internal hash/code processing, which isn't guaranteed to finish before
+   'load' fires. onAuthStateChange fires exactly when a session actually
+   becomes available (INITIAL_SESSION covers "already signed in when the
+   page loaded", SIGNED_IN covers "just arrived via a link"), so there's
+   no timing race to get wrong. */
+sb.auth.onAuthStateChange(async (event, session) => {
   if (event === 'PASSWORD_RECOVERY'){
     isPasswordRecovery = true;
     showRecoveryPanel();
+    return;
   }
-});
-
-/* On load — check if already signed in.
-   A password-recovery link takes over above instead of redirecting.
-   A first-time magic link (?setup=1) offers to set up a password/passkey
-   before sending them into the site; otherwise redirect straight in. */
-window.addEventListener('load', async () => {
-  if (isPasswordRecovery || window.location.hash.includes('type=recovery')) return;
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) {
+  if (!session?.user) return;
+  if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION'){
     const wantsSetup = new URLSearchParams(window.location.search).get('setup') === '1';
-    if (wantsSetup) {
-      /* Strip the param immediately so a refresh/back-nav can't re-trigger it */
-      window.history.replaceState({}, '', window.location.pathname);
-      const { data: { user } } = await sb.auth.getUser();
-      const result = user ? await completeLogin(user, { noRedirect: true }) : null;
-      if (result) showSetupPanel(result.player?.first_name);
-    } else {
+    if (wantsSetup){
+      await maybeHandleSetup(session.user);
+    } else if (!isPasswordRecovery){
       window.location.replace('/');
     }
   }
