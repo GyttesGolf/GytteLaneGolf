@@ -201,7 +201,7 @@
   }
   .nav-lock-btn:hover{color:var(--paper);}
   .nav-lock-btn.logged-in{color:var(--brass-light); border-bottom-color:var(--brass);}
-  .nav-lock-btn svg{width:14px; height:14px; fill:currentColor; flex-shrink:0;}
+  .nav-lock-btn svg{width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.8; flex-shrink:0;}
 
   /* ---------- layout shells ---------- */
   main{max-width:1080px; margin:0 auto; padding:2.4rem 1.5rem 4rem;}
@@ -318,6 +318,13 @@
   .leaflet-popup-content a{font-family:var(--body); font-size:.76rem; text-transform:uppercase;}
   .leaflet-popup-tip{background:var(--paper);}
   .map-empty-note{font-size:.88rem; color:var(--text-muted); margin-top:.6rem;}
+
+  .welcome-banner{
+    display:flex; align-items:center; justify-content:space-between; gap:.8rem; flex-wrap:wrap;
+    background:var(--ink); color:var(--paper); padding:.7rem 1.2rem;
+    font-family:var(--body); font-size:.9rem;
+  }
+  .welcome-banner a{color:var(--brass-light); font-weight:600; text-decoration:none; white-space:nowrap;}
 
   .leaders-section{margin:0 0 2.2rem; padding-bottom:2.2rem; border-bottom:1px solid var(--line);}
   .leaders-row{display:flex; gap:1.2rem; flex-wrap:wrap;}
@@ -1175,9 +1182,9 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
       Platform
     </button>
-    <button class="nav-lock-btn" id="nav-lock-btn" onclick="handleNavLock()" aria-label="Admin login">
-      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
-      <span id="nav-lock-label">Admin</span>
+    <button class="nav-lock-btn" id="nav-lock-btn" onclick="handleNavLock()" aria-label="Sign in or my account">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      <span id="nav-lock-label">Sign in</span>
     </button>
   </div>
 </nav>
@@ -1192,6 +1199,7 @@
         <p class="intro" id="hero-intro">Founded <span id="years-founded">32</span> years ago in Syresham, Northamptonshire. The Gyttes have played all over England, Wales and Ireland — with trips to France, Spain and Portugal along the way.</p>
       </div>
     </div>
+    <div id="welcome-banner-slot"></div>
     <div class="hero">
       <div>
         <div class="home-btn-grid">
@@ -1326,6 +1334,13 @@
     <div id="accounts-content"></div>
   </section>
 
+  <!-- ============ MY ACCOUNT ============ -->
+  <section class="section" id="sec-myaccount" data-section="myaccount">
+    <p class="eyebrow">Your account</p>
+    <h2 class="section-title">My Account</h2>
+    <div id="myaccount-content"></div>
+  </section>
+
   <!-- ============ PLATFORM ADMIN ============ -->
   <section class="section" id="sec-platform" data-section="platform">
     <p class="eyebrow">Platform admin only</p>
@@ -1413,7 +1428,7 @@
     <div style="padding:.4rem 1rem .2rem; border-top:1px solid var(--line); margin-top:.3rem;">
       <button class="md-item" style="width:100%; justify-content:center; color:var(--claret);" onclick="closeMoreDrawer(); handleNavLock();">
         <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" fill="currentColor" stroke="none"/></svg>
-        <span id="more-drawer-lock-label">Admin login</span>
+        <span id="more-drawer-lock-label">Sign in</span>
       </button>
     </div>
   </div>
@@ -1964,6 +1979,7 @@ function goTo(sectionName, opts){
     renderAccounts();
   }
   if (sectionName === 'platform') renderPlatformAdmin();
+  if (sectionName === 'myaccount') renderMyAccount();
   setBottomNav(sectionName);
 }
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -2880,35 +2896,42 @@ function updateNavLock(){
   const platformDrawerItem = document.querySelector('.platform-admin-drawer-item');
   if (platformDrawerItem) platformDrawerItem.style.display = isPlatformAdmin ? '' : 'none';
 
+  /* Admin-only nav items (the "Admin" tab/drawer entry) stay keyed off
+     isLoggedIn specifically - separate from the account button below,
+     which now reflects isMember (any signed-in player, not just admins). */
+  document.querySelector('nav.tabs')?.classList.toggle('committee-logged-in', isLoggedIn);
+  document.getElementById('more-drawer')?.classList.toggle('committee-logged-in', isLoggedIn);
+
   const btn = document.getElementById('nav-lock-btn');
   const label = document.getElementById('nav-lock-label');
   if (!btn || !label) return;
-  if (isLoggedIn){
+  const drawerLabel = document.getElementById('more-drawer-lock-label');
+  if (isMember){
     btn.classList.add('logged-in');
-    label.textContent = 'Log out';
-    document.querySelector('nav.tabs')?.classList.add('committee-logged-in');
-    document.getElementById('more-drawer')?.classList.add('committee-logged-in');
-    const drawerLabel = document.getElementById('more-drawer-lock-label');
-    if (drawerLabel) drawerLabel.textContent = 'Log out';
+    label.textContent = 'My Account';
+    if (drawerLabel) drawerLabel.textContent = 'My Account';
   } else {
     btn.classList.remove('logged-in');
-    label.textContent = 'Admin';
-    document.querySelector('nav.tabs')?.classList.remove('committee-logged-in');
-    document.getElementById('more-drawer')?.classList.remove('committee-logged-in');
-    const drawerLabel = document.getElementById('more-drawer-lock-label');
-    if (drawerLabel) drawerLabel.textContent = 'Admin login';
+    label.textContent = 'Sign in';
+    if (drawerLabel) drawerLabel.textContent = 'Sign in';
   }
 }
 
 function handleNavLock(){
-  isLoggedIn ? committeeLogout() : (window.location.href = 'login.html');
+  if (isMember){ closeMoreDrawer(); goTo('myaccount'); setBottomNav('myaccount'); }
+  else window.location.href = 'login.html';
 }
 
-async function committeeLogout(){
+async function memberSignOut(){
   if (db) await db.auth.signOut();
   isLoggedIn = false;
+  isMember = false;
+  isPlatformAdmin = false;
+  currentUserEmail = null;
   updateNavLock();
   renderAll();
+  goTo('home');
+  setBottomNav('home');
 }
 
 function renderAll(){
@@ -2921,6 +2944,8 @@ function renderAll(){
   renderHonours();
   renderCoursesPanel();
   renderAccounts();
+  renderMyAccount();
+  renderWelcomeBanner();
   if (isPlatformAdmin) renderPlatformAdmin();
 }
 
@@ -3738,6 +3763,138 @@ function togglePlayerEdit(id){
    with no obvious error, since it just fails to match at sign-in time. */
 function isValidEmail(email){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
 
+/* ===================== render: my account ===================== */
+let myAccountSubView = 'profile'; // 'profile' | 'signups' | 'history'
+
+function setMyAccountSubView(view){
+  myAccountSubView = view;
+  renderMyAccount();
+}
+
+/* The signed-in player's own row - identity here is purely email-matched
+   (see initAuth()), same as isMember itself. */
+function myAccountPlayer(){
+  if (!currentUserEmail) return null;
+  return players.find(p => p.email && p.email.toLowerCase() === currentUserEmail.toLowerCase());
+}
+
+function myAccountProfileTab(p){
+  return `
+    <div class="edit-form">
+      <div class="edit-form-grid">
+        <div><label>First name</label><input value="${escapeHtml(p.first_name)}" disabled></div>
+        <div><label>Last name</label><input value="${escapeHtml(p.last_name)}" disabled></div>
+        <div class="full"><label>Email</label><input type="email" id="my-email-input" value="${(p.email||'').replace(/"/g,'&quot;')}"></div>
+        <div><label>Handicap</label><input type="number" step="0.1" id="my-handicap-input" value="${p.handicap??''}"></div>
+      </div>
+      <p class="muted" style="font-size:.8rem; margin:.5rem 0 0;">Need to change your name? Contact your captain — they keep the roster accurate.</p>
+      <div class="edit-form-actions">
+        <button class="btn brass" onclick="saveMyProfile(${p.id})">Save</button>
+        <div class="edit-status" id="my-profile-status"></div>
+      </div>
+    </div>
+    <button class="delete-btn" style="margin-top:1.2rem;" onclick="memberSignOut()">Sign out</button>`;
+}
+
+async function saveMyProfile(playerId){
+  const setStatus = (msg, kind) => { const el = document.getElementById('my-profile-status'); if(el){el.textContent=msg; el.className='edit-status '+(kind||'');} };
+  if (!db){ setStatus('Not connected.', 'error'); return; }
+  const email = (document.getElementById('my-email-input')?.value || '').trim();
+  const handicapVal = document.getElementById('my-handicap-input')?.value;
+  const handicap = handicapVal !== '' && handicapVal != null ? Number(handicapVal) : null;
+  if (!email || !isValidEmail(email)){ setStatus('Enter a valid email address.', 'error'); return; }
+  setStatus('Saving…', 'loading');
+  const { error } = await db.from('players').update({ email, handicap }).eq('id', playerId);
+  if (error){
+    console.error(error);
+    setStatus(error.code === '23505' ? 'That email is already used by another player.' : 'Save failed — please try again.', 'error');
+    return;
+  }
+  const emailChanged = email.toLowerCase() !== (currentUserEmail || '').toLowerCase();
+  const p = players.find(x => x.id === playerId);
+  if (p) Object.assign(p, { email, handicap });
+  setStatus(emailChanged ? 'Saved! Since your email changed, sign in with the new address next time.' : 'Saved!', 'success');
+}
+
+function myAccountSignupsTab(p){
+  const mySignups = signups.filter(s => s.player_id === p.id);
+  const rows = mySignups.map(s => {
+    const ev = eventById(s.event_id);
+    if (!ev) return '';
+    const fee = parseFloat((ev.cost || '').replace(/[^0-9.]/g,'')) || 0;
+    const rec = eventPayments.find(x => String(x.event_id) === String(ev.id) && x.player_id === p.id);
+    const isPaid = isPaidRecord(rec);
+    const amount = rec ? Number(rec.amount || fee) : fee;
+    return `
+      <div class="player-list-item" style="cursor:default;">
+        <div class="pli-info">
+          <div class="pli-name">${escapeHtml(ev.name)}</div>
+          <div class="pli-sub">${fmtDate(ev.date)}${fee ? ` · £${amount.toFixed(2)}` : ''}</div>
+        </div>
+        <div class="pli-right">
+          ${!fee ? '' : isPaid
+            ? `<span class="membership-pill paid">Paid</span>`
+            : `<button class="committee-edit-btn" style="color:var(--bracken); border-color:var(--bracken);" onclick="payWithStripe('${ev.id}',${p.id},this)">Pay now</button>`}
+        </div>
+      </div>`;
+  }).filter(Boolean).join('');
+  return rows || '<p class="muted">You’re not signed up for any events yet.</p>';
+}
+
+function myAccountHistoryTab(p){
+  const history = playerScoreHistory(p.id);
+  const courses = playerCoursesHistory(p.id);
+  return `
+    <h4 style="margin:0 0 .5rem;">Scores</h4>
+    ${history.length ? history.map(h => `
+      <div class="pc-row">
+        <span class="pc-row-label">${escapeHtml(h.ev.name)} <span style="color:var(--text-muted); font-size:.75rem;">${new Date(h.ev.date+'T00:00:00').getFullYear()}</span></span>
+        <span class="pc-row-val">${h.total} pts</span>
+      </div>`).join('') : '<p class="muted" style="font-size:.85rem;">No scores yet.</p>'}
+    <h4 style="margin:1.2rem 0 .5rem;">Courses played</h4>
+    ${courses.length ? courses.map(c => {
+      const url = googleMapsUrl(c.name, c.postcode);
+      return `<div class="pc-row"><a href="${url}" target="_blank" rel="noopener" style="font-size:.85rem; color:var(--claret);">${escapeHtml(c.name)}</a></div>`;
+    }).join('') : '<p class="muted" style="font-size:.85rem;">No courses yet.</p>'}`;
+}
+
+function renderMyAccount(){
+  const el = document.getElementById('myaccount-content');
+  if (!el) return;
+  if (!isMember){
+    el.innerHTML = `<p class="muted">Sign in to see your account. <a href="login.html">Sign in →</a></p>`;
+    return;
+  }
+  const p = myAccountPlayer();
+  if (!p){
+    el.innerHTML = `<p class="muted">We couldn’t find your player record. Contact your captain.</p>`;
+    return;
+  }
+  const subTabs = `
+    <div class="admin-sub-tabs">
+      <button class="admin-sub-tab ${myAccountSubView==='profile'?'active':''}" onclick="setMyAccountSubView('profile')">Profile</button>
+      <button class="admin-sub-tab ${myAccountSubView==='signups'?'active':''}" onclick="setMyAccountSubView('signups')">Payments &amp; Sign-ups</button>
+      <button class="admin-sub-tab ${myAccountSubView==='history'?'active':''}" onclick="setMyAccountSubView('history')">History</button>
+    </div>`;
+  let body = '';
+  if (myAccountSubView === 'signups') body = myAccountSignupsTab(p);
+  else if (myAccountSubView === 'history') body = myAccountHistoryTab(p);
+  else body = myAccountProfileTab(p);
+  el.innerHTML = `
+    <p style="font-family:var(--body); font-size:1.1rem; font-weight:700; color:var(--ink); margin-bottom:1rem;">Welcome, ${escapeHtml(p.first_name)}</p>
+    ${subTabs}
+    <div style="margin-top:1rem;">${body}</div>`;
+}
+
+function renderWelcomeBanner(){
+  const el = document.getElementById('welcome-banner-slot');
+  if (!el) return;
+  const p = isMember ? myAccountPlayer() : null;
+  el.innerHTML = p
+    ? `<div class="welcome-banner"><span>Welcome back, ${escapeHtml(p.first_name)}</span><a href="#" onclick="goTo('myaccount'); setBottomNav('myaccount'); return false;">My Account →</a></div>`
+    : '';
+}
+
 async function savePlayerEdit(id){
   const setStatus = (msg, kind) => { const el = document.getElementById('ep-status-'+id); if(el){el.textContent=msg; el.className='edit-status '+(kind||'');} };
   if (!db){ setStatus('Not connected.','error'); return; }
@@ -3847,6 +4004,7 @@ async function updateMembershipPaid(playerId, isChecked){
 const NEXT_FIXTURE_PHOTO_SVG = `<img src="assets/GolfBall.jpg" alt="" loading="lazy">`;
 
 function renderHome(){
+  renderWelcomeBanner();
   const upcoming = events.filter(e => eventStatus(e) === 'upcoming').sort((a,b) => new Date(a.date) - new Date(b.date))[0];
   const slot = document.getElementById('next-fixture-slot');
   if (upcoming){
@@ -6595,7 +6753,7 @@ async function downloadAccountsPdf(year){
 
 /* ===================== bottom nav ===================== */
 function setBottomNav(section){
-  const mainSections = ['home','events','groupings','leaderboard'];
+  const mainSections = ['home','events','groupings','leaderboard','myaccount'];
   document.querySelectorAll('.bn-tab[data-section]').forEach(b => {
     b.classList.toggle('active', b.dataset.section === section);
   });
@@ -7169,6 +7327,7 @@ async function init(){
   renderHonours();
   renderCoursesPanel();
   renderAccounts();
+  renderMyAccount();
   renderGroupings();
   renderHome();
 }

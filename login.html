@@ -67,6 +67,8 @@ body{
 .email-fallback-link:hover{color:rgba(255,255,255,.65);}
 .hidden{display:none!important;}
 .enter-btn{display:block;margin-top:.8rem;padding:.7rem;background:linear-gradient(135deg,#B8862F,#E3C173 50%,#B8862F);border-radius:10px;color:#1a1008;font-weight:700;font-size:.92rem;text-align:center;text-decoration:none;}
+.divider{text-align:center;font-size:.65rem;color:rgba(255,255,255,.3);margin:.7rem 0;text-transform:uppercase;letter-spacing:.08em;}
+.panel-intro{font-size:.85rem;color:rgba(255,255,255,.7);text-align:center;margin-bottom:.9rem;line-height:1.5;}
 </style>
 </head>
 <body>
@@ -93,7 +95,7 @@ body{
     <div class="pill first" id="pill-first" onclick="selectPill('first')">
       <div class="pill-icon em">✉</div>
       <div class="pill-title">First time?</div>
-      <div class="pill-desc">Enter your email to create your passkey</div>
+      <div class="pill-desc">Enter your email to set up your account</div>
     </div>
     <div class="pill member" id="pill-member" onclick="selectPill('member')">
       <div class="pill-icon pk">👆</div>
@@ -110,24 +112,71 @@ body{
       <input class="inp-field" type="email" id="email-input" placeholder="your@email.com" autocomplete="email">
     </div>
     <button class="btn-gold" onclick="handleEmailSubmit()">Continue →</button>
-  </div>
-
-  <!-- Passkey panel -->
-  <div class="panel hidden" id="panel-member">
-    <button class="btn-passkey" id="passkey-btn" onclick="signInWithPasskey()">
-      👆 Sign in with passkey
-    </button>
-    <button class="email-fallback-link" id="member-email-toggle" onclick="showMemberEmailFallback()">No passkey on this device? Use email instead</button>
-    <div class="hidden" id="member-email-fallback">
-      <div class="inp-wrap" style="margin-top:.6rem;">
-        <span class="inp-ico">✉</span>
-        <input class="inp-field" type="email" id="member-email-input" placeholder="your@email.com" autocomplete="email">
+    <!-- Some email providers/security scanners "click" the link automatically
+         to check it's safe, which uses up its one-time token before the
+         person themselves gets to it. The code is immune to that - there's
+         no link for anything to prefetch. -->
+    <div class="hidden" id="email-code-fallback">
+      <div class="divider">or enter the code from the email</div>
+      <div class="inp-wrap">
+        <span class="inp-ico">#</span>
+        <input class="inp-field" type="text" inputmode="numeric" id="email-code-input" placeholder="123456" autocomplete="one-time-code">
       </div>
-      <button class="btn-gold" onclick="handleEmailSubmit('member-email-input')">Email me a sign-in link →</button>
+      <button class="btn-gold" onclick="verifyEmailCode()">Verify code →</button>
     </div>
   </div>
 
-  <div class="not-member">Not a member? <a href="mailto:gyttelanegolf@gmail.com">Contact your committee</a></div>
+  <!-- Returning member panel — password first, passkey and reset as fallbacks -->
+  <div class="panel hidden" id="panel-member">
+    <label class="inp-label">Email address</label>
+    <div class="inp-wrap">
+      <span class="inp-ico">✉</span>
+      <input class="inp-field" type="email" id="signin-email-input" placeholder="your@email.com" autocomplete="email">
+    </div>
+    <label class="inp-label">Password</label>
+    <div class="inp-wrap">
+      <span class="inp-ico">🔒</span>
+      <input class="inp-field" type="password" id="signin-password-input" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn-gold" onclick="signInWithPassword()">Sign in →</button>
+    <button class="email-fallback-link" onclick="handleForgotPassword()">Forgot password, or never set one? Reset via email</button>
+    <div class="divider">or</div>
+    <button class="btn-passkey" id="passkey-btn" onclick="signInWithPasskey()">
+      👆 Sign in with passkey
+    </button>
+  </div>
+
+  <!-- Shown after a first-time magic link, offering to set up quicker sign-in -->
+  <div class="panel hidden" id="panel-setup">
+    <p class="panel-intro" id="setup-greeting">You're in! Set up a quicker way to sign in next time.</p>
+    <label class="inp-label">Choose a password</label>
+    <div class="inp-wrap">
+      <span class="inp-ico">🔒</span>
+      <input class="inp-field" type="password" id="setup-password-input" placeholder="At least 8 characters" autocomplete="new-password">
+    </div>
+    <button class="btn-gold" onclick="setupPassword()">Save password</button>
+    <div class="divider">or</div>
+    <button class="btn-passkey" onclick="registerPasskey()">👆 Register a passkey instead</button>
+    <a class="enter-btn" href="#" onclick="window.location.replace('/'); return false;">Skip for now, take me in →</a>
+  </div>
+
+  <!-- Shown when arriving via a password-reset email link -->
+  <div class="panel hidden" id="panel-recovery">
+    <p class="panel-intro">Choose a new password.</p>
+    <label class="inp-label">New password</label>
+    <div class="inp-wrap">
+      <span class="inp-ico">🔒</span>
+      <input class="inp-field" type="password" id="recovery-password-input" placeholder="At least 8 characters" autocomplete="new-password">
+    </div>
+    <label class="inp-label">Confirm password</label>
+    <div class="inp-wrap">
+      <span class="inp-ico">🔒</span>
+      <input class="inp-field" type="password" id="recovery-password-confirm-input" placeholder="Re-enter password" autocomplete="new-password">
+    </div>
+    <button class="btn-gold" onclick="submitNewPassword()">Save new password →</button>
+  </div>
+
+  <div class="not-member" id="not-member-note">Not a member? <a href="mailto:gyttelanegolf@gmail.com">Contact your committee</a></div>
 </div>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
@@ -224,6 +273,7 @@ function selectPill(pill){
   document.getElementById('back-btn').classList.remove('hidden');
   document.getElementById('status-msg').className = 'status-msg';
   if(pill === 'first') setTimeout(() => document.getElementById('email-input').focus(), 100);
+  if(pill === 'member') setTimeout(() => document.getElementById('signin-email-input').focus(), 100);
 }
 
 function resetToDefault(){
@@ -234,17 +284,10 @@ function resetToDefault(){
   document.getElementById('panel-member').classList.add('hidden');
   document.getElementById('back-btn').classList.add('hidden');
   document.getElementById('status-msg').className = 'status-msg';
-  document.getElementById('member-email-fallback').classList.add('hidden');
-  document.getElementById('member-email-toggle').classList.remove('hidden');
 }
 
-function showMemberEmailFallback(){
-  document.getElementById('member-email-fallback').classList.remove('hidden');
-  document.getElementById('member-email-toggle').classList.add('hidden');
-  setTimeout(() => document.getElementById('member-email-input').focus(), 50);
-}
-
-async function completeLogin(user){
+async function completeLogin(user, opts){
+  opts = opts || {};
   const email = user.email;
 
   /* Platform admins manage the whole platform, not any one society's
@@ -253,8 +296,8 @@ async function completeLogin(user){
   const { data: isPlatformAdmin } = await sb.rpc('is_platform_admin');
   if (isPlatformAdmin){
     setStatus('Welcome! Taking you in…', 'success');
-    window.location.replace('/');
-    return;
+    if (!opts.noRedirect) window.location.replace('/');
+    return { isPlatformAdmin: true };
   }
 
   /* Check user exists in players table and is active */
@@ -266,36 +309,41 @@ async function completeLogin(user){
   if (!players || !players.length){
     await sb.auth.signOut();
     setStatus('This email isn’t registered. Contact your captain.', 'error');
-    return;
+    return null;
   }
   const player = players[0];
   if (player.active === false){
     await sb.auth.signOut();
     setStatus('Your account is inactive. Contact your captain.', 'error');
-    return;
+    return null;
   }
 
   setStatus('Welcome, ' + player.first_name + '! Taking you in…', 'success');
-  window.location.replace('/');
+  if (!opts.noRedirect) window.location.replace('/');
+  return { player };
 }
 
-async function handleEmailSubmit(inputId){
-  inputId = inputId || 'email-input';
-  /* The "First time?" panel's email input offers passkey setup after the
-     magic link completes; the "Member" panel's email fallback is just a
-     sign-in path for people without a working passkey, so it should land
-     them straight on the home page like signInWithPasskey() does, not
-     detour into passkey registration. */
-  const offerPasskeySetup = inputId !== 'member-email-input';
-  const email = document.getElementById(inputId).value.trim();
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+function isValidEmailLogin(email){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
+
+/* Builds this page's own URL, collapsing any accidental repeated slashes
+   in the path first - a stray double slash here (seen in the wild on at
+   least one real device, cause unconfirmed) breaks the redirect Supabase
+   embeds in the email, so this is defensive regardless of how it happens. */
+function loginPageUrl(query){
+  const path = ('/' + window.location.pathname).replace(/\/+/g, '/');
+  return window.location.origin + path + (query || '');
+}
+
+async function handleEmailSubmit(){
+  const email = document.getElementById('email-input').value.trim();
+  if (!email || !isValidEmailLogin(email)){
     setStatus('Please enter a valid email address.', 'error'); return;
   }
   setStatus('Checking…', 'loading');
 
   try {
     /* Send magic link - shouldCreateUser:true lets brand-new members create
-       an account. The "want a passkey" flag travels as a query param on the
+       an account. The "?setup=1" flag travels as a query param on the
        redirect URL itself, NOT sessionStorage - on mobile the link is often
        opened in a different browser/tab (e.g. an in-app webview inside the
        Mail/Gmail app) than the one that requested it, and sessionStorage
@@ -308,13 +356,78 @@ async function handleEmailSubmit(inputId){
         /* Points back at wherever this page is actually hosted, so this
            doesn't need to be hand-edited if the login page's path changes.
            Must also be present in Supabase's Redirect URLs allow list. */
-        emailRedirectTo: window.location.origin + window.location.pathname + (offerPasskeySetup ? '?register_passkey=1' : '')
+        emailRedirectTo: loginPageUrl('?setup=1')
       }
     });
     if (error) throw error;
     setStatus('Magic link sent to ' + email + ' — check your email and tap the link to sign in.', 'success');
+    document.getElementById('email-code-fallback').classList.remove('hidden');
   } catch(err) {
     setStatus('Could not send link: ' + err.message, 'error');
+  }
+}
+
+async function verifyEmailCode(){
+  const email = document.getElementById('email-input').value.trim();
+  const code = document.getElementById('email-code-input').value.trim();
+  if (!email || !isValidEmailLogin(email)){ setStatus('Enter your email address above first.', 'error'); return; }
+  if (!code){ setStatus('Enter the code from the email.', 'error'); return; }
+  setStatus('Checking code…', 'loading');
+  /* Claimed before calling verifyOtp(), not after - the resulting SIGNED_IN
+     event can fire as part of that call itself, and setupHandled is what
+     stops onAuthStateChange's own listener from redirecting straight to
+     the home page and racing the showSetupPanel() call below. */
+  setupHandled = true;
+  try {
+    const { data, error } = await sb.auth.verifyOtp({ email, token: code, type: 'email' });
+    if (error) throw error;
+    if (data.user){
+      const result = await completeLogin(data.user, { noRedirect: true });
+      if (result) showSetupPanel(result.player?.first_name);
+    }
+  } catch(err) {
+    setupHandled = false; // let a subsequent real attempt still work
+    setStatus('Incorrect or expired code — request a new link/code and try again.', 'error');
+  }
+}
+
+async function signInWithPassword(){
+  const email = document.getElementById('signin-email-input').value.trim();
+  const password = document.getElementById('signin-password-input').value;
+  if (!email || !isValidEmailLogin(email)){ setStatus('Enter a valid email address.', 'error'); return; }
+  if (!password){ setStatus('Enter your password.', 'error'); return; }
+  setStatus('Signing in…', 'loading');
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    if (data.user) await completeLogin(data.user);
+  } catch(err) {
+    /* Supabase deliberately returns the same generic error whether the
+       password is wrong or was never set, so this can't (and shouldn't)
+       try to tell those two cases apart. */
+    setStatus('Incorrect email or password. Try "Forgot password?" below, or sign in with passkey.', 'error');
+  }
+}
+
+async function handleForgotPassword(){
+  const email = document.getElementById('signin-email-input').value.trim();
+  if (!email || !isValidEmailLogin(email)){
+    setStatus('Enter your email address above first.', 'error'); return;
+  }
+  setStatus('Sending reset link…', 'loading');
+  try {
+    /* This is Supabase's dedicated password-recovery flow, not the plain
+       magic link above - it sends a different email (its own "Reset
+       Password" template) whose link, on return, fires a PASSWORD_RECOVERY
+       auth event rather than just signing someone in. It works the same
+       whether they forgot an existing password or never set one at all. */
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: loginPageUrl()
+    });
+    if (error) throw error;
+    setStatus('Password reset link sent to ' + email + ' — check your email.', 'success');
+  } catch(err) {
+    setStatus('Could not send reset link: ' + err.message, 'error');
   }
 }
 
@@ -348,30 +461,112 @@ async function registerPasskey(){
   setStatus('Setting up your passkey…', 'loading');
   try {
     /* Correct SDK method is registerPasskey(), not enrollWebAuthn(). */
-    const { data, error } = await sb.auth.registerPasskey();
+    const { error } = await sb.auth.registerPasskey();
     if (error) throw error;
     setStatus('Passkey registered! You can now sign in with it.', 'success');
-    setTimeout(() => window.location.replace('/'), 1500);
   } catch(err) {
-    setStatus('Could not set up a passkey (' + err.message + '). You can still use magic links to sign in — taking you in…', 'error');
-    /* They're already authenticated via the magic link even though passkey
-       setup failed, so don't strand them on the login page. */
-    setTimeout(() => window.location.replace('/'), 2500);
+    setStatus('Could not set up a passkey (' + err.message + ').', 'error');
   }
 }
 
-/* On load — check if already signed in.
-   If they arrived here via the "First time?" magic link, offer to register
-   a passkey before sending them into the site; otherwise redirect straight in. */
-window.addEventListener('load', async () => {
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    const wantsPasskey = new URLSearchParams(window.location.search).get('register_passkey') === '1';
-    if (wantsPasskey) {
-      /* Strip the param immediately so a refresh/back-nav can't re-trigger registration */
-      window.history.replaceState({}, '', window.location.pathname);
-      await registerPasskey();
-    } else {
+async function setupPassword(){
+  const password = document.getElementById('setup-password-input').value;
+  if (!password || password.length < 8){
+    setStatus('Choose a password with at least 8 characters.', 'error'); return;
+  }
+  setStatus('Saving password…', 'loading');
+  try {
+    const { error } = await sb.auth.updateUser({ password });
+    if (error) throw error;
+    setStatus('Password saved! You can sign in with it next time.', 'success');
+  } catch(err) {
+    setStatus('Could not save password: ' + err.message, 'error');
+  }
+}
+
+async function submitNewPassword(){
+  const password = document.getElementById('recovery-password-input').value;
+  const confirmPassword = document.getElementById('recovery-password-confirm-input').value;
+  if (!password || password.length < 8){
+    setStatus('Choose a password with at least 8 characters.', 'error'); return;
+  }
+  if (password !== confirmPassword){
+    setStatus('Passwords don’t match.', 'error'); return;
+  }
+  setStatus('Saving…', 'loading');
+  try {
+    const { error } = await sb.auth.updateUser({ password });
+    if (error) throw error;
+    /* A password reset re-authenticates whoever's email this is, even if
+       they're not actually a registered/active player any more - so this
+       still needs the same players-table check every other sign-in path
+       goes through before it's treated as a real login. */
+    const { data: { user } } = await sb.auth.getUser();
+    if (user) await completeLogin(user);
+  } catch(err) {
+    setStatus('Could not update password: ' + err.message, 'error');
+  }
+}
+
+function showPanel(panelId){
+  ['pills','panel-first','panel-member','panel-setup','panel-recovery','not-member-note','back-btn'].forEach(id => {
+    document.getElementById(id)?.classList.add('hidden');
+  });
+  document.getElementById(panelId).classList.remove('hidden');
+}
+
+function showSetupPanel(firstName){
+  const greeting = document.getElementById('setup-greeting');
+  if (greeting && firstName) greeting.textContent = `Welcome, ${firstName}! Set up a quicker way to sign in next time.`;
+  showPanel('panel-setup');
+}
+
+function showRecoveryPanel(){
+  showPanel('panel-recovery');
+}
+
+let isPasswordRecovery = false;
+let setupHandled = false;
+/* Captured once, at parse time - maybeHandleSetup() strips this param from
+   the URL as soon as it acts on it, so re-reading window.location.search
+   from inside the auth listener later (which can fire more than once,
+   e.g. INITIAL_SESSION then SIGNED_IN) would see it already gone and
+   wrongly take the "no setup wanted" branch on the second firing. */
+const initialWantsSetup = new URLSearchParams(window.location.search).get('setup') === '1';
+
+async function maybeHandleSetup(user){
+  if (setupHandled || !initialWantsSetup) return;
+  setupHandled = true;
+  /* Strip the param immediately so a refresh/back-nav can't re-trigger it */
+  window.history.replaceState({}, '', window.location.pathname);
+  const result = await completeLogin(user, { noRedirect: true });
+  if (result) showSetupPanel(result.player?.first_name);
+}
+
+/* Everything below is driven off onAuthStateChange rather than a one-shot
+   getSession() check on 'load' - a session arriving from a magic-link or
+   password-reset URL is established asynchronously by Supabase's own
+   internal hash/code processing, which isn't guaranteed to finish before
+   'load' fires. onAuthStateChange fires exactly when a session actually
+   becomes available (INITIAL_SESSION covers "already signed in when the
+   page loaded", SIGNED_IN covers "just arrived via a link"), so there's
+   no timing race to get wrong. */
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'PASSWORD_RECOVERY'){
+    isPasswordRecovery = true;
+    showRecoveryPanel();
+    return;
+  }
+  if (!session?.user) return;
+  if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION'){
+    if (initialWantsSetup){
+      await maybeHandleSetup(session.user);
+    } else if (!isPasswordRecovery && !setupHandled){
+      /* setupHandled doubles as "something else (e.g. the code-entry
+         fallback below) is already taking responsibility for this
+         sign-in" - without this check, this listener firing for that
+         same sign-in would race it straight to the home page instead of
+         letting it show the setup panel. */
       window.location.replace('/');
     }
   }
