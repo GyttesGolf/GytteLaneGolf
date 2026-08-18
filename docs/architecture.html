@@ -20,6 +20,7 @@
     --c-grafana:#b5590f;
     --c-godaddy:#6b4fa0;
     --c-map:#0f8a8a;
+    --c-resend:#a1285e;
   }
   @media (prefers-color-scheme: dark){
     :root{
@@ -37,17 +38,18 @@
       --c-grafana:#f2a35e;
       --c-godaddy:#b8a0e0;
       --c-map:#4fd1d1;
+      --c-resend:#f28fc2;
     }
   }
   :root[data-theme="dark"]{
     --bg:#12151a; --surface:#1a1e25; --ink:#e7eaee; --muted:#94a0ac; --line:#2c333c; --accent:#7fb3d5;
     --c-github:#c7ccd3; --c-netlify:#3fd6bf; --c-client:#7fb3d5; --c-supabase:#5fce93; --c-grafana:#f2a35e;
-    --c-godaddy:#b8a0e0; --c-map:#4fd1d1;
+    --c-godaddy:#b8a0e0; --c-map:#4fd1d1; --c-resend:#f28fc2;
   }
   :root[data-theme="light"]{
     --bg:#f5f6f8; --surface:#ffffff; --ink:#1b2026; --muted:#5c6570; --line:#d7dbe1; --accent:#3a6e8f;
     --c-github:#3a3f47; --c-netlify:#0e7d6f; --c-client:#3a6e8f; --c-supabase:#1f7a4d; --c-grafana:#b5590f;
-    --c-godaddy:#6b4fa0; --c-map:#0f8a8a;
+    --c-godaddy:#6b4fa0; --c-map:#0f8a8a; --c-resend:#a1285e;
   }
 
   *{ box-sizing:border-box; }
@@ -124,7 +126,7 @@
 
   <figure>
     <div class="diagram-wrap">
-      <svg viewBox="0 0 1080 800" role="img" aria-label="Architecture diagram: pushing to GitHub main triggers a Netlify build that deploys one static site to two live society domains. GoDaddy holds DNS for the custom domain and points it at Netlify. Each visiting browser resolves which society it belongs to from its own hostname, looked up against Supabase's societies table by custom domain or subdomain, and that society_id then scopes every subsequent read and write through row-level security — one tenant cannot see or write another's data even via a direct API call. The browser talks to Supabase directly for Postgres data, Auth (passkey and magic-link sign-in), and Storage (gallery and logo uploads); it also talks directly to Leaflet/OpenStreetMap for map tiles and to postcodes.io for postcode geocoding on the 'Where we play' map, with no backend hop through Supabase. Grafana Cloud connects to the same Postgres database read-only through a connection pooler, using a role that bypasses row-level security, to build dashboards that roll up activity across both societies. GitHub, Netlify, Supabase, Grafana Cloud, GoDaddy, Leaflet/OpenStreetMap and postcodes.io are all managed SaaS platforms with no self-hosted infrastructure.">
+      <svg viewBox="0 0 1080 880" role="img" aria-label="Architecture diagram: pushing to GitHub main triggers a Netlify build that deploys one static site to two live society domains. GoDaddy holds DNS for the custom domain and points it at Netlify. Each visiting browser resolves which society it belongs to from its own hostname, looked up against Supabase's societies table by custom domain or subdomain, and that society_id then scopes every subsequent read and write through row-level security — one tenant cannot see or write another's data even via a direct API call. The browser talks to Supabase directly for Postgres data, Auth (passkey, magic-link and password sign-in), and Storage (gallery and logo uploads); it also talks directly to Leaflet/OpenStreetMap for map tiles and to postcodes.io for postcode geocoding on the 'Where we play' map, with no backend hop through Supabase. Supabase Auth sends every magic-link, password-reset and account-setup email through Resend over SMTP, using a verified sending subdomain of the club's own domain, rather than Supabase's own rate-limited default mailer. Grafana Cloud connects to the same Postgres database read-only through a connection pooler, using a role that bypasses row-level security, to build dashboards that roll up activity across both societies. GitHub, Netlify, Supabase, Grafana Cloud, GoDaddy, Resend, Leaflet/OpenStreetMap and postcodes.io are all managed SaaS platforms with no self-hosted infrastructure.">
 
         <!-- ===== GoDaddy: DNS for the custom domain ===== -->
         <rect x="480" y="10" width="200" height="40" rx="8" fill="var(--bg)" stroke="var(--c-godaddy)" stroke-width="1.2"/>
@@ -261,9 +263,24 @@
         <text x="852" y="672" font-size="13.5" font-weight="700" fill="var(--ink)">Leaflet + OSM</text>
         <text x="816" y="694" font-size="10" fill="var(--muted)">map tiles + postcodes.io geocoding</text>
         <text x="816" y="706" font-size="10" fill="var(--muted)">client-side, no API key</text>
+
+        <!-- ===== Supabase Auth -> Resend (transactional email) ===== -->
+        <path d="M806,462 L806,576 L1050,576 L1050,752" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <text x="820" y="596" font-size="10" fill="var(--muted)" font-family="ui-monospace, monospace">SMTP relay</text>
+        <text x="820" y="610" font-size="10" fill="var(--muted)" font-family="ui-monospace, monospace">magic link · reset · setup</text>
+
+        <!-- Resend -->
+        <rect x="820" y="756" width="230" height="76" rx="10" fill="none" stroke="var(--c-resend)" stroke-width="1.6"/>
+        <rect x="958" y="764" width="52" height="20" rx="10" fill="none" stroke="var(--c-resend)" stroke-width="1"/>
+        <text x="984" y="778" text-anchor="middle" font-size="9" font-weight="600" fill="var(--c-resend)" font-family="ui-monospace, monospace">SaaS</text>
+        <circle cx="850" cy="787" r="12" fill="var(--c-resend)"/>
+        <path d="M844,781 h12 v6 l-6,5 l-6,-5 z" fill="var(--surface)"/>
+        <text x="872" y="792" font-size="14" font-weight="700" fill="var(--ink)">Resend</text>
+        <text x="836" y="814" font-size="10" fill="var(--muted)">verified send.gyttelanegolf.co.uk</text>
+        <text x="836" y="826" font-size="10" fill="var(--muted)">delivers to the player's own inbox</text>
       </svg>
     </div>
-    <figcaption>Every push to <code>main</code> redeploys one static build via Netlify, served at both societies' domains — GoDaddy holds DNS for the custom domain and points it at Netlify. Each browser resolves its own tenant from its hostname on load, and that <code>society_id</code> scopes and RLS-enforces every subsequent read and write to Supabase — one society's admin cannot see or write another's data. The browser also talks straight to Leaflet/OpenStreetMap and postcodes.io for the "Where we play" map, with no backend hop. GitHub, Netlify, Supabase, Grafana Cloud, GoDaddy and the mapping services are all managed SaaS: no server here is self-hosted or self-patched.</figcaption>
+    <figcaption>Every push to <code>main</code> redeploys one static build via Netlify, served at both societies' domains — GoDaddy holds DNS for the custom domain and points it at Netlify. Each browser resolves its own tenant from its hostname on load, and that <code>society_id</code> scopes and RLS-enforces every subsequent read and write to Supabase — one society's admin cannot see or write another's data. The browser also talks straight to Leaflet/OpenStreetMap and postcodes.io for the "Where we play" map, with no backend hop. Supabase Auth sends every sign-in and password email through Resend over SMTP from a verified subdomain, rather than Supabase's own rate-limited default mailer. GitHub, Netlify, Supabase, Grafana Cloud, GoDaddy, Resend and the mapping services are all managed SaaS: no server here is self-hosted or self-patched.</figcaption>
   </figure>
 
   <div class="legend">
@@ -274,6 +291,7 @@
     <span><i style="background:var(--c-supabase)"></i>Data + Auth</span>
     <span><i style="background:var(--c-map)"></i>Mapping</span>
     <span><i style="background:var(--c-grafana)"></i>Analytics</span>
+    <span><i style="background:var(--c-resend)"></i>Email</span>
   </div>
 </div>
 </body>
