@@ -2953,12 +2953,40 @@ function renderAll(){
   if (isPlatformAdmin) renderPlatformAdmin();
 }
 
+/* Supabase's own server-enforced session timeout (sessions_timebox) needs
+   a Pro plan — this project is on the free tier, so this is the
+   client-side equivalent: force a sign-out once 24 hours have passed
+   since the session's actual sign-in time (session.user.last_sign_in_at,
+   not the short-lived access token's own expiry, which the SDK silently
+   refreshes forever in the background and so never naturally lapses).
+   Not a hard security boundary the way the real Pro-plan setting would
+   be — a determined user could tamper with their own client to skip this
+   — but that only ever affects their own session, never anyone else's. */
+const SESSION_TIMEBOX_MS = 24 * 60 * 60 * 1000;
+
+function sessionAgeExceeded(session){
+  const signedInAt = session?.user?.last_sign_in_at;
+  if (!signedInAt) return false;
+  return (Date.now() - new Date(signedInAt).getTime()) > SESSION_TIMEBOX_MS;
+}
+
+/* Returns true if it signed the session out. Calling db.auth.signOut()
+   here re-fires onAuthStateChange with a null session, which is what
+   actually resets isMember/isLoggedIn/etc. back to signed-out. */
+async function enforceSessionTimebox(session){
+  if (session && sessionAgeExceeded(session)){
+    await db.auth.signOut();
+    return true;
+  }
+  return false;
+}
+
 async function initAuth(){
   if (!db) { updateNavLock(); renderAll(); return; }
 
-  /* Check Supabase session — works for both passkey and magic link */
+  /* Check Supabase session — works for passkey, magic link and password */
   const { data: { session } } = await db.auth.getSession();
-  if (session?.user){
+  if (session?.user && !(await enforceSessionTimebox(session))){
     const email = session.user.email;
     currentUserEmail = email;
     const player = players.find(p => p.email && p.email.toLowerCase() === email.toLowerCase());
@@ -2971,6 +2999,7 @@ async function initAuth(){
 
   /* Listen for auth state changes (magic link callback, sign out etc) */
   db.auth.onAuthStateChange(async (event, session) => {
+    if (session?.user && await enforceSessionTimebox(session)) return; // triggers a follow-up call with session=null
     if (session?.user){
       const email = session.user.email;
       currentUserEmail = email;
@@ -2992,6 +3021,14 @@ async function initAuth(){
     updateNavLock();
     renderAll();
   });
+
+  /* Catches the case where a tab is just left open past the 24-hour mark
+     mid-session — the checks above only run on load/sign-in, not while
+     idle, since a refreshed access token alone never triggers either. */
+  setInterval(async () => {
+    const { data: { session: currentSession } } = await db.auth.getSession();
+    if (currentSession) await enforceSessionTimebox(currentSession);
+  }, 5 * 60 * 1000);
 
   updateNavLock();
   renderAll();
