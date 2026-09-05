@@ -1963,6 +1963,22 @@ function escapeHtml(str){
 
 function eventById(id){ return events.find(e => e.id === id); }
 
+/* For a multi-round event, the event's own single `course` field is
+   whatever an admin last typed there — usually just one round's course,
+   which reads as wrong/misleading for a tour played across several
+   different courses (found 2026-09-05: "Sheffield Tour" showed as
+   "Hillsborough" everywhere, Round 2's Bondhay nowhere to be seen). Where
+   this matters, prefer a list of the event's own rounds' distinct courses
+   over the stale single field. Falls back to the plain e.course for every
+   normal single-round event, unaffected. */
+function eventCourseDisplay(e){
+  if (!e) return '';
+  const evRounds = roundsForEvent(e.id);
+  if (!evRounds.length) return e.course || '';
+  const courseNames = [...new Set(evRounds.map(r => r.course).filter(Boolean))];
+  return courseNames.length ? courseNames.join(' + ') : (e.course || '');
+}
+
 /* ===== rounds (multi-round/multi-day events) =====
    An event with no rows here is a normal single-round fixture — every
    scoring table's round_id stays null and behaves exactly as before this
@@ -2048,6 +2064,7 @@ function renderEvents(filter){
     const hasGallery = gallery.some(g => g.eventId === e.id);
     const isExpanded = expandedEventId === e.id;
     const signedUpCount = signupsForEvent(e.id).length;
+    const courseDisplay = eventCourseDisplay(e);
     const mapsUrl = e.course ? googleMapsUrl(e.course, e.postcode) : null;
     return `
       <div class="event-block">
@@ -2063,7 +2080,7 @@ function renderEvents(filter){
           <div class="event-main">
             <h3>${escapeHtml(e.name)}</h3>
             <div class="meta">${escapeHtml(e.format || '')}</div>
-            ${mapsUrl ? `<a class="event-address" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation();">${CAR_ICON} ${escapeHtml(e.course)}${e.postcode ? ' · ' + escapeHtml(e.postcode) : ''}</a>` : (e.course ? `<div class="meta">${escapeHtml(e.course)}</div>` : '')}
+            ${mapsUrl ? `<a class="event-address" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation();">${CAR_ICON} ${escapeHtml(courseDisplay)}${e.postcode ? ' · ' + escapeHtml(e.postcode) : ''}</a>` : (courseDisplay ? `<div class="meta">${escapeHtml(courseDisplay)}</div>` : '')}
             ${(() => {
               const fee = parseFloat((e.cost||'').replace(/[^0-9.]/g,'')) || 0;
               const chips = [];
@@ -2330,7 +2347,7 @@ function eventDetailHtml(e){
         return `
           <div class="attendee-list" style="margin-top:.8rem;">
             <h4>Event summary</h4>
-            ${mapsUrl ? `<p style="margin:.3rem 0 .5rem;"><a href="${mapsUrl}" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:.35rem; color:var(--claret); text-decoration:none; font-size:.82rem;">${CAR_ICON} ${e.course || (course && course.name)}${e.postcode ? ' · ' + e.postcode : ''}</a></p>` : ''}
+            ${mapsUrl ? `<p style="margin:.3rem 0 .5rem;"><a href="${mapsUrl}" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:.35rem; color:var(--claret); text-decoration:none; font-size:.82rem;">${CAR_ICON} ${eventCourseDisplay(e) || (course && course.name)}${e.postcode ? ' · ' + e.postcode : ''}</a></p>` : ''}
             ${course ? `<div style="margin:.3rem 0 .6rem;">${starsHtml(avg, cnt)}</div>` : ''}
             <div style="display:flex; gap:1.4rem; flex-wrap:wrap; margin:.5rem 0 .8rem; font-size:.92rem;">
               <span><strong>${played}</strong> <span style="color:var(--text-muted);">player${played===1?'':'s'} took part</span></span>
@@ -2707,7 +2724,7 @@ function shareEventToWhatsApp(eventId){
   if (!e) return;
   const lines = [
     `\u26F3 *New event: ${e.name}*`,
-    `\uD83D\uDCC5 ${fmtDate(e.date)}${e.course ? ' \u00B7 ' + e.course : ''}`,
+    `\uD83D\uDCC5 ${fmtDate(e.date)}${eventCourseDisplay(e) ? ' \u00B7 ' + eventCourseDisplay(e) : ''}`,
   ];
   if (e.format) lines.push(e.format);
   lines.push('', 'Sign up here: ' + window.location.origin);
@@ -4357,7 +4374,7 @@ async function renderEventsMap(){
     const marker = L.marker([coords.lat, coords.lng]).addTo(eventsMapInstance._markerLayer);
     marker.bindPopup(`
       <h4>${e.name}</h4>
-      ${e.course ? e.course + '<br>' : ''}${fmtDate(e.date)}<br>
+      ${eventCourseDisplay(e) ? eventCourseDisplay(e) + '<br>' : ''}${fmtDate(e.date)}<br>
       <a href="#" onclick="goTo('events',{highlightEvent:'${e.id}'}); return false;">View fixture &rarr;</a>
     `);
   }
@@ -4518,7 +4535,7 @@ function renderLiveScores(){
     return d.toLocaleDateString('en-GB', { day:'2-digit', month:'2-digit', year:'2-digit' });
   };
   const evOpts = [...events].sort((a,b) => new Date(b.date) - new Date(a.date))
-    .map(e => `<option value="${e.id}" ${liveEventId===e.id?'selected':''}>${e.name}${e.course ? ' — ' + shortCourse(e.course) : ''} — ${shortDate(e.date)}</option>`).join('');
+    .map(e => `<option value="${e.id}" ${liveEventId===e.id?'selected':''}>${e.name}${eventCourseDisplay(e) ? ' — ' + shortCourse(eventCourseDisplay(e)) : ''} — ${shortDate(e.date)}</option>`).join('');
 
   const subTabs = `
     <div class="scores-sub-tabs">
