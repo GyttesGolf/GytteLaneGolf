@@ -5203,7 +5203,14 @@ async function syncHonourForEvent(eventId, winnerName, roundId = null, noteSuffi
   const ev = eventById(eventId);
   if (!ev || !ev.trophy) return; // not a trophy fixture — nothing to do
   const round = roundId ? rounds.find(r => r.id === roundId) : null;
-  const shortCourse = ((round ? round.course : ev.course) || '').replace(/\s+golf\s+club\s*$/i, '').replace(/\s+GC\s*$/i, '').trim();
+  // For a round's own honour, use that round's specific course. For the
+  // combined/overall honour (roundId null on a multi-round event), fall
+  // back to eventCourseDisplay() rather than the event's own stale single
+  // `course` field — otherwise the combined entry shows only whichever
+  // one course an admin last typed on the event form (found 2026-09-05:
+  // "Sheffield Tour" finalised showing "Hillsborough" only, Bondhay never
+  // mentioned, despite being a two-course tour).
+  const shortCourse = ((round ? round.course : eventCourseDisplay(ev)) || '').replace(/\s+golf\s+club\s*$/i, '').replace(/\s+GC\s*$/i, '').trim();
   const title = ev.trophy + (round ? ' — ' + round.label : '') + (shortCourse ? ' — ' + shortCourse : '') + noteSuffix;
   const year = new Date((round ? round.date : ev.date) + 'T00:00:00').getFullYear();
 
