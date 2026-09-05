@@ -4660,9 +4660,16 @@ function renderLeaderboardView(){
       </div>`;
   }
 
-  // Committee: all done → show full leaderboard with finalise button
+  // Committee: all done → show full leaderboard with finalise button.
+  // For a multi-round event, only the combined "Overall" view finalises to
+  // Hall of Fame (see renderOverallLeaderboardView) — a single round's own
+  // Finalise button is deliberately hidden here so a multi-round event
+  // never ends up with a per-round winner in the Hall of Fame alongside
+  // the combined one; showing both was confusing (which one's "the"
+  // result depended entirely on which tab you happened to have open).
   if (isLoggedIn && allFinished){
-    return committeeLeaderboardHtml(fullLb, true, holes, liveRoundId);
+    return committeeLeaderboardHtml(fullLb, evRounds.length === 0, holes, liveRoundId)
+      + (evRounds.length ? `<p class="muted" style="margin-top:1rem;">This round is finished — select "🏆 Overall (combined)" above once every round is done to finalise the tour's overall winner.</p>` : '');
   }
 
   // Non-committee: past the blackout hole → freeze display there
@@ -5174,13 +5181,13 @@ setInterval(() => { if (scorecardQueue.length) processScorecardQueue(); if (scor
    collide because a multi-round event's own honours.find() lookup only
    ever matches a null row once finaliseEventOverall has run, same as any
    single-round event only ever having the one row. */
-async function syncHonourForEvent(eventId, winnerName, roundId = null){
+async function syncHonourForEvent(eventId, winnerName, roundId = null, noteSuffix = ''){
   if (!db || !winnerName) return;
   const ev = eventById(eventId);
   if (!ev || !ev.trophy) return; // not a trophy fixture — nothing to do
   const round = roundId ? rounds.find(r => r.id === roundId) : null;
   const shortCourse = ((round ? round.course : ev.course) || '').replace(/\s+golf\s+club\s*$/i, '').replace(/\s+GC\s*$/i, '').trim();
-  const title = ev.trophy + (round ? ' — ' + round.label : '') + (shortCourse ? ' — ' + shortCourse : '');
+  const title = ev.trophy + (round ? ' — ' + round.label : '') + (shortCourse ? ' — ' + shortCourse : '') + noteSuffix;
   const year = new Date((round ? round.date : ev.date) + 'T00:00:00').getFullYear();
 
   const existing = honours.find(h => h.event_id === eventId && (roundId ? h.round_id === roundId : !h.round_id));
@@ -5230,6 +5237,7 @@ async function finaliseEventOverall(eventId){
   if (!lb.length){ alert('No scores to finalise.'); return; }
   const top = lb.slice(0, 3);
   const ev = eventById(eventId);
+  const evRounds = roundsForEvent(eventId);
   const summary = top.map((e, i) => {
     const name = e.player ? e.player.first_name + ' ' + e.player.last_name : 'Unknown';
     return `${i+1}. ${name} — ${e.total} pts`;
@@ -5238,7 +5246,12 @@ async function finaliseEventOverall(eventId){
   if (!confirm(`Finalise the combined result for "${ev ? ev.name : 'this event'}"?\n\n${summary}${trophyNote}`)) return;
 
   const winner = top[0] ? (top[0].player ? top[0].player.first_name + ' ' + top[0].player.last_name : '') : '';
-  await syncHonourForEvent(eventId, winner, null);
+  // Note appended to the Hall of Fame title so it's clear this is a
+  // combined score, not any one round's own result — this is deliberately
+  // the ONLY honours entry a multi-round event ends up with (see
+  // renderLeaderboardView, which hides the per-round Finalise button).
+  const note = evRounds.length ? ` (combined score over ${evRounds.length} rounds)` : '';
+  await syncHonourForEvent(eventId, winner, null, note);
   alert('Event finalised! The overall winner has been added to the Hall of Fame.');
 }
 
