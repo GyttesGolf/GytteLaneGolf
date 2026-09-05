@@ -735,6 +735,7 @@
   .trophy-winners li:last-child{border-bottom:none;}
   .tw-year{font-family:var(--body); color:var(--brass); font-weight:600; min-width:3.2rem;}
   .tw-name{color:var(--paper); font-weight:500;}
+  .tw-score{font-size:.85rem; color:var(--brass-light); font-weight:400;}
   .tw-course{font-size:.8rem; color:var(--on-dark-faint); margin-left:auto; text-align:right;}
   .trophy-winners .committee-edit-btn{border-color:rgba(255,255,255,.3); color:var(--on-dark-muted);}
   .trophy-winners .committee-edit-btn:hover{border-color:var(--brass-light); color:var(--brass-light);}
@@ -5198,30 +5199,32 @@ setInterval(() => { if (scorecardQueue.length) processScorecardQueue(); if (scor
    collide because a multi-round event's own honours.find() lookup only
    ever matches a null row once finaliseEventOverall has run, same as any
    single-round event only ever having the one row. */
-async function syncHonourForEvent(eventId, winnerName, roundId = null, noteSuffix = ''){
+async function syncHonourForEvent(eventId, winnerName, roundId = null, noteSuffix = '', winnerScore = null){
   if (!db || !winnerName) return;
   const ev = eventById(eventId);
   if (!ev || !ev.trophy) return; // not a trophy fixture — nothing to do
   const round = roundId ? rounds.find(r => r.id === roundId) : null;
-  // For a round's own honour, use that round's specific course. For the
-  // combined/overall honour (roundId null on a multi-round event), fall
-  // back to eventCourseDisplay() rather than the event's own stale single
-  // `course` field — otherwise the combined entry shows only whichever
-  // one course an admin last typed on the event form (found 2026-09-05:
-  // "Sheffield Tour" finalised showing "Hillsborough" only, Bondhay never
-  // mentioned, despite being a two-course tour).
-  const shortCourse = ((round ? round.course : eventCourseDisplay(ev)) || '').replace(/\s+golf\s+club\s*$/i, '').replace(/\s+GC\s*$/i, '').trim();
+  const evRounds = roundsForEvent(eventId);
+  const isCombinedMultiRound = !round && evRounds.length > 0;
+  // A round's own honour uses that round's specific course. The
+  // combined/overall honour for a multi-round event (roundId null, but the
+  // event HAS rounds) uses the event's own name instead of trying to list
+  // courses — "Tour — Sheffield Tour" reads better than mashing together
+  // every course the tour was played across, and works for any tour name.
+  // A normal single-round event keeps using its own `course` field, same
+  // as always.
+  const shortCourse = (isCombinedMultiRound ? ev.name : (round ? round.course : ev.course) || '').replace(/\s+golf\s+club\s*$/i, '').replace(/\s+GC\s*$/i, '').trim();
   const title = ev.trophy + (round ? ' — ' + round.label : '') + (shortCourse ? ' — ' + shortCourse : '') + noteSuffix;
   const year = new Date((round ? round.date : ev.date) + 'T00:00:00').getFullYear();
 
   const existing = honours.find(h => h.event_id === eventId && (roundId ? h.round_id === roundId : !h.round_id));
   try {
     if (existing){
-      const { error } = await db.from('honours').update({ year, title, winner: winnerName }).eq('id', existing.id);
+      const { error } = await db.from('honours').update({ year, title, winner: winnerName, winner_score: winnerScore }).eq('id', existing.id);
       if (error) throw error;
-      Object.assign(existing, { year, title, winner: winnerName });
+      Object.assign(existing, { year, title, winner: winnerName, winner_score: winnerScore });
     } else {
-      const { data, error } = await db.from('honours').insert({ year, title, winner: winnerName, event_id: eventId, round_id: roundId, society_id: societyId }).select().single();
+      const { data, error } = await db.from('honours').insert({ year, title, winner: winnerName, winner_score: winnerScore, event_id: eventId, round_id: roundId, society_id: societyId }).select().single();
       if (error) throw error;
       if (data) honours.push(data);
     }
@@ -5248,7 +5251,7 @@ async function finaliseScores(eventId, roundId = null){
   if (!confirm(`Finalise scores for ${label}?\n\n${summary}${trophyNote}`)) return;
 
   const winner = top[0] ? (top[0].player ? top[0].player.first_name + ' ' + top[0].player.last_name : '') : '';
-  await syncHonourForEvent(eventId, winner, roundId);
+  await syncHonourForEvent(eventId, winner, roundId, '', top[0] ? top[0].total : null);
   alert('Scores finalised! The winner has been added to the Hall of Fame.');
 }
 
@@ -5275,7 +5278,7 @@ async function finaliseEventOverall(eventId){
   // the ONLY honours entry a multi-round event ends up with (see
   // renderLeaderboardView, which hides the per-round Finalise button).
   const note = evRounds.length ? ` (combined score over ${evRounds.length} rounds)` : '';
-  await syncHonourForEvent(eventId, winner, null, note);
+  await syncHonourForEvent(eventId, winner, null, note, top[0] ? top[0].total : null);
   alert('Event finalised! The overall winner has been added to the Hall of Fame.');
 }
 
@@ -5387,6 +5390,7 @@ async function addRule(){
 
 /* ===================== render: hall of fame ===================== */
 const editingHonourIds = new Set();
+const expandedHonourScoreIds = new Set(); // honours rows with a winner_score, tapped to reveal it
 let expandedTrophy = null;
 
 /* Trophy silhouettes — brass on the card, keyed by competition */
@@ -5669,11 +5673,13 @@ function renderHonours(){
           ${list.map(h => {
             if (editingHonourIds.has(h.id)) return `<li style="display:block;">${honourEditFormHtml(h)}</li>`;
             const course = honourCourse(h.title);
-            return `<li>
+            const hasScore = h.winner_score !== null && h.winner_score !== undefined;
+            const scoreShown = expandedHonourScoreIds.has(h.id);
+            return `<li ${hasScore ? `role="button" tabindex="0" style="cursor:pointer;" onclick="toggleHonourScore(${h.id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleHonourScore(${h.id});}"` : ''}>
               <span class="tw-year">${h.year}</span>
-              <span class="tw-name">${escapeHtml(h.winner)}</span>
+              <span class="tw-name">${escapeHtml(h.winner)}${hasScore && scoreShown ? ` <span class="tw-score">— ${h.winner_score} pts</span>` : ''}</span>
               ${course ? `<span class="tw-course">${escapeHtml(course)}</span>` : ''}
-              ${isLoggedIn ? `<button class="committee-edit-btn" onclick="toggleHonourEdit(${h.id})">Edit</button>` : ''}
+              ${isLoggedIn ? `<button class="committee-edit-btn" onclick="event.stopPropagation(); toggleHonourEdit(${h.id})">Edit</button>` : ''}
             </li>`;
           }).join('')}
         </ol>
@@ -5700,6 +5706,12 @@ function toggleTrophy(name){
 function toggleHonourEdit(id){
   if (editingHonourIds.has(id)) editingHonourIds.delete(id);
   else editingHonourIds.add(id);
+  renderHonours();
+}
+
+function toggleHonourScore(id){
+  if (expandedHonourScoreIds.has(id)) expandedHonourScoreIds.delete(id);
+  else expandedHonourScoreIds.add(id);
   renderHonours();
 }
 
