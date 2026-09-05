@@ -1692,6 +1692,7 @@ let matchGroups = [];       // all groups across events
 let matchGroupPlayers = []; // all group_players records // { eventId: { playerId, stars } }
 let players = [];
 let signups = [];
+let rounds = []; // optional per-event rounds (multi-round/multi-day fixtures) — see "rounds" region
 let expandedEventId = null;
 let currentEventFilter = 'upcoming';
 
@@ -1700,7 +1701,7 @@ const DATA_CACHE_KEY = 'glgs-data-cache';
 function saveDataSnapshot(){
   try {
     localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({
-      events, committee, gallery, news, players, signups, rules, honours, allScorecards, allHoleScores, courses, courseRatings, savedAt: Date.now()
+      events, committee, gallery, news, players, signups, rules, honours, allScorecards, allHoleScores, courses, courseRatings, rounds, savedAt: Date.now()
     }));
   } catch(e){ console.warn('Could not save offline snapshot:', e); }
 }
@@ -1722,6 +1723,7 @@ function restoreDataSnapshot(){
     allHoleScores = snap.allHoleScores || [];
     courses = snap.courses || [];
     courseRatings = snap.courseRatings || [];
+    rounds = snap.rounds || [];
     const age = Math.round((Date.now() - (snap.savedAt || 0)) / 60000);
     document.getElementById('main-content').insertAdjacentHTML('afterbegin',
       `<div class="card" style="border-color:var(--brass); margin-bottom:1.5rem;">
@@ -1832,6 +1834,18 @@ async function loadData(){
   } catch (err){
     console.warn('Honours table not available yet (run add-hall-of-fame.sql):', err);
     honours = [];
+  }
+
+  /* rounds — optional per-event rounds for multi-round/multi-day fixtures.
+     Same graceful fallback as everything else here: an event with no rows
+     in this table is just a normal single-round fixture, unaffected. */
+  try {
+    const rdRes = await db.from('rounds').select('*').eq('society_id', societyId).order('sort_order');
+    if (rdRes.error) throw rdRes.error;
+    rounds = rdRes.data || [];
+  } catch (err){
+    console.warn('Rounds table not available yet (run add-rounds.sql):', err);
+    rounds = [];
   }
 
   /* all scorecards + hole scores (for player history & full results) */
@@ -1948,6 +1962,19 @@ function escapeHtml(str){
 }
 
 function eventById(id){ return events.find(e => e.id === id); }
+
+/* ===== rounds (multi-round/multi-day events) =====
+   An event with no rows here is a normal single-round fixture — every
+   scoring table's round_id stays null and behaves exactly as before this
+   feature existed. An event WITH rows here scores each round separately
+   (own scorecards/groups/leaderboard), plus a combined "Overall" view
+   (see renderOverallLeaderboardView) summing points across all its rounds. */
+function roundsForEvent(eventId){
+  return rounds.filter(r => r.event_id === eventId).sort((a,b) => (a.sort_order||0) - (b.sort_order||0));
+}
+function roundHoles(round, event){
+  return (round && round.holes) || (event && event.holes) || 18;
+}
 function fmtDate(iso){
   const d = new Date(iso + 'T00:00:00');
   return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
@@ -2244,6 +2271,17 @@ function eventDetailHtml(e){
             <label>What's included</label>
             <textarea id="ef-included-${e.id}">${escapeHtml(e.whats_included||'')}</textarea>
           </div>
+          <div class="full">
+            <label>Holes <span style="font-family:var(--body); font-size:.7rem; color:var(--text-muted); font-weight:normal;">(only used if this fixture has no separate rounds below)</span></label>
+            <select id="ef-holes-${e.id}">
+              <option value="18" ${(e.holes||18)===18?'selected':''}>18 holes</option>
+              <option value="9" ${e.holes===9?'selected':''}>9 holes</option>
+            </select>
+          </div>
+          <div class="full">
+            <label>Rounds <span style="font-family:var(--body); font-size:.7rem; color:var(--text-muted); font-weight:normal;">(for a multi-day/multi-round event, e.g. a tour — leave empty for a normal single-round fixture)</span></label>
+            ${roundsEditorHtml(e.id)}
+          </div>
         </div>
         <div class="edit-form-actions">
           <button class="btn brass" onclick="saveEvent('${e.id}')">Save</button>
@@ -2267,7 +2305,13 @@ function eventDetailHtml(e){
       ${eventStatus(e) === 'past' ? (() => {
         const fullScores = eventFullScores(e.id);
         const played = fullScores.length || attendees.length;
-        const winner = e.trophy ? honours.find(h => h.title && h.title.startsWith(e.trophy) && h.year === new Date(e.date+'T00:00:00').getFullYear()) : null;
+        // A multi-round event can have several honours rows for the same
+        // trophy/year — one per round plus the combined overall winner
+        // (round_id null). The event card should show the overall result,
+        // not whichever round happens to match first, so prefer round_id
+        // null explicitly rather than a bare .find().
+        const eventHonours = e.trophy ? honours.filter(h => h.title && h.title.startsWith(e.trophy) && h.year === new Date(e.date+'T00:00:00').getFullYear() && h.event_id === e.id) : [];
+        const winner = eventHonours.find(h => !h.round_id) || eventHonours[0] || null;
         const course = courseById(e.course_id);
         const mapsUrl = (e.course || course) ? googleMapsUrl(e.course || (course && course.name), e.postcode || (course && course.postcode)) : null;
         const avg = course ? courseAvgRating(course.id) : null;
@@ -2725,6 +2769,7 @@ async function saveEvent(eventId){
     pay_by: gv('ef-payby-' + eventId) || null,
     meet_at: gv('ef-meetat-' + eventId) || null,
     whats_included: gv('ef-included-' + eventId) || null,
+    holes: Number(gv('ef-holes-' + eventId)) || 18,
   };
   if (!payload.name || !payload.date){ setStatus('Name and date are required.', 'error'); return; }
   setStatus('Saving\u2026', 'loading');
@@ -2751,6 +2796,69 @@ async function deleteEvent(eventId){
   expandedEventId = null;
   renderEvents();
   renderHome();
+}
+
+function roundsEditorHtml(eventId){
+  const evRounds = roundsForEvent(eventId);
+  const rows = evRounds.map(r => `
+    <div style="display:grid; grid-template-columns:1.2fr 1fr 1.4fr 90px 90px auto; gap:.4rem; align-items:end; background:var(--paper); padding:.5rem; border-radius:var(--radius); border:1px solid var(--line); margin-bottom:.4rem;">
+      <div><label style="font-size:.7rem;">Label</label><input id="rd-label-${r.id}" value="${escapeHtml(r.label||'')}"></div>
+      <div><label style="font-size:.7rem;">Date</label><input type="date" id="rd-date-${r.id}" value="${r.date||''}"></div>
+      <div><label style="font-size:.7rem;">Course</label><input id="rd-course-${r.id}" value="${escapeHtml(r.course||'')}"></div>
+      <div><label style="font-size:.7rem;">Tee</label><input type="time" id="rd-tee-${r.id}" value="${escapeHtml(r.tee_time||'')}"></div>
+      <div><label style="font-size:.7rem;">Holes</label>
+        <select id="rd-holes-${r.id}">
+          <option value="18" ${(r.holes||18)===18?'selected':''}>18</option>
+          <option value="9" ${r.holes===9?'selected':''}>9</option>
+        </select>
+      </div>
+      <div style="display:flex; gap:.3rem;">
+        <button class="committee-edit-btn" onclick="saveRound(${r.id})">Save</button>
+        <button class="delete-btn" onclick="deleteRound(${r.id},'${eventId}')">✕</button>
+      </div>
+    </div>`).join('');
+  return `${rows || '<p class="muted" style="font-size:.82rem;">No rounds added — this is a normal single-round fixture.</p>'}
+    <button class="add-item-btn" style="width:auto;" onclick="addRound('${eventId}')">+ Add round</button>`;
+}
+
+async function addRound(eventId){
+  if (!db) return;
+  const ev = eventById(eventId);
+  const existing = roundsForEvent(eventId);
+  const payload = {
+    event_id: eventId, society_id: societyId,
+    label: 'Round ' + (existing.length + 1),
+    date: ev ? ev.date : null, course: ev ? ev.course : null, course_id: ev ? ev.course_id : null,
+    tee_time: ev ? ev.tee_time : null, holes: 18, sort_order: existing.length + 1,
+  };
+  const { data, error } = await db.from('rounds').insert(payload).select().single();
+  if (error){ console.error(error); alert('Could not add round — has add-rounds.sql been run yet?'); return; }
+  rounds.push(data);
+  renderEvents();
+}
+
+async function saveRound(roundId){
+  if (!db) return;
+  const r = rounds.find(x => x.id === roundId);
+  if (!r) return;
+  const label = document.getElementById('rd-label-' + roundId)?.value.trim() || r.label;
+  const date = document.getElementById('rd-date-' + roundId)?.value || null;
+  const course = document.getElementById('rd-course-' + roundId)?.value.trim() || null;
+  const tee_time = document.getElementById('rd-tee-' + roundId)?.value || null;
+  const holes = Number(document.getElementById('rd-holes-' + roundId)?.value) || 18;
+  const { error } = await db.from('rounds').update({ label, date, course, tee_time, holes }).eq('id', roundId);
+  if (error){ console.error(error); alert('Could not save round.'); return; }
+  Object.assign(r, { label, date, course, tee_time, holes });
+  renderEvents();
+}
+
+async function deleteRound(roundId, eventId){
+  if (!confirm('Delete this round? Any scores already recorded for it are kept, but become unlinked from a specific round.')) return;
+  if (!db) return;
+  const { error } = await db.from('rounds').delete().eq('id', roundId);
+  if (error){ console.error(error); alert('Could not delete round.'); return; }
+  rounds = rounds.filter(r => r.id !== roundId);
+  renderEvents();
 }
 
 async function addNewEvent(){
@@ -4264,6 +4372,11 @@ async function renderEventsMap(){
 let scorecards = [];
 let holeScores = [];
 let liveEventId = null;
+/* null = either a plain single-round fixture (no rows in `rounds` for this
+   event), or — when the event DOES have rounds — the "Overall" combined
+   view across all of them. Which one applies is decided by whether
+   roundsForEvent(liveEventId) is empty; see renderLeaderboardView(). */
+let liveRoundId = null;
 let scoringPlayerIds = [];
 let currentHole = 1;
 let liveSubView = 'setup'; // 'setup' | 'entry' | 'leaderboard' | 'groupings'
@@ -4333,6 +4446,44 @@ function unsubscribeLiveScores(){
   if (liveChannel){ db.removeChannel(liveChannel); liveChannel = null; }
 }
 
+/* Realtime (subscribeToLiveScores) is normally near-instant, but a phone's
+   websocket can silently drop (screen lock, switching wifi/data) with
+   nothing to reconnect it, leaving the board stale with no visible error.
+   This is a backstop, not the primary update path: while the Leaderboard
+   tab is actually open, re-fetch every 20s so it self-heals even if the
+   realtime push never arrives — on top of the manual refresh button below. */
+let leaderboardPollTimer = null;
+function manageLeaderboardPoll(){
+  const shouldPoll = liveSubView === 'leaderboard' && !!liveEventId;
+  if (shouldPoll && !leaderboardPollTimer){
+    leaderboardPollTimer = setInterval(async () => {
+      if (liveSubView !== 'leaderboard' || !liveEventId) return;
+      await loadLiveScoresData(liveEventId);
+      renderLiveScores();
+    }, 20000);
+  } else if (!shouldPoll && leaderboardPollTimer){
+    clearInterval(leaderboardPollTimer);
+    leaderboardPollTimer = null;
+  }
+}
+
+async function refreshLeaderboardNow(buttonEl){
+  if (!liveEventId) return;
+  if (buttonEl) buttonEl.disabled = true;
+  await loadLiveScoresData(liveEventId);
+  renderLiveScores();
+}
+
+/* A scorecard belongs to a specific (event, round, player) — round_id is
+   null for a plain single-round fixture, or a real round id when the event
+   has rounds. Every lookup that used to just match event_id+player_id needs
+   this extra round check now that one event can have several scorecards
+   per player (one per round). */
+function scorecardFor(eventId, roundId, playerId){
+  return scorecards.find(s => s.event_id === eventId && s.player_id === playerId
+    && (roundId ? s.round_id === roundId : !s.round_id));
+}
+
 async function openLiveScores(){
   if (!liveEventId){
     // default to the most recently started event
@@ -4342,6 +4493,8 @@ async function openLiveScores(){
     if (candidate) liveEventId = candidate.id;
   }
   if (liveEventId){
+    const evRounds = roundsForEvent(liveEventId);
+    liveRoundId = evRounds.length ? evRounds[0].id : null;
     await loadLiveScoresData(liveEventId);
     subscribeToLiveScores(liveEventId);
   }
@@ -4379,14 +4532,27 @@ function renderLiveScores(){
       <select onchange="switchLiveEvent(this.value)">${evOpts}</select>
     </div>`;
 
+  // Only shown for events that actually have separate rounds set up (see
+  // "Rounds" on the event's edit form) — a normal single-round fixture
+  // never shows this and behaves exactly as before this feature existed.
+  const evRoundsForSelector = roundsForEvent(liveEventId);
+  const roundSelector = evRoundsForSelector.length ? `
+    <div class="event-select-row">
+      <select onchange="switchLiveRound(this.value)">
+        ${evRoundsForSelector.map(r => `<option value="${r.id}" ${liveRoundId===r.id?'selected':''}>${escapeHtml(r.label)}${r.course ? ' — ' + escapeHtml(shortCourse(r.course)) : ''}${r.date ? ' — ' + shortDate(r.date) : ''}</option>`).join('')}
+        <option value="" ${liveRoundId===null?'selected':''}>🏆 Overall (combined)</option>
+      </select>
+    </div>` : '';
+
   let body = '';
   if (liveSubView === 'groupings')    body = renderGroupingsInScores();
   else if (liveSubView === 'leaderboard')  body = renderLeaderboardView();
   else if (liveSubView === 'setup')   body = renderSetupView();
   else if (liveSubView === 'entry')   body = renderEntryView();
 
-  el.innerHTML = subTabs + eventSelector + body;
+  el.innerHTML = subTabs + eventSelector + roundSelector + body;
   updateSyncIndicator();
+  manageLeaderboardPoll();
 }
 
 function setLiveSubView(view){
@@ -4397,6 +4563,8 @@ function setLiveSubView(view){
 async function switchLiveEvent(eventId){
   unsubscribeLiveScores();
   liveEventId = eventId;
+  const evRounds = roundsForEvent(eventId);
+  liveRoundId = evRounds.length ? evRounds[0].id : null;
   scoringPlayerIds = [];
   currentHole = 1;
   // Stay on whichever tab the admin was on (Groupings, Leaderboard, etc.)
@@ -4408,11 +4576,27 @@ async function switchLiveEvent(eventId){
   renderLiveScores();
 }
 
-/* --- leaderboard view --- */
-const SCORE_BLACKOUT_HOLE = 13; // scores visible up to and including this hole for non-committee
+/* Switching round doesn't need a re-fetch — loadLiveScoresData() already
+   pulls every round's scorecards/scores for the event in one go, and all
+   the round-scoping happens client-side (see getLeaderboard, scorecardFor,
+   the groupings filters, etc). roundId is '' for the "Overall" option. */
+function switchLiveRound(roundId){
+  liveRoundId = roundId ? Number(roundId) : null;
+  scoringPlayerIds = [];
+  currentHole = 1;
+  if (liveSubView === 'entry') liveSubView = 'setup';
+  renderLiveScores();
+}
 
-function getLeaderboard(eventId, maxHole = 18){
-  const evScorecards = scorecards.filter(s => s.event_id === eventId);
+/* --- leaderboard view --- */
+/* Scores are visible up to and including this hole for non-committee —
+   scaled to the round's own hole count (18-hole rounds freeze with 5 to
+   play, so a 9-hole round freezes with 4 to play). */
+function blackoutHoleFor(holes){ return Math.max(1, holes - 5); }
+
+function getLeaderboard(eventId, maxHole = 18, roundId = null){
+  const evScorecards = scorecards.filter(s => s.event_id === eventId
+    && (roundId ? s.round_id === roundId : !s.round_id));
   const entries = evScorecards.map(sc => {
     const player = players.find(p => p.id === sc.player_id);
     const allScores = holeScores.filter(h => h.scorecard_id === sc.id);
@@ -4438,14 +4622,35 @@ function getLeaderboard(eventId, maxHole = 18){
 }
 
 function renderLeaderboardView(){
-  const fullLb = getLeaderboard(liveEventId, 18);
-  if (!fullLb.length) return `<p class="muted" style="margin-top:.5rem;">No scores yet for this fixture. Use "Enter scores" to start recording.</p>`;
+  const evRounds = roundsForEvent(liveEventId);
+
+  // Multi-round event, "Overall" selected → combined leaderboard across
+  // every round, not any one round's own view.
+  if (evRounds.length && liveRoundId === null) return renderOverallLeaderboardView(evRounds);
+
+  const ev = eventById(liveEventId);
+  const activeRound = liveRoundId ? rounds.find(r => r.id === liveRoundId) : null;
+  const holes = roundHoles(activeRound, ev);
+  const blackoutHole = blackoutHoleFor(holes);
+
+  const fullLb = getLeaderboard(liveEventId, holes, liveRoundId);
+  if (!fullLb.length) return `<p class="muted" style="margin-top:.5rem;">No scores yet for this ${activeRound ? 'round' : 'fixture'}. Use "Enter scores" to start recording.</p>`;
 
   const maxHoleAnyone = fullLb.reduce((max, e) => Math.max(max, e.actualThru), 0);
-  const allFinished = fullLb.every(e => e.actualThru === 18);
-  const pastBlackout = maxHoleAnyone > SCORE_BLACKOUT_HOLE;
+  // "Finished" only looks at players who actually started — someone signed
+  // up but never showing a single hole (a no-show, or a stray scorecard
+  // that doesn't belong to this round at all) shouldn't be able to block
+  // Finalise forever just by sitting there at "Not started". Real bug found
+  // 2026-09-05: a multi-round event's Round 1 had several signed-up players
+  // who'd only played Round 2, plus leftover unrelated test scorecards from
+  // weeks earlier — under the old `.every()` (which required literally
+  // everyone, started or not, to have completed every hole) the Finalise
+  // button never appeared at all.
+  const started = fullLb.filter(e => e.started);
+  const allFinished = started.length > 0 && started.every(e => e.actualThru === holes);
+  const pastBlackout = maxHoleAnyone > blackoutHole;
 
-  // Non-committee: all 18 holes done → sealed, no scores shown
+  // Non-committee: all holes done → sealed, no scores shown
   if (!isLoggedIn && allFinished){
     return `
       <div style="text-align:center; padding:2.5rem 1rem;">
@@ -4457,31 +4662,92 @@ function renderLeaderboardView(){
 
   // Committee: all done → show full leaderboard with finalise button
   if (isLoggedIn && allFinished){
-    const lb = getLeaderboard(liveEventId, 18);
-    return committeeLeaderboardHtml(lb, true);
+    return committeeLeaderboardHtml(fullLb, true, holes, liveRoundId);
   }
 
-  // Non-committee: past hole 13 → freeze display at hole 13
+  // Non-committee: past the blackout hole → freeze display there
   if (!isLoggedIn && pastBlackout){
-    const frozenLb = getLeaderboard(liveEventId, SCORE_BLACKOUT_HOLE);
+    const frozenLb = getLeaderboard(liveEventId, blackoutHole, liveRoundId);
     return `
       <div class="card" style="border-color:var(--brass); margin-bottom:1.2rem; display:flex; align-items:center; gap:.8rem;">
         <span style="font-size:1.4rem;">🔒</span>
         <div>
-          <strong>Scores paused after hole ${SCORE_BLACKOUT_HOLE}</strong>
+          <strong>Scores paused after hole ${blackoutHole}</strong>
           <p style="margin:.2rem 0 0; font-size:.88rem; color:var(--text-muted);">The live leaderboard is frozen to keep the final result a surprise. Check back after the captain's announcement!</p>
         </div>
       </div>
-      ${committeeLeaderboardHtml(frozenLb, false)}`;
+      ${committeeLeaderboardHtml(frozenLb, false, holes, liveRoundId)}`;
   }
 
-  // Normal: show live leaderboard (committee or before hole 13)
-  const lb = isLoggedIn ? fullLb : getLeaderboard(liveEventId, SCORE_BLACKOUT_HOLE);
+  // Normal: show live leaderboard (committee or before the blackout hole)
+  const lb = isLoggedIn ? fullLb : getLeaderboard(liveEventId, blackoutHole, liveRoundId);
   return (isLoggedIn && pastBlackout
     ? `<div class="card" style="border-color:var(--bracken); margin-bottom:1rem; font-size:.88rem;">
-        <strong>Admin view</strong> — public leaderboard is frozen at hole ${SCORE_BLACKOUT_HOLE}. You can see all ${maxHoleAnyone} holes played.
+        <strong>Admin view</strong> — public leaderboard is frozen at hole ${blackoutHole}. You can see all ${maxHoleAnyone} holes played.
        </div>`
-    : '') + committeeLeaderboardHtml(lb, false);
+    : '') + committeeLeaderboardHtml(lb, false, holes, liveRoundId);
+}
+
+/* Combined leaderboard for a multi-round event — sums each player's points
+   across ALL of their scorecards for this event, regardless of round.
+   loadLiveScoresData() already pulls every round's scorecards/hole_scores
+   for the event in one go, so no extra fetch is needed here. */
+function combinedLeaderboard(eventId){
+  const evScorecards = scorecards.filter(s => s.event_id === eventId);
+  const byPlayer = new Map();
+  evScorecards.forEach(sc => {
+    const pts = holeScores.filter(h => h.scorecard_id === sc.id).reduce((s,h) => s + h.points, 0);
+    const started = holeScores.some(h => h.scorecard_id === sc.id);
+    const cur = byPlayer.get(sc.player_id) || { total: 0, roundsPlayed: 0, started: false };
+    cur.total += pts;
+    cur.roundsPlayed += started ? 1 : 0;
+    cur.started = cur.started || started;
+    byPlayer.set(sc.player_id, cur);
+  });
+  const entries = [...byPlayer.entries()].map(([playerId, v]) => ({
+    player: players.find(p => p.id === playerId), total: v.total, roundsPlayed: v.roundsPlayed, started: v.started,
+  }));
+  return entries.sort((a,b) => (b.started - a.started) || (b.total - a.total));
+}
+
+function renderOverallLeaderboardView(evRounds){
+  const lb = combinedLeaderboard(liveEventId);
+  if (!lb.length) return `<p class="muted" style="margin-top:.5rem;">No scores yet for this tour. Select a round above to start recording.</p>`;
+
+  const rows = lb.map((entry, i) => {
+    const pos = !entry.started ? `<span class="pos-num">—</span>`
+      : i < 3 ? `<span class="pos-medal">${['🥇','🥈','🥉'][i]}</span>` : `<span class="pos-num">${i+1}</span>`;
+    return `<tr>
+      <td>${pos}</td>
+      <td class="lb-player">${entry.player ? entry.player.first_name + ' ' + entry.player.last_name : 'Unknown'}</td>
+      <td class="lb-total">${entry.started ? entry.total : '—'}</td>
+      <td class="lb-thru">${entry.roundsPlayed}/${evRounds.length}</td>
+    </tr>`;
+  }).join('');
+
+  const allRoundsDone = evRounds.every(r => {
+    const holes = roundHoles(r, eventById(liveEventId));
+    const rlb = getLeaderboard(liveEventId, holes, r.id).filter(e => e.started);
+    return rlb.length > 0 && rlb.every(e => e.actualThru === holes);
+  });
+
+  return `
+    <p style="font-family:var(--body); font-size:.75rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin-bottom:.9rem;">
+      Combined total across all ${evRounds.length} rounds
+    </p>
+    <div class="live-badge" style="display:flex; align-items:center; gap:.6rem;">
+      <div class="live-dot"></div> Live · updates automatically
+      <button class="committee-edit-btn" style="margin-left:auto;" onclick="refreshLeaderboardNow(this)">🔄 Refresh</button>
+    </div>
+    <table class="leaderboard-table">
+      <thead><tr><th></th><th>Player</th><th style="text-align:right">Pts</th><th style="text-align:right">Rounds</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    ${isLoggedIn ? `
+    <div style="margin-top:1.2rem;">
+      <button class="btn brass" ${allRoundsDone?'':'disabled'} onclick="finaliseEventOverall('${liveEventId}')">Finalise event &amp; add overall winner to results</button>
+      <p class="muted" style="margin-top:.4rem;">${allRoundsDone ? 'Saves the combined standings to the Results page.' : 'Available once every round is finished.'}</p>
+    </div>` : ''}`;
 }
 
 const LEADER_LABELS = [
@@ -4500,7 +4766,7 @@ function pickLabel(labels, seed){
   return labels[seed % labels.length];
 }
 
-function committeeLeaderboardHtml(lb, showFinalise){
+function committeeLeaderboardHtml(lb, showFinalise, holes = 18, roundId = null){
   const medals = ['🥇','🥈','🥉'];
   const startedCount = lb.filter(e => e.started).length;
   // last-place = the bottom-most row that has actually started scoring
@@ -4513,7 +4779,7 @@ function committeeLeaderboardHtml(lb, showFinalise){
     const pos = !entry.started ? `<span class="pos-num">—</span>`
       : i < 3 ? `<span class="pos-medal">${medals[i]}</span>` : `<span class="pos-num">${i+1}</span>`;
     const thruLabel = !entry.started ? `<span class="lb-thru" style="font-style:italic;">Not started</span>`
-      : entry.thru === 18 ? `<span class="lb-complete">F</span>` : entry.thru > 0 ? `${entry.thru}` : `—`;
+      : entry.thru === holes ? `<span class="lb-complete">F</span>` : entry.thru > 0 ? `${entry.thru}` : `—`;
     const funLabel = isFirst
       ? `<div class="lb-fun-label leader">${pickLabel(LEADER_LABELS, labelSeed)}</div>`
       : isLast
@@ -4528,14 +4794,17 @@ function committeeLeaderboardHtml(lb, showFinalise){
   }).join('');
 
   return `
-    <div class="live-badge"><div class="live-dot"></div> Live · updates automatically</div>
+    <div class="live-badge" style="display:flex; align-items:center; gap:.6rem;">
+      <div class="live-dot"></div> Live · updates automatically
+      <button class="committee-edit-btn" style="margin-left:auto;" onclick="refreshLeaderboardNow(this)">🔄 Refresh</button>
+    </div>
     <table class="leaderboard-table">
       <thead><tr><th></th><th>Player</th><th style="text-align:right">Pts</th><th style="text-align:right">Thru</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     ${showFinalise && isLoggedIn ? `
     <div style="margin-top:1.2rem;">
-      <button class="btn brass" onclick="finaliseScores('${liveEventId}')">Finalise &amp; add top 3 to results</button>
+      <button class="btn brass" onclick="finaliseScores('${liveEventId}', ${roundId===null?'null':roundId})">Finalise &amp; add top 3 to results</button>
       <p class="muted" style="margin-top:.4rem;">Saves the final standings to the Results page.</p>
     </div>` : ''}`;
 }
@@ -4543,8 +4812,13 @@ function committeeLeaderboardHtml(lb, showFinalise){
 /* --- setup view --- */
 let playerSearchTerm = '';
 function renderSetupView(){
+  const evRounds = roundsForEvent(liveEventId);
+  if (evRounds.length && liveRoundId === null){
+    return `<p class="muted" style="margin-top:.5rem;">This is a multi-round event — select a specific round above to enter scores for it.</p>`;
+  }
+
   const evGroups = matchGroups
-    .filter(g => g.event_id === liveEventId)
+    .filter(g => g.event_id === liveEventId && (liveRoundId ? g.round_id === liveRoundId : !g.round_id))
     .sort((a,b) => a.tee_time.localeCompare(b.tee_time));
 
   /* if groups exist — show them as tappable cards */
@@ -4636,28 +4910,30 @@ function toggleScoringPlayer(playerId){
 
 function startScoring(){
   if (!db || !scoringPlayerIds.length) return;
-  // Create scorecards for any players who don't have one yet. Same pattern
-  // as hole scores: set up locally with a temp id straight away so scoring
-  // can start with no signal, then queue the real insert to sync in the
-  // background (and once it lands, every reference to the temp id gets
+  // Create scorecards for any players who don't have one yet FOR THIS ROUND
+  // — a player can have a separate scorecard per round of a multi-round
+  // event, so the "already has one" check must match round_id too. Same
+  // pattern as hole scores: set up locally with a temp id straight away so
+  // scoring can start with no signal, then queue the real insert to sync in
+  // the background (and once it lands, every reference to the temp id gets
   // swapped for the real one — see processScorecardQueue).
-  const needCreating = scoringPlayerIds.filter(pid =>
-    !scorecards.find(s => s.event_id === liveEventId && s.player_id === pid));
+  const needCreating = scoringPlayerIds.filter(pid => !scorecardFor(liveEventId, liveRoundId, pid));
   for (const pid of needCreating){
-    const tempId = `local-${liveEventId}-${pid}-${Date.now()}`;
-    scorecards.push({ id: tempId, event_id: liveEventId, player_id: pid, society_id: societyId, _pending: true });
-    scorecardQueue.push({ tempId, event_id: liveEventId, player_id: pid, society_id: societyId });
+    const tempId = `local-${liveEventId}-${liveRoundId||'x'}-${pid}-${Date.now()}`;
+    scorecards.push({ id: tempId, event_id: liveEventId, round_id: liveRoundId, player_id: pid, society_id: societyId, _pending: true });
+    scorecardQueue.push({ tempId, event_id: liveEventId, round_id: liveRoundId, player_id: pid, society_id: societyId });
   }
   if (needCreating.length){
     persistScorecardQueue();
     processScorecardQueue();
   }
   // Start from the last hole they've scored, or hole 1
-  const myScorecardIds = scorecards
-    .filter(s => s.event_id === liveEventId && scoringPlayerIds.includes(s.player_id))
-    .map(s => s.id);
+  const myScorecardIds = scoringPlayerIds
+    .map(pid => scorecardFor(liveEventId, liveRoundId, pid))
+    .filter(Boolean).map(s => s.id);
   const myHoles = holeScores.filter(h => myScorecardIds.includes(h.scorecard_id));
-  currentHole = myHoles.length > 0 ? Math.min(18, Math.max(...myHoles.map(h => h.hole_number))) : 1;
+  const holes = roundHoles(liveRoundId ? rounds.find(r=>r.id===liveRoundId) : null, eventById(liveEventId));
+  currentHole = myHoles.length > 0 ? Math.min(holes, Math.max(...myHoles.map(h => h.hole_number))) : 1;
   liveSubView = 'entry';
   renderLiveScores();
 }
@@ -4672,15 +4948,18 @@ function getRunningTotal(scorecardId){
 }
 
 function renderEntryView(){
+  const activeRound = liveRoundId ? rounds.find(r => r.id === liveRoundId) : null;
+  const holes = roundHoles(activeRound, eventById(liveEventId));
+
   const allDone = scoringPlayerIds.every(pid => {
-    const sc = scorecards.find(s => s.event_id === liveEventId && s.player_id === pid);
+    const sc = scorecardFor(liveEventId, liveRoundId, pid);
     if (!sc) return false;
-    return holeScores.filter(h => h.scorecard_id === sc.id).length === 18;
+    return holeScores.filter(h => h.scorecard_id === sc.id).length === holes;
   });
 
   const rows = scoringPlayerIds.map(pid => {
     const player = players.find(p => p.id === pid);
-    const sc = scorecards.find(s => s.event_id === liveEventId && s.player_id === pid);
+    const sc = scorecardFor(liveEventId, liveRoundId, pid);
     if (!sc) return '';
     const running = getRunningTotal(sc.id);
     const curScore = getHoleScore(sc.id, currentHole);
@@ -4701,7 +4980,7 @@ function renderEntryView(){
   const completeBanner = allDone ? `
     <div class="round-complete-banner">
       <h3>Round complete! 🎉</h3>
-      <p>All 18 holes scored for your group.</p>
+      <p>All ${holes} holes scored for your group.</p>
       <button class="btn" style="background:var(--paper);color:var(--ink);" onclick="setLiveSubView('leaderboard')">View leaderboard</button>
     </div>` : '';
 
@@ -4713,9 +4992,9 @@ function renderEntryView(){
         <button class="hole-nav-btn" ${currentHole<=1?'disabled':''} onclick="changeHole(${currentHole-1})">← Prev</button>
         <div>
           <h3>Hole ${currentHole}</h3>
-          <div class="hole-progress">${currentHole} of 18</div>
+          <div class="hole-progress">${currentHole} of ${holes}</div>
         </div>
-        <button class="hole-nav-btn" ${currentHole>=18?'disabled':''} onclick="changeHole(${currentHole+1})">Next →</button>
+        <button class="hole-nav-btn" ${currentHole>=holes?'disabled':''} onclick="changeHole(${currentHole+1})">Next →</button>
       </div>
       ${rows}
       <div class="hole-entry-actions">
@@ -4727,7 +5006,9 @@ function renderEntryView(){
 }
 
 function changeHole(hole){
-  currentHole = Math.max(1, Math.min(18, hole));
+  const activeRound = liveRoundId ? rounds.find(r => r.id === liveRoundId) : null;
+  const holes = roundHoles(activeRound, eventById(liveEventId));
+  currentHole = Math.max(1, Math.min(holes, hole));
   renderLiveScores();
 }
 
@@ -4766,8 +5047,8 @@ function isPendingScorecardId(id){ return typeof id === 'string' && id.startsWit
 function mergeScorecardQueueIntoScorecards(){
   for (const item of scorecardQueue){
     if (item.event_id !== liveEventId) continue;
-    if (scorecards.find(s => s.event_id === item.event_id && s.player_id === item.player_id)) continue;
-    scorecards.push({ id: item.tempId, event_id: item.event_id, player_id: item.player_id, society_id: item.society_id, _pending: true });
+    if (scorecardFor(item.event_id, item.round_id || null, item.player_id)) continue;
+    scorecards.push({ id: item.tempId, event_id: item.event_id, round_id: item.round_id || null, player_id: item.player_id, society_id: item.society_id, _pending: true });
   }
 }
 
@@ -4780,7 +5061,7 @@ async function processScorecardQueue(){
     let resolved = null;
     try {
       const { data, error } = await db.from('scorecards')
-        .insert({ event_id: item.event_id, player_id: item.player_id, society_id: item.society_id })
+        .insert({ event_id: item.event_id, round_id: item.round_id || null, player_id: item.player_id, society_id: item.society_id })
         .select().single();
       if (error) throw error;
       resolved = data;
@@ -4788,8 +5069,9 @@ async function processScorecardQueue(){
       if (err && err.code === '23505'){
         // Another device already set up this scorecard — adopt it instead of erroring.
         try {
-          const { data: existing } = await db.from('scorecards').select('*')
-            .eq('event_id', item.event_id).eq('player_id', item.player_id).single();
+          let q = db.from('scorecards').select('*').eq('event_id', item.event_id).eq('player_id', item.player_id);
+          q = item.round_id ? q.eq('round_id', item.round_id) : q.is('round_id', null);
+          const { data: existing } = await q.single();
           resolved = existing || null;
         } catch(e2){ resolved = null; }
       }
@@ -4885,22 +5167,30 @@ setInterval(() => { if (scorecardQueue.length) processScorecardQueue(); if (scor
 /* When a trophy fixture's winner is confirmed, write/update the matching
    Hall of Fame entry automatically. Linked by event_id so re-finalising
    updates the same entry rather than duplicating it. */
-async function syncHonourForEvent(eventId, winnerName){
+/* roundId: null for a plain single-round fixture's one-and-only honour, or
+   a real round id for one round of a multi-round event's per-round honour.
+   The combined/overall winner for a multi-round event is also written with
+   roundId=null but through finaliseEventOverall() below — the two never
+   collide because a multi-round event's own honours.find() lookup only
+   ever matches a null row once finaliseEventOverall has run, same as any
+   single-round event only ever having the one row. */
+async function syncHonourForEvent(eventId, winnerName, roundId = null){
   if (!db || !winnerName) return;
   const ev = eventById(eventId);
   if (!ev || !ev.trophy) return; // not a trophy fixture — nothing to do
-  const shortCourse = (ev.course || '').replace(/\s+golf\s+club\s*$/i, '').replace(/\s+GC\s*$/i, '').trim();
-  const title = ev.trophy + (shortCourse ? ' — ' + shortCourse : '');
-  const year = new Date(ev.date + 'T00:00:00').getFullYear();
+  const round = roundId ? rounds.find(r => r.id === roundId) : null;
+  const shortCourse = ((round ? round.course : ev.course) || '').replace(/\s+golf\s+club\s*$/i, '').replace(/\s+GC\s*$/i, '').trim();
+  const title = ev.trophy + (round ? ' — ' + round.label : '') + (shortCourse ? ' — ' + shortCourse : '');
+  const year = new Date((round ? round.date : ev.date) + 'T00:00:00').getFullYear();
 
-  const existing = honours.find(h => h.event_id === eventId);
+  const existing = honours.find(h => h.event_id === eventId && (roundId ? h.round_id === roundId : !h.round_id));
   try {
     if (existing){
       const { error } = await db.from('honours').update({ year, title, winner: winnerName }).eq('id', existing.id);
       if (error) throw error;
       Object.assign(existing, { year, title, winner: winnerName });
     } else {
-      const { data, error } = await db.from('honours').insert({ year, title, winner: winnerName, event_id: eventId, society_id: societyId }).select().single();
+      const { data, error } = await db.from('honours').insert({ year, title, winner: winnerName, event_id: eventId, round_id: roundId, society_id: societyId }).select().single();
       if (error) throw error;
       if (data) honours.push(data);
     }
@@ -4911,8 +5201,32 @@ async function syncHonourForEvent(eventId, winnerName){
   }
 }
 
-async function finaliseScores(eventId){
-  const lb = getLeaderboard(eventId, 18);
+async function finaliseScores(eventId, roundId = null){
+  const round = roundId ? rounds.find(r => r.id === roundId) : null;
+  const ev = eventById(eventId);
+  const holes = roundHoles(round, ev);
+  const lb = getLeaderboard(eventId, holes, roundId);
+  if (!lb.length){ alert('No scores to finalise.'); return; }
+  const top = lb.slice(0, 3);
+  const summary = top.map((e, i) => {
+    const name = e.player ? e.player.first_name + ' ' + e.player.last_name : 'Unknown';
+    return `${i+1}. ${name} — ${e.total} pts`;
+  }).join('\n');
+  const label = round ? `"${ev ? ev.name : 'this fixture'}" — ${round.label}` : `"${ev ? ev.name : 'this fixture'}"`;
+  const trophyNote = ev && ev.trophy ? `\n\nThe winner will be added to the Hall of Fame (${ev.trophy}).` : '';
+  if (!confirm(`Finalise scores for ${label}?\n\n${summary}${trophyNote}`)) return;
+
+  const winner = top[0] ? (top[0].player ? top[0].player.first_name + ' ' + top[0].player.last_name : '') : '';
+  await syncHonourForEvent(eventId, winner, roundId);
+  alert('Scores finalised! The winner has been added to the Hall of Fame.');
+}
+
+/* Combined winner across every round of a multi-round event — same
+   mechanics as finaliseScores() above, just fed from combinedLeaderboard()
+   instead of one round's own getLeaderboard(), and always written with
+   round_id=null (the event's overall Hall of Fame entry). */
+async function finaliseEventOverall(eventId){
+  const lb = combinedLeaderboard(eventId);
   if (!lb.length){ alert('No scores to finalise.'); return; }
   const top = lb.slice(0, 3);
   const ev = eventById(eventId);
@@ -4920,12 +5234,12 @@ async function finaliseScores(eventId){
     const name = e.player ? e.player.first_name + ' ' + e.player.last_name : 'Unknown';
     return `${i+1}. ${name} — ${e.total} pts`;
   }).join('\n');
-  const trophyNote = ev && ev.trophy ? `\n\nThe winner will be added to the Hall of Fame (${ev.trophy}).` : '';
-  if (!confirm(`Finalise scores for "${ev ? ev.name : 'this fixture'}"?\n\n${summary}${trophyNote}`)) return;
+  const trophyNote = ev && ev.trophy ? `\n\nThe overall winner will be added to the Hall of Fame (${ev.trophy}).` : '';
+  if (!confirm(`Finalise the combined result for "${ev ? ev.name : 'this event'}"?\n\n${summary}${trophyNote}`)) return;
 
   const winner = top[0] ? (top[0].player ? top[0].player.first_name + ' ' + top[0].player.last_name : '') : '';
-  await syncHonourForEvent(eventId, winner);
-  alert('Scores finalised! The winner has been added to the Hall of Fame.');
+  await syncHonourForEvent(eventId, winner, null);
+  alert('Event finalised! The overall winner has been added to the Hall of Fame.');
 }
 
 /* ===================== render: rules ===================== */
@@ -6840,14 +7154,23 @@ let groupingsEventId = null;
 let editingGroupId = null;
 let randomizerOpen = false;
 let randomizerEventId = null;
+/* Which round the randomiser is working on, when opened from Live Scores >
+   Groupings for a multi-round event (see openRandomizer). null for a plain
+   single-round fixture, or for the standalone (unlinked) Groupings page,
+   which predates rounds and doesn't scope by them. Without this, a player
+   who'd already been grouped for Round 1 would look "already assigned" and
+   get excluded when setting up Round 2's groups — which is wrong, since
+   groupings are meant to be set up fresh for each round. */
+let randomizerRoundId = null;
 let randomizerSizes = [];
 let randomizerAnimating = false;
 let justRandomizedGroupIds = new Set();
 
-/* Players signed up for an event who aren't already in a group for it —
-   the same "ungrouped only" pool the manual group editor now uses. */
-function ungroupedPlayersForEvent(eventId){
-  const evGroupIds = new Set(matchGroups.filter(g => g.event_id === eventId).map(g => g.id));
+/* Players signed up for an event who aren't already in a group for it (for
+   the given round, if any) — the same "ungrouped only" pool the manual
+   group editor now uses. */
+function ungroupedPlayersForEvent(eventId, roundId = null){
+  const evGroupIds = new Set(matchGroups.filter(g => g.event_id === eventId && (roundId ? g.round_id === roundId : !g.round_id)).map(g => g.id));
   const assigned = new Set(matchGroupPlayers.filter(gp => evGroupIds.has(gp.group_id)).map(gp => gp.player_id));
   return signupsForEvent(eventId).filter(p => p && p.id && !assigned.has(p.id));
 }
@@ -6876,7 +7199,11 @@ function refreshGroupingsViews(){
 
 function openRandomizer(defaultEventId){
   randomizerEventId = defaultEventId || groupingsEventId || liveEventId;
-  randomizerSizes = computeGroupSizes(ungroupedPlayersForEvent(randomizerEventId).length);
+  // Only carry a round through when opened for the event currently active
+  // in Live Scores — the standalone Groupings page (no rounds concept) and
+  // switching events inside the modal both fall back to no-round scoping.
+  randomizerRoundId = (randomizerEventId === liveEventId) ? liveRoundId : null;
+  randomizerSizes = computeGroupSizes(ungroupedPlayersForEvent(randomizerEventId, randomizerRoundId).length);
   randomizerOpen = true;
   randomizerAnimating = false;
   refreshGroupingsViews();
@@ -6890,12 +7217,13 @@ function closeRandomizer(){
 
 function randomizerEventChanged(eventId){
   randomizerEventId = eventId;
-  randomizerSizes = computeGroupSizes(ungroupedPlayersForEvent(randomizerEventId).length);
+  randomizerRoundId = (eventId === liveEventId) ? liveRoundId : null;
+  randomizerSizes = computeGroupSizes(ungroupedPlayersForEvent(randomizerEventId, randomizerRoundId).length);
   refreshGroupingsViews();
 }
 
 function adjustRandomizerGroupCount(delta){
-  const total = ungroupedPlayersForEvent(randomizerEventId).length;
+  const total = ungroupedPlayersForEvent(randomizerEventId, randomizerRoundId).length;
   if (delta > 0){
     const used = randomizerSizes.reduce((s,n) => s+n, 0);
     randomizerSizes.push(Math.max(0, Math.min(4, total - used)));
@@ -6924,7 +7252,8 @@ function shuffled(arr){
 async function runRandomizer(){
   if (!db) return;
   const eventId = randomizerEventId;
-  const pool = ungroupedPlayersForEvent(eventId);
+  const roundId = randomizerRoundId;
+  const pool = ungroupedPlayersForEvent(eventId, roundId);
   const total = randomizerSizes.reduce((s,n) => s+n, 0);
   if (!randomizerSizes.length || total !== pool.length){
     alert(`Group sizes add up to ${total}, but there are ${pool.length} ungrouped players — adjust the sizes to match.`);
@@ -6938,18 +7267,19 @@ async function runRandomizer(){
     const newGroupIds = [];
     try {
       const players = shuffled(pool);
-      const existing = matchGroups.filter(g => g.event_id === eventId);
+      const existing = matchGroups.filter(g => g.event_id === eventId && (roundId ? g.round_id === roundId : !g.round_id));
       let nextGroupNumber = existing.length + 1;
+      const round = roundId ? rounds.find(r => r.id === roundId) : null;
       let nextTee = existing.length
         ? addMinutesToTime(existing.map(g => g.tee_time).sort().slice(-1)[0], 8)
-        : (eventById(eventId)?.tee_time || '09:00');
+        : ((round ? round.tee_time : null) || eventById(eventId)?.tee_time || '09:00');
 
       let cursor = 0;
       for (const size of randomizerSizes){
         const slice = players.slice(cursor, cursor + size);
         cursor += size;
         const { data: group, error } = await db.from('groups')
-          .insert({ event_id: eventId, tee_time: nextTee, group_number: nextGroupNumber, society_id: societyId })
+          .insert({ event_id: eventId, round_id: roundId, tee_time: nextTee, group_number: nextGroupNumber, society_id: societyId })
           .select().single();
         if (error) throw error;
         newGroupIds.push(group.id);
@@ -6965,6 +7295,8 @@ async function runRandomizer(){
       // Re-fetch this event's groups/players straight from the DB rather
       // than trusting the incremental local push — this is exactly what a
       // manual page refresh was doing to "fix" it, so do that automatically.
+      // (Fetches every round's groups for the event, not just this one —
+      // matchGroups holds all of them, so a full resync keeps it correct.)
       const { data: freshGroups, error: fgErr } = await db.from('groups').select('*').eq('event_id', eventId);
       if (fgErr) throw fgErr;
       const freshGroupIds = new Set((freshGroups || []).map(g => g.id));
@@ -7208,7 +7540,12 @@ function renderGroupingsInScores(){
   const ev = events.find(e => e.id === liveEventId);
   if (!ev) return '<p class="muted">No event selected.</p>';
 
-  const evGroups = matchGroups.filter(g => g.event_id === liveEventId).sort((a,b) => a.tee_time.localeCompare(b.tee_time));
+  const evRounds = roundsForEvent(liveEventId);
+  if (evRounds.length && liveRoundId === null){
+    return '<p class="muted" style="margin-top:.5rem;">This is a multi-round event — select a specific round above to manage its groupings (each round is grouped separately).</p>';
+  }
+
+  const evGroups = matchGroups.filter(g => g.event_id === liveEventId && (liveRoundId ? g.round_id === liveRoundId : !g.round_id)).sort((a,b) => a.tee_time.localeCompare(b.tee_time));
 
   const cards = evGroups.map((g, idx) => {
     const gPlayers = matchGroupPlayers.filter(gp => gp.group_id === g.id);
@@ -7285,7 +7622,7 @@ function renderGroupingsInScores(){
 
 function shareGroupingsWhatsApp(){
   const ev = events.find(e => e.id === liveEventId);
-  const evGroups = matchGroups.filter(g => g.event_id === liveEventId).sort((a,b) => a.tee_time.localeCompare(b.tee_time));
+  const evGroups = matchGroups.filter(g => g.event_id === liveEventId && (liveRoundId ? g.round_id === liveRoundId : !g.round_id)).sort((a,b) => a.tee_time.localeCompare(b.tee_time));
   const lines = [`⛳ *${ev ? ev.name : 'Starting Sheet'}*${ev ? ' — ' + fmtDate(ev.date) : ''}`];
   evGroups.forEach((g, idx) => {
     const gPlayers = matchGroupPlayers.filter(gp => gp.group_id === g.id);
@@ -7300,8 +7637,11 @@ function shareGroupingsWhatsApp(){
 
 async function addGroupFromScores(eventId){
   if (!db) return;
+  const roundId = liveRoundId;
+  const round = roundId ? rounds.find(r => r.id === roundId) : null;
+  const sameRound = g => g.event_id === eventId && (roundId ? g.round_id === roundId : !g.round_id);
   const { data, error } = await db.from('groups')
-    .insert({ event_id: eventId, tee_time: '09:00', group_number: matchGroups.filter(g => g.event_id === eventId).length + 1, society_id: societyId })
+    .insert({ event_id: eventId, round_id: roundId, tee_time: (round && round.tee_time) || '09:00', group_number: matchGroups.filter(sameRound).length + 1, society_id: societyId })
     .select().single();
   if (error){ console.error(error); alert('Could not add group.'); return; }
   matchGroups.push(data);
