@@ -2009,6 +2009,25 @@ function fmtDateParts(iso){
   };
 }
 
+/* Date badge for the events list/detail card — a single date is
+   misleading for a multi-round event that actually spans several days
+   (found 2026-09-05: "Sheffield Tour" showed just its first day), so this
+   spans every round's own date instead when there are rounds. Falls back
+   to the plain single date for every normal single-round event. */
+function eventDateBadgeParts(e){
+  const evRounds = roundsForEvent(e.id);
+  const dates = (evRounds.length ? evRounds.map(r => r.date).filter(Boolean) : []).sort();
+  if (dates.length < 2) return fmtDateParts(e.date);
+  const first = fmtDateParts(dates[0]);
+  const last = fmtDateParts(dates[dates.length - 1]);
+  const sameMonth = first.month === last.month && first.year === last.year;
+  return {
+    day: sameMonth ? `${first.day}–${last.day}` : `${first.day} ${first.month}–${last.day} ${last.month}`,
+    month: sameMonth ? first.month : '',
+    year: last.year
+  };
+}
+
 /* ===================== navigation ===================== */
 function goTo(sectionName, opts){
   document.querySelectorAll('.section').forEach(s => s.classList.toggle('active', s.dataset.section === sectionName));
@@ -2061,7 +2080,7 @@ function renderEvents(filter){
   const sorted = [...events].sort((a,b) => new Date(a.date) - new Date(b.date));
   const filtered = sorted.filter(e => currentEventFilter === 'all' || eventStatus(e) === currentEventFilter);
   list.innerHTML = filtered.map(e => {
-    const p = fmtDateParts(e.date);
+    const p = eventDateBadgeParts(e);
     const hasGallery = gallery.some(g => g.eventId === e.id);
     const isExpanded = expandedEventId === e.id;
     const signedUpCount = signupsForEvent(e.id).length;
@@ -2075,7 +2094,7 @@ function renderEvents(filter){
                   onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); toggleEventDetail('${e.id}');}">
           <div class="event-date">
             <div class="d-month">${p.month}</div>
-            <div class="d-day">${p.day}</div>
+            <div class="d-day" ${p.day.includes('–') ? 'style="font-size:1.05rem;"' : ''}>${p.day}</div>
             <div class="d-year">${p.year}</div>
           </div>
           <div class="event-main">
