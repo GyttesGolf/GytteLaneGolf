@@ -244,16 +244,38 @@ async function updateHomeScreenIcon(soc){
     manifestLink.setAttribute('href', URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/json' })));
   }
 }
+/* Resolves the society for the current hostname — same custom-domain, then
+   subdomain, then oldest-society-fallback logic as index.html's loadData().
+   Memoised (one lookup per page load) since both the icon setup below and
+   completeLogin()'s players query need it: a player's email is only unique
+   *within* a society now (see players_society_email_key — someone can
+   legitimately belong to more than one society with the same email), so
+   completeLogin() can no longer just search players by email alone and
+   trust it finds the right row. */
+let resolveSocietyPromise = null;
+function resolveSociety(){
+  if (!resolveSocietyPromise){
+    resolveSocietyPromise = (async () => {
+      try {
+        const hostname = window.location.hostname;
+        const subdomain = hostname.split('.')[0];
+        let soc = null;
+        ({ data: soc } = await sb.from('societies').select('*').eq('custom_domain', hostname).maybeSingle());
+        if (!soc) ({ data: soc } = await sb.from('societies').select('*').eq('subdomain', subdomain).maybeSingle());
+        if (!soc) ({ data: soc } = await sb.from('societies').select('*').order('created_at').limit(1).maybeSingle());
+        return soc || null;
+      } catch(err){
+        console.warn('Could not resolve society:', err);
+        return null;
+      }
+    })();
+  }
+  return resolveSocietyPromise;
+}
+
 (async function initIcon(){
-  try {
-    const hostname = window.location.hostname;
-    const subdomain = hostname.split('.')[0];
-    let soc = null;
-    ({ data: soc } = await sb.from('societies').select('*').eq('custom_domain', hostname).maybeSingle());
-    if (!soc) ({ data: soc } = await sb.from('societies').select('*').eq('subdomain', subdomain).maybeSingle());
-    if (!soc) ({ data: soc } = await sb.from('societies').select('*').order('created_at').limit(1).maybeSingle());
-    if (soc) updateHomeScreenIcon(soc);
-  } catch(err){ console.warn('Could not resolve society for icon:', err); }
+  const soc = await resolveSociety();
+  if (soc) updateHomeScreenIcon(soc);
 })();
 
 let currentPill = null;
@@ -300,11 +322,14 @@ async function completeLogin(user, opts){
     return { isPlatformAdmin: true };
   }
 
-  /* Check user exists in players table and is active */
-  const { data: players } = await sb.from('players')
-    .select('id,first_name,last_name,is_committee,active')
-    .ilike('email', email)
-    .limit(1);
+  /* Check user exists in players table (for THIS society specifically —
+     email is now only unique per society, so someone who plays for two
+     societies has two separate rows sharing an email, and only one of
+     them belongs here) and is active */
+  const soc = await resolveSociety();
+  let playersQuery = sb.from('players').select('id,first_name,last_name,is_committee,active').ilike('email', email);
+  if (soc) playersQuery = playersQuery.eq('society_id', soc.id);
+  const { data: players } = await playersQuery.limit(1);
 
   if (!players || !players.length){
     await sb.auth.signOut();
