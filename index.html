@@ -1120,6 +1120,154 @@
     .event-card{grid-template-columns:52px 1fr;}
     .event-links{align-items:flex-start;}
   }
+
+  /* ===== live scoring: focus mode =====
+     Entered via Start/Resume on a group (startScoring()), exited via the
+     ✕ button (exitScoringFocus()) — hides the site chrome and lets
+     #live-scores-content fill the screen with its own dark, high-contrast
+     layout for scoring on a phone in bright sunlight/rain. See
+     renderScoringFocus() and friends in the script block. */
+  body.scoring-focus header.site-head,
+  body.scoring-focus .stripe-band,
+  body.scoring-focus nav.tabs,
+  body.scoring-focus nav.bottom-nav,
+  body.scoring-focus #more-drawer,
+  body.scoring-focus #sec-scores > .eyebrow,
+  body.scoring-focus #sec-scores > .section-title{
+    display:none !important;
+  }
+  body.scoring-focus main{max-width:none; margin:0; padding:0;}
+  body.scoring-focus #sec-scores{padding:0; margin:0;}
+  body.scoring-focus #live-scores-content{
+    position:fixed; inset:0; z-index:600; overflow-y:auto;
+    background:var(--ink); color:var(--paper);
+    display:flex; flex-direction:column;
+    font-family:var(--body);
+  }
+  body.scoring-focus #live-scores-content button{font-family:inherit;}
+
+  .focus-top{
+    display:flex; align-items:center; justify-content:space-between; gap:.5rem;
+    padding:calc(env(safe-area-inset-top) + .9rem) .9rem .5rem; flex-shrink:0;
+  }
+  .focus-exit{
+    width:2rem; height:2rem; border-radius:50%; background:rgba(250,248,242,.12);
+    display:flex; align-items:center; justify-content:center; font-size:1rem; color:var(--paper);
+    flex-shrink:0; cursor:pointer; border:none;
+  }
+  .focus-live{display:flex; align-items:center; gap:.4rem; min-width:0;}
+  .focus-live .live-dot{width:.45rem; height:.45rem; border-radius:50%; background:#5CC17A; flex-shrink:0; animation:focus-pulse 1.6s infinite;}
+  @keyframes focus-pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+  @media (prefers-reduced-motion:reduce){ .focus-live .live-dot{animation:none;} }
+  .focus-top .sync-indicator{
+    margin:0; padding:0; background:none !important; text-align:left;
+    font-size:.68rem; font-weight:700; color:var(--brass-light); white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis;
+  }
+  .focus-icon-btn{
+    display:flex; align-items:center; gap:.3rem; padding:.4rem .75rem .4rem .6rem;
+    border-radius:1rem; background:var(--brass); color:var(--ink); font-size:.72rem; font-weight:800;
+    letter-spacing:.01em; flex-shrink:0; border:none; cursor:pointer;
+  }
+  .focus-icon-btn .ic{font-size:.85rem;}
+
+  .hole-dots{display:flex; justify-content:center; flex-wrap:wrap; gap:.28rem; padding:.3rem .8rem .8rem; flex-shrink:0;}
+  .hole-dots span{width:.4rem; height:.4rem; border-radius:50%; background:rgba(250,248,242,.22); display:inline-block;}
+  .hole-dots span.done{background:var(--brass-light);}
+  .hole-dots span.cur{background:var(--paper); width:.6rem; height:.6rem;}
+
+  .focus-hole{text-align:center; padding:0 1rem 1.1rem; flex-shrink:0;}
+  .focus-hole .label{font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; color:var(--brass-light); font-weight:700;}
+  .focus-hole .num{font-family:var(--display); font-size:3.4rem; font-weight:800; letter-spacing:-.03em; line-height:1;}
+  .focus-hole .course{font-size:.78rem; color:rgba(250,248,242,.55); margin-top:.2rem;}
+
+  .focus-players{flex:1; display:flex; flex-direction:column; gap:.7rem; padding:0 1rem 1rem; overflow-y:auto;}
+  .fp-row{background:rgba(250,248,242,.06); border-radius:1rem; padding:.85rem 1rem; display:flex; flex-direction:column; gap:.6rem;}
+  .fp-head{display:flex; align-items:baseline; justify-content:space-between; gap:.5rem;}
+  .fp-name{font-size:1rem; font-weight:700;}
+  .fp-total{font-size:.85rem; color:var(--brass-light); font-variant-numeric:tabular-nums; flex-shrink:0;}
+  .fp-pts{display:flex; gap:.5rem;}
+  .fp-pts button{
+    flex:1; aspect-ratio:1; border-radius:.75rem; border:none; font-weight:800; font-size:1.15rem;
+    background:rgba(250,248,242,.1); color:var(--paper); font-variant-numeric:tabular-nums; cursor:pointer;
+  }
+  .fp-pts button.sel{background:var(--brass); color:var(--ink);}
+  .fp-pts button:focus-visible{outline:2px solid var(--brass-light); outline-offset:2px;}
+
+  .focus-nav{
+    display:flex; align-items:center; justify-content:space-between; gap:.7rem;
+    padding:.8rem 1rem calc(env(safe-area-inset-bottom) + 1.1rem); flex-shrink:0;
+  }
+  .focus-nav button{
+    flex:1; padding:.75rem 0; border-radius:.85rem; border:1px solid rgba(250,248,242,.25);
+    background:transparent; color:var(--paper); font-size:.82rem; font-weight:700; cursor:pointer;
+  }
+  .focus-nav button.next{background:var(--brass); color:var(--ink); border-color:var(--brass);}
+  .focus-nav button:disabled{opacity:.35; cursor:default;}
+
+  .done-banner{
+    margin:0 1rem .8rem; padding:.65rem .8rem; border-radius:.85rem;
+    background:rgba(92,193,122,.14); border:1px solid rgba(92,193,122,.35);
+    display:flex; align-items:center; gap:.5rem; flex-shrink:0; font-size:.8rem; font-weight:700;
+    color:#8FE3A9;
+  }
+  .frozen-banner{
+    margin:0 1rem .8rem; padding:.7rem .85rem; border-radius:.85rem;
+    background:rgba(184,134,47,.16); border:1px solid rgba(227,193,115,.4);
+    display:flex; align-items:flex-start; gap:.55rem; flex-shrink:0;
+  }
+  .frozen-banner .lock{font-size:1.15rem; flex-shrink:0; line-height:1.2;}
+  .frozen-banner .t{font-size:.8rem; font-weight:800; color:var(--brass-light);}
+  .frozen-banner .d{font-size:.72rem; color:rgba(250,248,242,.65); margin-top:.15rem; line-height:1.45;}
+
+  .focus-lb-title{text-align:center; padding:.3rem 1rem 1rem; flex-shrink:0;}
+  .focus-lb-title .label{font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; color:var(--brass-light); font-weight:700;}
+  .focus-lb-title .ev{font-family:var(--display); font-size:1.25rem; font-weight:800; margin-top:.2rem;}
+
+  .focus-lb-list{flex:1; display:flex; flex-direction:column; gap:.5rem; padding:0 1rem 1rem; overflow-y:auto;}
+  .lb-row{
+    display:flex; align-items:center; gap:.65rem; padding:.65rem .8rem; border-radius:.8rem;
+    background:rgba(250,248,242,.06);
+  }
+  .lb-row.me{background:rgba(184,134,47,.22); border:1px solid rgba(227,193,115,.5);}
+  .lb-row.frozen{opacity:.45;}
+  .lb-row.frozen .lb-pts{filter:blur(3px); user-select:none;}
+  .lb-pos{font-size:1rem; width:1.7rem; text-align:center; flex-shrink:0;}
+  .lb-pos.num{font-size:.82rem; color:rgba(250,248,242,.55); font-weight:700;}
+  .lb-name{flex:1; font-size:.86rem; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .lb-pts{font-size:.88rem; font-weight:800; color:var(--brass-light); font-variant-numeric:tabular-nums;}
+  .lb-thru{font-size:.68rem; color:rgba(250,248,242,.5); width:3.2rem; text-align:right; flex-shrink:0; font-variant-numeric:tabular-nums;}
+
+  .focus-lb-foot{
+    display:flex; align-items:center; justify-content:center; gap:.4rem; text-align:center;
+    padding:.7rem 1rem calc(env(safe-area-inset-bottom) + 1.1rem); flex-shrink:0;
+    font-size:.7rem; color:rgba(250,248,242,.55);
+  }
+  .focus-lb-foot button{
+    background:none; border:none; color:var(--brass-light); font-weight:700; font-size:.7rem; cursor:pointer; padding:0;
+  }
+
+  .finalise-cta{padding:.9rem 1rem calc(env(safe-area-inset-bottom) + 1.2rem); flex-shrink:0;}
+  .finalise-cta button{
+    width:100%; padding:.85rem 0; border-radius:.85rem; border:none;
+    background:var(--brass); color:var(--ink); font-size:.85rem; font-weight:800; cursor:pointer;
+  }
+  .finalise-cta p{font-size:.68rem; color:rgba(250,248,242,.5); text-align:center; margin:.5rem 0 0;}
+
+  .reveal{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 1.2rem; text-align:center; gap:.15rem;}
+  .reveal .trophy{font-size:3rem; margin-bottom:.4rem;}
+  .reveal .label{font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; color:var(--brass-light); font-weight:700;}
+  .reveal .ev{font-size:.9rem; color:rgba(250,248,242,.6); margin-top:.15rem;}
+  .reveal .winner{font-family:var(--display); font-size:1.7rem; font-weight:800; margin-top:.7rem; letter-spacing:-.01em;}
+  .reveal .winner-pts{font-size:.88rem; color:var(--brass-light); margin-top:.2rem; font-variant-numeric:tabular-nums;}
+  .podium{width:100%; max-width:320px; margin-top:1.5rem; display:flex; flex-direction:column; gap:.4rem;}
+  .podium .p-row{
+    display:flex; align-items:center; gap:.6rem; padding:.5rem .8rem; border-radius:.7rem;
+    background:rgba(250,248,242,.06); font-size:.82rem;
+  }
+  .podium .p-row .pos{width:1.3rem;}
+  .podium .p-row .nm{flex:1; text-align:left; font-weight:600;}
+  .podium .p-row .pt{color:var(--brass-light); font-weight:700; font-variant-numeric:tabular-nums;}
 </style>
 </head>
 <body>
@@ -2032,6 +2180,11 @@ function eventDateBadgeParts(e){
 function goTo(sectionName, opts){
   document.querySelectorAll('.section').forEach(s => s.classList.toggle('active', s.dataset.section === sectionName));
   document.querySelectorAll('.tab-btn').forEach(b => b.setAttribute('aria-selected', b.dataset.section === sectionName ? 'true' : 'false'));
+  // Navigating away from Live Scores always leaves focus mode too — there's
+  // no way to reach it from any other section, so resuming it later would
+  // be surprising rather than helpful.
+  if (sectionName !== 'scores' && sectionName !== 'leaderboard') scoringFocusMode = false;
+  syncScoringFocusClass();
   window.scrollTo({ top:0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   if (opts && opts.highlightEvent) highlightEvent(opts.highlightEvent);
   if (opts && opts.highlightCommittee) highlightCommitteeMember(opts.highlightCommittee);
@@ -4414,6 +4567,13 @@ let liveEventId = null;
    view across all of them. Which one applies is decided by whether
    roundsForEvent(liveEventId) is empty; see renderLeaderboardView(). */
 let liveRoundId = null;
+/* True while showing the immersive "focus mode" scoring/leaderboard screen
+   (chrome hidden, see the body.scoring-focus CSS) — entered via Start/Resume
+   in startScoring(), left via exitScoringFocus(). Only actually applied
+   when liveSubView is 'entry' or 'leaderboard' AND the Live Scores section
+   is the visible one (see syncScoringFocusClass()) so a realtime update
+   firing while the user has navigated elsewhere can't hijack the page. */
+let scoringFocusMode = false;
 let scoringPlayerIds = [];
 let currentHole = 1;
 let liveSubView = 'setup'; // 'setup' | 'entry' | 'leaderboard' | 'groupings'
@@ -4546,6 +4706,15 @@ function renderLiveScores(){
     el.innerHTML = `<div class="card" style="border-color:var(--claret); max-width:480px;">
       <strong>Live scores not set up yet.</strong> Run <code>add-live-scores.sql</code> in Supabase to enable this feature.
     </div>`;
+    syncScoringFocusClass();
+    return;
+  }
+
+  if (scoringFocusMode && (liveSubView === 'entry' || liveSubView === 'leaderboard')){
+    el.innerHTML = renderScoringFocus();
+    updateSyncIndicator();
+    manageLeaderboardPoll();
+    syncScoringFocusClass();
     return;
   }
 
@@ -4590,10 +4759,32 @@ function renderLiveScores(){
   el.innerHTML = subTabs + eventSelector + roundSelector + body;
   updateSyncIndicator();
   manageLeaderboardPoll();
+  syncScoringFocusClass();
+}
+
+/* Keeps body.scoring-focus in sync with actual state — separated from
+   renderLiveScores() so goTo() can also call it the moment someone
+   navigates away from Live Scores, rather than leaving stale chrome
+   hidden (or focus mode's dark background) behind on an unrelated page. */
+function syncScoringFocusClass(){
+  const secActive = document.getElementById('sec-scores')?.classList.contains('active');
+  const active = scoringFocusMode && (liveSubView === 'entry' || liveSubView === 'leaderboard') && !!secActive;
+  document.body.classList.toggle('scoring-focus', active);
 }
 
 function setLiveSubView(view){
   liveSubView = view;
+  // Focus mode only makes sense for Entry/Leaderboard — picking Setup or
+  // Groupings (only reachable from the normal chrome, not from inside
+  // focus mode itself) always means leaving it.
+  if (view !== 'entry' && view !== 'leaderboard') scoringFocusMode = false;
+  renderLiveScores();
+}
+
+/* The ✕ in focus mode — drops back to the normal site chrome without
+   losing your place (same event/round/group, same sub-view underneath). */
+function exitScoringFocus(){
+  scoringFocusMode = false;
   renderLiveScores();
 }
 
@@ -4979,7 +5170,195 @@ function startScoring(){
   const holes = roundHoles(liveRoundId ? rounds.find(r=>r.id===liveRoundId) : null, eventById(liveEventId));
   currentHole = myHoles.length > 0 ? Math.min(holes, Math.max(...myHoles.map(h => h.hole_number))) : 1;
   liveSubView = 'entry';
+  scoringFocusMode = true;
   renderLiveScores();
+}
+
+/* ===== focus mode (entry + leaderboard) =====
+   Immersive full-screen scoring, entered via Start/Resume (startScoring())
+   and exited via the ✕ button (exitScoringFocus()) — see the
+   body.scoring-focus CSS block for the chrome-hiding side of this.
+   Reuses all the same underlying data/state as the normal chrome views
+   (getLeaderboard, scorecardFor, holeScores, etc.) — only the markup and
+   navigation are different. There's no per-player login in live scoring
+   (see CLAUDE.md — scoring is deliberately open, no-login, self-service),
+   so "my row" on the leaderboard is approximated as "anyone in the group
+   currently being scored on this device" (scoringPlayerIds), not a real
+   identity check. */
+function renderScoringFocus(){
+  return liveSubView === 'leaderboard' ? renderFocusLeaderboard() : renderFocusEntry();
+}
+
+function focusTopBarHtml(mode, liveLabel){
+  const other = mode === 'leaderboard'
+    ? `<div class="focus-icon-btn" onclick="setLiveSubView('entry')" role="button" tabindex="0"><span class="ic">⛳</span> Scoring</div>`
+    : `<div class="focus-icon-btn" onclick="setLiveSubView('leaderboard')" role="button" tabindex="0"><span class="ic">🏆</span> Leaderboard</div>`;
+  return `
+    <div class="focus-top">
+      <button class="focus-exit" onclick="exitScoringFocus()" aria-label="Exit focus mode">✕</button>
+      <div class="focus-live"><span class="live-dot"></span> ${liveLabel || '<span id="sync-indicator" class="sync-indicator"></span>'}</div>
+      ${other}
+    </div>`;
+}
+
+function renderFocusEntry(){
+  const activeRound = liveRoundId ? rounds.find(r => r.id === liveRoundId) : null;
+  const ev = eventById(liveEventId);
+  const holes = roundHoles(activeRound, ev);
+
+  const allDone = scoringPlayerIds.length > 0 && scoringPlayerIds.every(pid => {
+    const sc = scorecardFor(liveEventId, liveRoundId, pid);
+    if (!sc) return false;
+    return holeScores.filter(h => h.scorecard_id === sc.id).length === holes;
+  });
+
+  const dots = Array.from({ length: holes }, (_, i) => {
+    const h = i + 1;
+    const cls = h < currentHole ? 'done' : h === currentHole ? 'cur' : '';
+    return `<span class="${cls}"></span>`;
+  }).join('');
+
+  const rows = scoringPlayerIds.map(pid => {
+    const player = players.find(p => p.id === pid);
+    const sc = scorecardFor(liveEventId, liveRoundId, pid);
+    if (!sc) return '';
+    const running = getRunningTotal(sc.id);
+    const curScore = getHoleScore(sc.id, currentHole);
+    const btns = [0,1,2,3,4,5].map(pts => {
+      const isSel = curScore === pts;
+      return `<button class="${isSel?'sel':''}"
+        onclick="setHoleScore(${JSON.stringify(sc.id).replace(/"/g, '&quot;')}, ${currentHole}, ${pts})">${pts}</button>`;
+    }).join('');
+    return `<div class="fp-row">
+      <div class="fp-head">
+        <span class="fp-name">${player ? escapeHtml(player.first_name + ' ' + player.last_name) : 'Player'}</span>
+        <span class="fp-total">${running} pts</span>
+      </div>
+      <div class="fp-pts">${btns}</div>
+    </div>`;
+  }).join('');
+
+  const courseName = activeRound ? activeRound.course : (ev ? ev.course : '');
+  const doneBanner = allDone ? `<div class="done-banner">✓ All ${holes} holes scored for your group</div>` : '';
+
+  return `
+    ${focusTopBarHtml('entry')}
+    <div class="hole-dots">${dots}</div>
+    <div class="focus-hole">
+      <div class="label">Hole</div>
+      <div class="num">${currentHole}</div>
+      ${courseName ? `<div class="course">${escapeHtml(courseName)}</div>` : ''}
+    </div>
+    ${doneBanner}
+    <div class="focus-players">${rows}</div>
+    <div class="focus-nav">
+      <button ${currentHole<=1?'disabled':''} onclick="changeHole(${currentHole-1})">← Hole ${currentHole-1}</button>
+      <button class="next" ${currentHole>=holes?'disabled':''} onclick="changeHole(${currentHole+1})">Hole ${currentHole+1} →</button>
+    </div>`;
+}
+
+function focusLbRowHtml(entry, i, frozen){
+  const mine = entry.player && scoringPlayerIds.includes(entry.player.id);
+  const pos = !entry.started ? `<span class="lb-pos">—</span>`
+    : i < 3 ? `<span class="lb-pos">${['🥇','🥈','🥉'][i]}</span>` : `<span class="lb-pos num">${i+1}</span>`;
+  const thruLabel = !entry.started ? 'Not started' : `Thru ${entry.thru}`;
+  return `<div class="lb-row ${mine?'me':''} ${frozen?'frozen':''}">
+    ${pos}
+    <span class="lb-name">${entry.player ? escapeHtml(entry.player.first_name + ' ' + entry.player.last_name) : 'Unknown'}</span>
+    <span class="lb-pts">${entry.started ? entry.total : '—'}</span>
+    <span class="lb-thru">${thruLabel}</span>
+  </div>`;
+}
+
+function focusLbFootHtml(){
+  return `<div class="focus-lb-foot"><button onclick="refreshLeaderboardNow(this)">🔄 Refresh</button> · updates automatically</div>`;
+}
+
+function renderFocusLeaderboard(){
+  const evRounds = roundsForEvent(liveEventId);
+  const ev = eventById(liveEventId);
+  const topBar = focusTopBarHtml('leaderboard');
+
+  if (evRounds.length && liveRoundId === null){
+    // Not reachable via focus mode's own navigation today — Start/Resume
+    // always begins on a concrete round, and there's no round-switcher
+    // inside focus mode itself yet. Defensive fallback only.
+    return topBar + `
+      <div class="focus-lb-title"><div class="label">Overall</div><div class="ev">${escapeHtml(ev ? ev.name : '')}</div></div>
+      <p class="muted" style="padding:0 1rem; color:rgba(250,248,242,.6); text-align:center;">Exit focus mode to view the combined Overall leaderboard for this tour.</p>`;
+  }
+
+  const activeRound = liveRoundId ? rounds.find(r => r.id === liveRoundId) : null;
+  const holes = roundHoles(activeRound, ev);
+  const blackoutHole = blackoutHoleFor(holes);
+  const fullLb = getLeaderboard(liveEventId, holes, liveRoundId);
+  const title = `<div class="focus-lb-title"><div class="label">Leaderboard</div><div class="ev">${escapeHtml(ev ? ev.name : '')}</div></div>`;
+
+  if (!fullLb.length){
+    return topBar + title + `<p class="muted" style="padding:0 1rem; color:rgba(250,248,242,.6); text-align:center;">No scores yet${activeRound ? ' for this round' : ''}.</p>`;
+  }
+
+  const maxHoleAnyone = fullLb.reduce((max, e) => Math.max(max, e.actualThru), 0);
+  const started = fullLb.filter(e => e.started);
+  const allFinished = started.length > 0 && started.every(e => e.actualThru === holes);
+  const pastBlackout = maxHoleAnyone > blackoutHole;
+
+  // Admin: bypasses the blackout entirely, same as the normal chrome view
+  if (isLoggedIn){
+    const rows = fullLb.map((e,i) => focusLbRowHtml(e,i,false)).join('');
+    const doneBanner = allFinished ? `<div class="done-banner">✓ Every player's finished — full standings, admin view</div>` : '';
+    const cta = allFinished
+      ? (evRounds.length
+          ? `<p class="muted" style="padding:0 1rem 1.4rem; color:rgba(250,248,242,.55); font-size:.78rem; text-align:center;">This round is finished — exit focus mode and select "🏆 Overall (combined)" once every round is done to finalise the tour's overall winner.</p>`
+          : `<div class="finalise-cta">
+              <button onclick="finaliseScores(${JSON.stringify(liveEventId)}, ${liveRoundId===null?'null':liveRoundId})">🏆 Finalise &amp; add top 3 to results</button>
+              <p>Saves the final standings to the Hall of Fame</p>
+            </div>`)
+      : focusLbFootHtml();
+    return topBar + title + doneBanner + `<div class="focus-lb-list">${rows}</div>` + cta;
+  }
+
+  // Non-admin, everyone finished → the reveal once finalised, generic "sealed" message before that
+  if (allFinished){
+    const honour = honours.find(h => h.event_id === liveEventId && (liveRoundId ? h.round_id === liveRoundId : !h.round_id));
+    if (honour){
+      return topBar + `
+        <div class="reveal">
+          <div class="trophy">🏆</div>
+          <div class="label">Winner</div>
+          <div class="ev">${escapeHtml(ev ? ev.name : '')}</div>
+          <div class="winner">${escapeHtml(honour.winner)}</div>
+          ${honour.winner_score != null ? `<div class="winner-pts">${honour.winner_score} points</div>` : ''}
+        </div>`;
+    }
+    return topBar + `
+      <div class="reveal">
+        <div class="trophy">🏆</div>
+        <div class="label">Scores are sealed!</div>
+        <div class="ev" style="margin-top:.6rem; max-width:26ch;">The captain will announce the final results shortly. Well played everyone!</div>
+      </div>`;
+  }
+
+  // Non-admin, past the blackout hole → frozen
+  if (pastBlackout){
+    const frozenLb = getLeaderboard(liveEventId, blackoutHole, liveRoundId);
+    const rows = frozenLb.map((e,i) => focusLbRowHtml(e,i,true)).join('');
+    return topBar + title + `
+      <div class="frozen-banner">
+        <span class="lock">🔒</span>
+        <div>
+          <div class="t">Scores frozen at hole ${blackoutHole}</div>
+          <div class="d">Standings are held back for the last few holes so the finish stays a surprise. Full leaderboard returns once the captain announces the result.</div>
+        </div>
+      </div>
+      <div class="focus-lb-list">${rows}</div>
+      <div class="focus-lb-foot">Group scores still visible in ⛳ Scoring — it's only the field-wide board that's held back</div>`;
+  }
+
+  // Normal live view, before the blackout hole
+  const lb = getLeaderboard(liveEventId, blackoutHole, liveRoundId);
+  const rows = lb.map((e,i) => focusLbRowHtml(e,i,false)).join('');
+  return topBar + title + `<div class="focus-lb-list">${rows}</div>` + focusLbFootHtml();
 }
 
 /* --- entry view --- */
