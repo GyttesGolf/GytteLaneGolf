@@ -6939,8 +6939,10 @@ async function savePlatformSociety(id){
   if (!db){ setStatus('Not connected.', 'error'); return; }
   const name = document.getElementById('ps-name-'+id)?.value.trim();
   const founded = document.getElementById('ps-founded-'+id)?.value || null;
-  const subdomain = document.getElementById('ps-subdomain-'+id)?.value.trim() || null;
-  const custom_domain = document.getElementById('ps-customdomain-'+id)?.value.trim() || null;
+  // Lowercased — see the matching note in saveNewSociety(): a domain saved
+  // with any capitals silently never matches window.location.hostname.
+  const subdomain = document.getElementById('ps-subdomain-'+id)?.value.trim().toLowerCase() || null;
+  const custom_domain = document.getElementById('ps-customdomain-'+id)?.value.trim().toLowerCase() || null;
   const location = document.getElementById('ps-location-'+id)?.value.trim() || null;
   const contact_email = document.getElementById('ps-contactemail-'+id)?.value.trim() || null;
   const tagline = document.getElementById('ps-tagline-'+id)?.value.trim() || null;
@@ -6997,8 +6999,13 @@ async function saveNewSociety(){
   if (!db){ setStatus('Not connected.', 'error'); return; }
   const name = document.getElementById('ns-name')?.value.trim();
   const founded = document.getElementById('ns-founded')?.value || null;
-  const subdomain = document.getElementById('ns-subdomain')?.value.trim() || null;
-  const custom_domain = document.getElementById('ns-customdomain')?.value.trim() || null;
+  // Lowercased: matching against these is a case-sensitive exact-hostname
+  // comparison in loadData()/login.html (window.location.hostname is
+  // always lowercase), so a domain saved with any capitals just silently
+  // never matches and falls back to the oldest society instead — found
+  // 2026-09-06 creating a real second society for the first time.
+  const subdomain = document.getElementById('ns-subdomain')?.value.trim().toLowerCase() || null;
+  const custom_domain = document.getElementById('ns-customdomain')?.value.trim().toLowerCase() || null;
   const adminFirst = document.getElementById('ns-admin-fname')?.value.trim();
   const adminLast = document.getElementById('ns-admin-lname')?.value.trim();
   const adminEmail = document.getElementById('ns-admin-email')?.value.trim();
