@@ -150,3 +150,4 @@ export default async (request, context) => {
 };
 
 export const config = { path: ["/", "/index.html", "/login.html"] };
+// touch: force fresh edge instance after logo_url transparency fix 1788895869
