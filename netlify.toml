@@ -1,0 +1,15 @@
+# Rewrites index.html/login.html with the requesting hostname's own society
+# branding (name, crest, colours) before the HTML reaches the browser, so
+# visitors never see a flash of Gytte Lane's branding before their own
+# society's appears. See netlify/edge-functions/brand.ts.
+[[edge_functions]]
+path = "/"
+function = "brand"
+
+[[edge_functions]]
+path = "/index.html"
+function = "brand"
+
+[[edge_functions]]
+path = "/login.html"
+function = "brand"
