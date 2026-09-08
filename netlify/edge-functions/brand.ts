@@ -59,6 +59,20 @@ async function resolveSociety(hostname) {
   return soc;
 }
 
+// Same generator as index.html's placeholderCrestDataUri() — a society's
+// first initial on its own colours. Needed here too: without a real
+// uploaded logo_url, the edge function previously had nothing to put in
+// #site-crest/#login-crest, so the static Gytte Lane crest kept showing
+// until client JS swapped it a moment later — exactly the flash this file
+// exists to prevent, just for the logo instead of the name/colours.
+function placeholderCrestDataUri(soc) {
+  const letter = esc((soc.name || "?").trim()[0]?.toUpperCase() || "?");
+  const bg = soc.primary_colour || "#4B1320";
+  const fg = soc.secondary_colour || "#B8862F";
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="16" fill="${bg}"/><text x="50" y="66" font-size="50" font-family="Arial,sans-serif" font-weight="700" fill="${fg}" text-anchor="middle">${letter}</text></svg>`;
+  return "data:image/svg+xml;base64," + btoa(svg);
+}
+
 function esc(s) {
   return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -105,8 +119,10 @@ export default async (request, context) => {
     const titleSuffix = isLogin ? "Sign in" : (soc.location || "");
     html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${esc(name)}${titleSuffix ? " — " + esc(titleSuffix) : ""}</title>`);
 
+    const crestSrc = soc.logo_url || placeholderCrestDataUri(soc);
+
     if (isLogin) {
-      if (soc.logo_url) html = replaceAttr(html, '<img id="login-crest" src="', '"', soc.logo_url);
+      html = replaceAttr(html, '<img id="login-crest" src="', '"', crestSrc);
       html = replaceInner(html, '<div class="society-name" id="login-society-name">', "</div>", esc(name));
       const locBits = [soc.location, soc.founded ? `Est. ${soc.founded}` : null].filter(Boolean).join(" · ");
       html = replaceInner(html, '<div class="society-loc" id="login-society-loc">', "</div>", esc(locBits));
@@ -116,7 +132,7 @@ export default async (request, context) => {
       const style = `<style>:root{--acc:${secondary};} body{background:linear-gradient(170deg, ${primary} 0%, #000000 100%);}</style>`;
       html = html.replace("</head>", `${style}</head>`);
     } else {
-      if (soc.logo_url) html = replaceAttr(html, '<img id="site-crest" src="', '"', soc.logo_url);
+      html = replaceAttr(html, '<img id="site-crest" src="', '"', crestSrc);
       html = replaceInner(html, '<h1 id="site-name">', "</h1>", esc(name));
       html = replaceInner(html, '<p id="site-location">', "</p>", esc(soc.location || ""));
       const foundedPart = soc.founded ? ` Founded ${soc.founded}.` : "";
