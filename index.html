@@ -5790,6 +5790,7 @@ async function addRule(){
 const editingHonourIds = new Set();
 const expandedHonourScoreIds = new Set(); // honours rows with a winner_score, tapped to reveal it
 let expandedTrophy = null;
+let oomYear = null; // selected year for the Order of Merit tile — set on first open
 
 /* Trophy silhouettes — brass on the card, keyed by competition */
 function trophySvg(baseName){
@@ -5873,6 +5874,51 @@ function trophySvg(baseName){
     <rect x="36" y="40" width="8" height="10" fill="${b}"/>
     <rect x="28" y="50" width="24" height="6" rx="1.5" fill="${d}"/>
     <rect x="23" y="56" width="34" height="8" rx="1.5" fill="${dd}"/></svg>`;
+}
+
+/* ===== Order of Merit (season aggregation across trophy events) =====
+   Only ever includes events that were actually live-scored (real
+   hole_scores rows exist) — historical trophy winners recorded before live
+   scoring existed only ever captured the WINNER, not the full field, so
+   there's no way to reconstruct season standings for those years. Uses
+   allScorecards/allHoleScores (loaded once for every event regardless of
+   which one Live Scores currently has selected — see loadData()), not the
+   live-scoring-scoped scorecards/holeScores globals. A multi-round event's
+   contribution is its combined total across all its rounds, since
+   allScorecards already includes every round's rows for that event_id. */
+function oomAvailableYears(){
+  const years = new Set();
+  events.filter(e => e.trophy).forEach(e => {
+    const hasScores = allScorecards.some(sc => sc.event_id === e.id
+      && allHoleScores.some(h => h.scorecard_id === sc.id));
+    if (hasScores) years.add(new Date(e.date + 'T00:00:00').getFullYear());
+  });
+  return [...years].sort((a,b) => b - a);
+}
+
+function orderOfMeritStandings(year){
+  const trophyEvents = events.filter(e => e.trophy && new Date(e.date + 'T00:00:00').getFullYear() === year);
+  const totals = new Map(); // player_id -> { total, eventsPlayed }
+  trophyEvents.forEach(e => {
+    const evScorecards = allScorecards.filter(sc => sc.event_id === e.id);
+    const byPlayer = new Map();
+    evScorecards.forEach(sc => {
+      const holes = allHoleScores.filter(h => h.scorecard_id === sc.id);
+      if (!holes.length) return; // no-show / never started — doesn't count
+      const pts = holes.reduce((s,h) => s + h.points, 0);
+      byPlayer.set(sc.player_id, (byPlayer.get(sc.player_id) || 0) + pts);
+    });
+    byPlayer.forEach((pts, pid) => {
+      const cur = totals.get(pid) || { total: 0, eventsPlayed: 0 };
+      cur.total += pts;
+      cur.eventsPlayed += 1;
+      totals.set(pid, cur);
+    });
+  });
+  return [...totals.entries()]
+    .map(([pid, v]) => ({ player: players.find(p => p.id === pid), total: v.total, eventsPlayed: v.eventsPlayed }))
+    .filter(e => e.player)
+    .sort((a,b) => b.total - a.total);
 }
 
 function honourBaseName(title){
@@ -5998,7 +6044,23 @@ function renderHonours(){
       </div>`;
   }
 
-  if (!groupNames.length && !captains.length && !archived.length && !ntp1Events.length && !ntp2Events.length){
+  /* Order of Merit — only shown once at least one trophy event has real
+     live-scored results for some year (see oomAvailableYears()) */
+  const oomYears = oomAvailableYears();
+  const oomSelected = expandedTrophy === '__oom__';
+  if (oomYears.length){
+    if (!oomYear || !oomYears.includes(oomYear)) oomYear = oomYears[0];
+    shelf.innerHTML += `
+      <div class="trophy-card ${oomSelected ? 'selected' : ''}" role="button" tabindex="0"
+           onclick="toggleTrophy('__oom__')"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); toggleTrophy('__oom__');}">
+        ${trophySvg('Order of Merit')}
+        <h3>Order of Merit</h3>
+        <div class="trophy-count">${oomYears.length} season${oomYears.length===1?'':'s'}</div>
+      </div>`;
+  }
+
+  if (!groupNames.length && !captains.length && !archived.length && !ntp1Events.length && !ntp2Events.length && !oomYears.length){
     shelf.innerHTML = '<p class="muted">No trophies recorded yet.</p>';
   }
 
@@ -6061,6 +6123,30 @@ function renderHonours(){
               ${e.course ? `<span class="tw-course">${escapeHtml(e.course)}</span>` : ''}
             </li>`).join('')}
         </ol>
+      </div>`;
+  } else if (expandedTrophy === '__oom__'){
+    const standings = orderOfMeritStandings(oomYear);
+    winnersPanel.innerHTML = `
+      <div class="trophy-winners">
+        <h3>Order of Merit</h3>
+        <p style="font-size:.85rem; color:rgba(255,255,255,.55); margin:.3rem 0 1rem; max-width:44ch; line-height:1.6;">
+          Combined Stableford points across every trophy fixture scored via Live Scores in ${oomYear} — only includes events actually live-scored, so earlier years without live scoring aren't shown.
+        </p>
+        ${oomYears.length > 1 ? `
+          <div class="event-select-row" style="margin-bottom:1rem;">
+            <select onchange="oomYear=Number(this.value); renderHonours();">
+              ${oomYears.map(y => `<option value="${y}" ${y===oomYear?'selected':''}>${y}</option>`).join('')}
+            </select>
+          </div>` : ''}
+        ${standings.length ? `
+          <ol>
+            ${standings.map((s, i) => `
+              <li>
+                <span class="tw-year">${i+1}${i===0?'st':i===1?'nd':i===2?'rd':'th'}</span>
+                <span class="tw-name">${escapeHtml(s.player.first_name)} ${escapeHtml(s.player.last_name)}</span>
+                <span class="tw-course">${s.total} pts · ${s.eventsPlayed} event${s.eventsPlayed===1?'':'s'}</span>
+              </li>`).join('')}
+          </ol>` : `<p class="muted">No live-scored trophy results for ${oomYear} yet.</p>`}
       </div>`;
   } else if (expandedTrophy && groups[expandedTrophy]){
     const list = [...groups[expandedTrophy]].sort((a,b) => a.year - b.year);
