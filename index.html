@@ -624,24 +624,40 @@
   .courses-panel{margin-top:0;}
   .events-page-layout{display:grid; grid-template-columns:1fr; gap:2rem;}
   .courses-col{min-width:0;}
-  @media(min-width:860px){
-    .events-page-layout{grid-template-columns:1fr 320px; align-items:start;}
+
+  /* Card grid — "Venues" gets a proper directory feel rather than a bare
+     list: each course is a card with a club-tie-striped banner (the same
+     diagonal ink/claret/brass motif used across the header/dividers) as a
+     stand-in for a photo we don't have, plus its scorecard/rating surfaced
+     directly on the card rather than hidden behind a toggle. */
+  .course-card-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:1.1rem; margin-top:.6rem;}
+  .course-card{
+    border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--paper);
+    display:flex; flex-direction:column; transition:box-shadow .2s ease, transform .2s ease;
   }
-  .course-list{display:flex; flex-direction:column;}
-  .course-row{
-    display:flex; align-items:center; gap:.8rem; padding:.65rem 0;
-    border-bottom:1px solid var(--line);
+  .course-card:hover{box-shadow:0 10px 26px rgba(75,19,32,.14); transform:translateY(-2px);}
+  .course-card-banner{
+    position:relative; height:84px; flex-shrink:0;
+    background:linear-gradient(115deg, var(--ink) 0%, var(--ink) 42%, var(--claret) 42%, var(--claret) 58%, var(--brass) 58%, var(--brass) 100%);
+    display:flex; align-items:center; justify-content:center;
   }
-  .course-row:last-child{border-bottom:none;}
-  .course-row-info{flex:1; min-width:0;}
-  .course-row-name{
-    font-family:var(--display); font-size:.95rem; font-weight:700; color:var(--ink);
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-decoration:none;
+  .course-card-banner svg{width:32px; height:32px; stroke:var(--paper); fill:none; stroke-width:1.6; opacity:.92;}
+  .course-card-par-badge{
+    position:absolute; top:.5rem; right:.5rem; background:rgba(250,248,242,.94); color:var(--ink);
+    font-family:var(--body); font-size:.66rem; font-weight:800; letter-spacing:.02em;
+    padding:.25rem .55rem; border-radius:999px; white-space:nowrap;
   }
-  .course-row-name:hover{text-decoration:underline;}
-  .course-row-stars{font-family:var(--body); font-size:.75rem; color:var(--brass);}
-  .course-row-stars .star-empty{color:var(--line);}
-  .course-row-none{font-family:var(--body); font-size:.7rem; color:var(--text-muted);}
+  .course-card-body{padding:.85rem 1rem 1rem; display:flex; flex-direction:column; gap:.45rem; flex:1;}
+  .course-card-name{
+    font-family:var(--display); font-size:1.05rem; font-weight:800; color:var(--ink);
+    text-decoration:none; line-height:1.25;
+  }
+  .course-card-name:hover{text-decoration:underline;}
+  .course-card-loc{font-family:var(--body); font-size:.72rem; color:var(--text-muted);}
+  .course-card-stars{font-family:var(--body); font-size:.82rem; color:var(--brass);}
+  .course-card-stars .star-empty{color:var(--line);}
+  .course-card-none{font-family:var(--body); font-size:.72rem; color:var(--text-muted);}
+  .course-card-actions{display:flex; gap:.5rem; flex-wrap:wrap; margin-top:auto; padding-top:.5rem;}
   .course-rate-btn{
     flex-shrink:0; font-family:var(--body); font-size:.68rem; text-transform:uppercase; letter-spacing:.05em;
     padding:.35rem .7rem; border:1.5px solid var(--line); border-radius:999px;
@@ -1368,6 +1384,10 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.8"/><polyline points="12,6 12,12 16,14" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
       Live Scores
     </button>
+    <button class="tab-btn" role="tab" data-section="courses" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4l14 6-9 3v8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      Courses
+    </button>
     <button class="tab-btn" role="tab" data-section="committee" aria-selected="false">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
       Committee
@@ -1470,12 +1490,14 @@
         <div class="event-list" id="event-list"></div>
         <div id="add-event-slot"></div>
       </div>
-      <div class="courses-col">
-        <p class="eyebrow">Venues</p>
-        <h2 class="section-title">Course Ratings</h2>
-        <div id="courses-panel"></div>
-      </div>
     </div>
+  </section>
+
+  <!-- ============ COURSES ============ -->
+  <section class="section" id="sec-courses" data-section="courses">
+    <p class="eyebrow">Venues</p>
+    <h2 class="section-title">Courses</h2>
+    <div id="courses-panel"></div>
   </section>
 
   <!-- ============ COMMITTEE ============ -->
@@ -1616,6 +1638,9 @@
   <div class="more-drawer" id="more-drawer" role="dialog" aria-label="More pages">
     <div class="more-drawer-handle"></div>
     <div class="more-drawer-grid">
+      <button class="md-item" onclick="goTo('courses'); closeMoreDrawer(); setBottomNav('courses');">
+        <svg viewBox="0 0 24 24"><path d="M5 21V4l14 6-9 3v8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Courses
+      </button>
       <button class="md-item" onclick="goTo('committee'); closeMoreDrawer(); setBottomNav('committee');">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>Committee
       </button>
@@ -2281,6 +2306,7 @@ function goTo(sectionName, opts){
     setTimeout(() => eventsMapInstance.invalidateSize(), 0);
   }
   if (sectionName === 'scores') openLiveScores();
+  if (sectionName === 'courses') renderCoursesPanel();
   if (sectionName === 'leaderboard'){ goTo('scores'); return; }
   if (sectionName === 'groupings') renderGroupings();
   if (sectionName === 'accounts'){
@@ -6911,6 +6937,7 @@ async function saveNewCourseFromEvent(eventId){
   if (newCourseForm) newCourseForm.style.display = 'none';
   setStatus('');
   renderCoursesPanel();
+  autoSetupGpsForCourse(data);
 }
 
 function onTrophySelected(eventId){
@@ -7007,10 +7034,99 @@ async function submitRating(courseId, eventId){
   renderEvents();
 }
 
-/* courses panel */
+/* courses panel — dedicated Courses page (own top-level nav item, not
+   tucked into Events): browse/rate courses, see a real scorecard (par,
+   yardage, stroke index per hole) once one exists, and — admin only — a
+   single "Manage course data" entry point per course covering both the
+   scorecard and the GPS pins used for live distance-to-green in scoring.
+   Those are two genuinely separate concerns sharing the same underlying
+   shared/cross-society gps_courses+course_holes tables (see CLAUDE.md). */
 const editingCourseIds = new Set();
 
 let expandedRatingCourseId = null;
+let expandedScorecardCourseId = null;
+
+/* Transient per-course auto-import status ('checking'|'importing'|'done'|
+   'no_data'|'error') — only tracked while a lookup is actually in flight or
+   just finished this session; the steady-state badge below is otherwise
+   derived straight from the data (does this course have real GPS pins?). */
+let courseGpsAutoStatus = {};
+
+/* Runs automatically the moment a course gets a postcode with no shared
+   GPS/scorecard record linked yet — no admin needs to visit "Manage course
+   data" for the common case. Looks for an existing shared match by name
+   first (no point re-importing a course another society already has),
+   otherwise imports fresh from OpenStreetMap. Best-effort and silent on
+   failure beyond the status badge — "Manage course data" is always there
+   as the fallback for a course OSM has nothing for. */
+async function autoSetupGpsForCourse(course){
+  if (!db || !course.postcode || course.gps_course_id) return;
+  courseGpsAutoStatus[course.id] = 'checking';
+  renderCoursesPanel();
+
+  const nameLower = course.name.trim().toLowerCase();
+  const existingMatch = gpsCourses.find(g => g.name.trim().toLowerCase() === nameLower);
+  if (existingMatch){
+    await linkGpsCourse(course.id, existingMatch.id);
+    courseGpsAutoStatus[course.id] = 'done';
+    renderCoursesPanel();
+    return;
+  }
+
+  courseGpsAutoStatus[course.id] = 'importing';
+  renderCoursesPanel();
+  await importGpsCourseFromOsm(course.id);
+  const c = courses.find(x => x.id === course.id);
+  courseGpsAutoStatus[course.id] = (c && c.gps_course_id) ? 'done' : 'no_data';
+  renderCoursesPanel();
+}
+
+function courseGpsStatusBadgeHtml(course){
+  const status = courseGpsAutoStatus[course.id];
+  if (status === 'checking' || status === 'importing'){
+    return `<div class="course-card-none">⏳ ${status === 'checking' ? 'Checking for existing GPS data…' : 'Importing GPS data from OpenStreetMap…'}</div>`;
+  }
+  const holes = course.gps_course_id ? courseHoles.filter(h => h.gps_course_id === course.gps_course_id) : [];
+  const hasGps = holes.some(h => h.green_lat != null);
+  if (hasGps) return `<div class="course-card-none" style="color:#4a7a3c;">📍 GPS distances available (${holes.filter(h=>h.green_lat!=null).length}/${holes.length||18} holes)</div>`;
+  if (status === 'no_data') return `<div class="course-card-none">⚠️ No GPS data found automatically — add pins under "Manage course data".</div>`;
+  if (status === 'error') return `<div class="course-card-none">⚠️ GPS lookup failed — try again under "Manage course data".</div>`;
+  if (course.gps_course_id) return `<div class="course-card-none">No GPS pins yet.</div>`;
+  return '';
+}
+
+function scorecardHolesFor(course){
+  if (!course.gps_course_id) return [];
+  return courseHoles.filter(h => h.gps_course_id === course.gps_course_id && h.par != null)
+    .sort((a,b) => a.hole_number - b.hole_number);
+}
+
+function scorecardSummaryHtml(course){
+  const holes = scorecardHolesFor(course);
+  if (!holes.length) return '<div class="course-card-none" style="margin-top:.3rem;">No scorecard yet.</div>';
+  const totalPar = holes.reduce((s,h) => s + (h.par||0), 0);
+  const totalYards = holes.reduce((s,h) => s + (h.yardage||0), 0);
+  const open = expandedScorecardCourseId === course.id;
+  const table = open ? `
+    <div style="overflow-x:auto; margin-top:.5rem;">
+      <table style="width:100%; border-collapse:collapse; font-size:.78rem;">
+        <thead><tr style="color:var(--text-muted); text-align:right;">
+          <th style="text-align:left; padding:.2rem .4rem;">Hole</th>
+          ${holes.map(h => `<th style="padding:.2rem .4rem;">${h.hole_number}</th>`).join('')}
+          <th style="padding:.2rem .4rem; font-weight:800;">Tot</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="text-align:left; padding:.2rem .4rem; color:var(--text-muted);">Par</td>${holes.map(h => `<td style="padding:.2rem .4rem; text-align:right;">${h.par ?? '–'}</td>`).join('')}<td style="padding:.2rem .4rem; text-align:right; font-weight:800;">${totalPar}</td></tr>
+          <tr><td style="text-align:left; padding:.2rem .4rem; color:var(--text-muted);">Yards</td>${holes.map(h => `<td style="padding:.2rem .4rem; text-align:right;">${h.yardage ?? '–'}</td>`).join('')}<td style="padding:.2rem .4rem; text-align:right; font-weight:800;">${totalYards||'–'}</td></tr>
+        </tbody>
+      </table>
+    </div>` : '';
+  return `
+    <button class="committee-edit-btn" style="margin-top:.4rem;" onclick="expandedScorecardCourseId=(expandedScorecardCourseId===${course.id}?null:${course.id}); renderCoursesPanel();">
+      ${open ? 'Scorecard ▴' : `Scorecard — Par ${totalPar}${totalYards ? ', ' + totalYards + ' yds' : ''} ▾`}
+    </button>
+    ${table}`;
+}
 
 function renderCoursesPanel(){
   const panel = document.getElementById('courses-panel');
@@ -7030,8 +7146,8 @@ function renderCoursesPanel(){
     const mapsUrl = googleMapsUrl(c.name, c.postcode);
 
     const starsRow = avg !== null
-      ? `<div class="course-row-stars">${[1,2,3,4,5].map(i => `<span class="${i <= Math.round(avg) ? '' : 'star-empty'}">★</span>`).join('')} <span style="color:var(--text-muted); font-size:.68rem;">${avg.toFixed(1)} (${cnt})</span></div>`
-      : `<div class="course-row-none">No ratings yet · ${played} event${played===1?'':'s'}</div>`;
+      ? `<div class="course-card-stars">${[1,2,3,4,5].map(i => `<span class="${i <= Math.round(avg) ? '' : 'star-empty'}">★</span>`).join('')} <span style="color:var(--text-muted); font-size:.68rem;">${avg.toFixed(1)} (${cnt})</span></div>`
+      : `<div class="course-card-none">No ratings yet · ${played} event${played===1?'':'s'}</div>`;
 
     const ratingKey = 'course-' + c.id;
     const ratingStateC = ratingState[ratingKey] || {};
@@ -7072,30 +7188,41 @@ function renderCoursesPanel(){
         </div>
       </div>` : '';
 
+    const holes = scorecardHolesFor(c);
+    const totalPar = holes.reduce((s,h) => s + (h.par||0), 0);
+    const parBadge = holes.length ? `<span class="course-card-par-badge">${holes.length} holes · Par ${totalPar}</span>` : '';
+
     return `
-      <div class="course-row-wrap">
-        <div class="course-row">
-          <div class="course-row-info">
-            <a class="course-row-name" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation();">${c.name} ↗</a>
-            ${starsRow}
-          </div>
-          <button class="course-rate-btn ${ratingOpen?'open':''}" onclick="expandedRatingCourseId=(expandedRatingCourseId==='${c.id}'?null:'${c.id}'); renderCoursesPanel();">
-            ${ratingOpen ? 'Rate ▴' : 'Rate'}
-          </button>
-          ${isLoggedIn ? `<button class="committee-edit-btn" onclick="toggleCourseEdit(${c.id})">${isEditing?'✕':'Edit'}</button>` : ''}
-          ${isLoggedIn ? `<button class="committee-edit-btn" onclick="toggleGpsSetup(${c.id})">${gpsSetupCourseId===c.id ? 'GPS ▴' : (c.gps_course_id ? '📍 GPS set up' : '📍 Set up GPS & scorecard')}</button>` : ''}
+      <div class="course-card">
+        <div class="course-card-banner">
+          ${parBadge}
+          <svg viewBox="0 0 24 24"><path d="M5 21V4l14 6-9 3v8" stroke-linejoin="round"/></svg>
         </div>
-        ${rateForm}
-        ${editForm}
-        ${isLoggedIn && gpsSetupCourseId===c.id ? gpsSetupPanelHtml(c) : ''}
+        <div class="course-card-body">
+          <a class="course-card-name" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation();">${c.name} ↗</a>
+          ${c.postcode ? `<div class="course-card-loc">${escapeHtml(c.postcode)}</div>` : ''}
+          ${starsRow}
+          ${scorecardSummaryHtml(c)}
+          ${courseGpsStatusBadgeHtml(c)}
+          ${rateForm}
+          ${editForm}
+          ${isLoggedIn && gpsSetupCourseId===c.id ? gpsSetupPanelHtml(c) : ''}
+          <div class="course-card-actions">
+            <button class="course-rate-btn ${ratingOpen?'open':''}" onclick="expandedRatingCourseId=(expandedRatingCourseId==='${c.id}'?null:'${c.id}'); renderCoursesPanel();">
+              ${ratingOpen ? 'Rate ▴' : 'Rate'}
+            </button>
+            ${isLoggedIn ? `<button class="committee-edit-btn" onclick="toggleCourseEdit(${c.id})">${isEditing?'✕':'Edit'}</button>` : ''}
+            ${isLoggedIn ? `<button class="committee-edit-btn" onclick="toggleGpsSetup(${c.id})">${gpsSetupCourseId===c.id ? 'Manage ▴' : 'Manage course data'}</button>` : ''}
+          </div>
+        </div>
       </div>`;
   }).join('');
 
   panel.innerHTML = `
     <div class="courses-panel">
-      <p style="font-size:.82rem; color:var(--text-muted); margin:0 0 .6rem;">Ranked by member rating. Click a name to open in Google Maps.</p>
-      <div class="course-list">${rows || '<p class="muted">No courses yet.</p>'}</div>
-      ${isLoggedIn ? `<button class="add-item-btn" style="margin-top:.8rem;" onclick="openAddCourseForm()">+ Add course</button>
+      <p style="font-size:.82rem; color:var(--text-muted); margin:0 0 .8rem;">Ranked by member rating. Click a name to open in Google Maps — tap Scorecard for par and yardage where it's been added.</p>
+      <div class="course-card-grid">${rows || '<p class="muted">No courses yet.</p>'}</div>
+      ${isLoggedIn ? `<button class="add-item-btn" style="margin-top:1rem;" onclick="openAddCourseForm()">+ Add course</button>
       <div id="add-course-panel"></div>` : ''}
     </div>`;
 }
@@ -7129,10 +7256,18 @@ function gpsSetupPanelHtml(course){
     const gc = gpsCourses.find(g => g.id === course.gps_course_id);
     return `
       <div class="edit-form" style="margin:.5rem 0;">
-        <h4>GPS &amp; scorecard — ${escapeHtml(gc ? gc.name : course.name)}</h4>
+        <h4>Manage course data — ${escapeHtml(gc ? gc.name : course.name)}</h4>
         <p class="muted" style="font-size:.8rem; margin:0 0 .6rem;">Shared platform-wide — a correction here is visible to every society linked to this same course.</p>
-        ${gpsHoleEditorHtml(course.gps_course_id)}
-        <button class="delete-btn" style="margin-top:.6rem;" onclick="unlinkGpsCourse(${course.id})">Unlink this course's GPS data</button>
+
+        <h5 style="margin:.8rem 0 .2rem;">Scorecard</h5>
+        <p class="muted" style="font-size:.76rem; margin:0 0 .4rem;">Par, yardage and stroke index — what players see when browsing this course, and what net-Stableford scoring needs.</p>
+        ${scorecardEditorHtml(course.gps_course_id)}
+
+        <h5 style="margin:1rem 0 .2rem;">GPS pins</h5>
+        <p class="muted" style="font-size:.76rem; margin:0 0 .4rem;">Green location per hole — only used for the live distance readout while scoring. Import gets you most of the way; fix anything by hand below.</p>
+        ${gpsPinsEditorHtml(course.gps_course_id)}
+
+        <button class="delete-btn" style="margin-top:.6rem;" onclick="unlinkGpsCourse(${course.id})">Unlink this course's data</button>
       </div>`;
   }
 
@@ -7141,8 +7276,8 @@ function gpsSetupPanelHtml(course){
 
   return `
     <div class="edit-form" style="margin:.5rem 0;">
-      <h4>Set up GPS &amp; scorecard</h4>
-      <p class="muted" style="font-size:.8rem; margin:0 0 .6rem;">Course GPS/par/stroke-index data is shared across every society on the platform — check for an existing match first, then import from OpenStreetMap, or add it by hand.</p>
+      <h4>Manage course data</h4>
+      <p class="muted" style="font-size:.8rem; margin:0 0 .6rem;">Scorecard (par/yardage/stroke index) and GPS pins (green location) are both shared across every society on the platform — check for an existing match first, then import from OpenStreetMap, or add it by hand.</p>
 
       <label style="font-size:.8rem;">Search for an existing course</label>
       <input placeholder="e.g. Studley Wood" value="${escapeHtml(gpsSetupSearch)}"
@@ -7278,46 +7413,26 @@ async function importGpsCourseFromOsm(courseId){
   }
 }
 
-function gpsHoleEditorHtml(gpsCourseId){
-  const holes = courseHoles.filter(h => h.gps_course_id === gpsCourseId).sort((a,b) => a.hole_number - b.hole_number);
-  const rows = Array.from({length:18}, (_,i) => i+1).map(n => {
-    const h = holes.find(x => x.hole_number === n);
-    return `
-      <div style="display:grid; grid-template-columns:2rem 4.5rem 4.5rem 6rem 6rem auto; gap:.35rem; align-items:end; margin-bottom:.3rem;">
-        <div style="font-size:.75rem; font-weight:700; padding-bottom:.5rem;">${n}</div>
-        <div><label style="font-size:.65rem;">Par</label><input type="number" id="gh-par-${gpsCourseId}-${n}" value="${h && h.par!=null ? h.par : ''}"></div>
-        <div><label style="font-size:.65rem;">Stroke idx</label><input type="number" id="gh-si-${gpsCourseId}-${n}" value="${h && h.stroke_index!=null ? h.stroke_index : ''}"></div>
-        <div><label style="font-size:.65rem;">Green lat</label><input type="number" step="0.00001" id="gh-lat-${gpsCourseId}-${n}" value="${h && h.green_lat!=null ? h.green_lat : ''}"></div>
-        <div><label style="font-size:.65rem;">Green lng</label><input type="number" step="0.00001" id="gh-lng-${gpsCourseId}-${n}" value="${h && h.green_lng!=null ? h.green_lng : ''}"></div>
-        <button class="committee-edit-btn" onclick="saveCourseHole(${gpsCourseId}, ${n})">Save</button>
-      </div>`;
-  }).join('');
-  return `<div style="max-height:22rem; overflow-y:auto; margin:.5rem 0;">${rows}</div>
-    <div class="edit-status" id="gh-status-${gpsCourseId}"></div>`;
+/* Base payload for a course_holes upsert that preserves every field this
+   particular editor doesn't own — the scorecard editor never touches GPS
+   fields and vice versa, so each save reads the existing row first and
+   only overwrites its own columns. */
+function courseHoleBasePayload(gpsCourseId, holeNumber){
+  const existing = courseHoles.find(h => h.gps_course_id === gpsCourseId && h.hole_number === holeNumber);
+  return {
+    existing,
+    payload: {
+      gps_course_id: gpsCourseId, hole_number: holeNumber,
+      par: existing?.par ?? null, stroke_index: existing?.stroke_index ?? null, yardage: existing?.yardage ?? null,
+      green_lat: existing?.green_lat ?? null, green_lng: existing?.green_lng ?? null,
+      green_polygon: existing?.green_polygon ?? null, tee_lat: existing?.tee_lat ?? null, tee_lng: existing?.tee_lng ?? null,
+      source: existing?.source ?? 'manual',
+    },
+  };
 }
 
-async function saveCourseHole(gpsCourseId, holeNumber){
-  if (!db) return;
-  const gv2 = id => { const el = document.getElementById(id); const v = el ? el.value.trim() : ''; return v === '' ? null : Number(v); };
-  const par = gv2(`gh-par-${gpsCourseId}-${holeNumber}`);
-  const stroke_index = gv2(`gh-si-${gpsCourseId}-${holeNumber}`);
-  const green_lat = gv2(`gh-lat-${gpsCourseId}-${holeNumber}`);
-  const green_lng = gv2(`gh-lng-${gpsCourseId}-${holeNumber}`);
-  const existing = courseHoles.find(h => h.gps_course_id === gpsCourseId && h.hole_number === holeNumber);
-  const statusEl = document.getElementById(`gh-status-${gpsCourseId}`);
+async function upsertCourseHole(payload, existing, statusEl){
   if (statusEl){ statusEl.textContent = 'Saving…'; statusEl.className = 'edit-status'; }
-
-  const payload = { gps_course_id: gpsCourseId, hole_number: holeNumber, par, stroke_index, green_lat, green_lng, source: 'manual' };
-  // Manual edits replace only the point — a hand-typed lat/lng is a single
-  // pin, never a full boundary, so front/back collapses to that one point
-  // (see gpsDistancesFor) rather than keeping a stale imported polygon that
-  // no longer matches a manually-moved pin.
-  if (existing && existing.green_polygon && green_lat === existing.green_lat && green_lng === existing.green_lng){
-    payload.green_polygon = existing.green_polygon;
-  } else {
-    payload.green_polygon = null;
-  }
-
   try {
     const { data, error } = await db.from('course_holes').upsert(payload, { onConflict: 'gps_course_id,hole_number' }).select().single();
     if (error) throw error;
@@ -7328,6 +7443,71 @@ async function saveCourseHole(gpsCourseId, holeNumber){
     console.error(err);
     if (statusEl){ statusEl.textContent = 'Save failed — please try again.'; statusEl.className = 'edit-status error'; }
   }
+}
+
+/* ---- Scorecard: par, yardage, stroke index — what players see + what
+   net-Stableford scoring needs. Has nothing to do with GPS pins below. ---- */
+function scorecardEditorHtml(gpsCourseId){
+  const holes = courseHoles.filter(h => h.gps_course_id === gpsCourseId).sort((a,b) => a.hole_number - b.hole_number);
+  const rows = Array.from({length:18}, (_,i) => i+1).map(n => {
+    const h = holes.find(x => x.hole_number === n);
+    return `
+      <div style="display:grid; grid-template-columns:2rem 4.5rem 4.5rem 4.5rem auto; gap:.35rem; align-items:end; margin-bottom:.3rem;">
+        <div style="font-size:.75rem; font-weight:700; padding-bottom:.5rem;">${n}</div>
+        <div><label style="font-size:.65rem;">Par</label><input type="number" id="sc-par-${gpsCourseId}-${n}" value="${h && h.par!=null ? h.par : ''}"></div>
+        <div><label style="font-size:.65rem;">Yards</label><input type="number" id="sc-yd-${gpsCourseId}-${n}" value="${h && h.yardage!=null ? h.yardage : ''}"></div>
+        <div><label style="font-size:.65rem;">Stroke idx</label><input type="number" id="sc-si-${gpsCourseId}-${n}" value="${h && h.stroke_index!=null ? h.stroke_index : ''}"></div>
+        <button class="committee-edit-btn" onclick="saveScorecardHole(${gpsCourseId}, ${n})">Save</button>
+      </div>`;
+  }).join('');
+  return `<div style="max-height:18rem; overflow-y:auto; margin:.5rem 0;">${rows}</div>
+    <div class="edit-status" id="sc-status-${gpsCourseId}"></div>`;
+}
+
+async function saveScorecardHole(gpsCourseId, holeNumber){
+  if (!db) return;
+  const gv2 = id => { const el = document.getElementById(id); const v = el ? el.value.trim() : ''; return v === '' ? null : Number(v); };
+  const { existing, payload } = courseHoleBasePayload(gpsCourseId, holeNumber);
+  payload.par = gv2(`sc-par-${gpsCourseId}-${holeNumber}`);
+  payload.yardage = gv2(`sc-yd-${gpsCourseId}-${holeNumber}`);
+  payload.stroke_index = gv2(`sc-si-${gpsCourseId}-${holeNumber}`);
+  await upsertCourseHole(payload, existing, document.getElementById(`sc-status-${gpsCourseId}`));
+}
+
+/* ---- GPS pins: green location only — used purely for the live
+   distance-to-green readout while scoring, never shown to a browsing player. ---- */
+function gpsPinsEditorHtml(gpsCourseId){
+  const holes = courseHoles.filter(h => h.gps_course_id === gpsCourseId).sort((a,b) => a.hole_number - b.hole_number);
+  const rows = Array.from({length:18}, (_,i) => i+1).map(n => {
+    const h = holes.find(x => x.hole_number === n);
+    const hasPolygon = h && h.green_polygon;
+    return `
+      <div style="display:grid; grid-template-columns:2rem 6rem 6rem auto; gap:.35rem; align-items:end; margin-bottom:.3rem;">
+        <div style="font-size:.75rem; font-weight:700; padding-bottom:.5rem;">${n}${hasPolygon ? ' 📍' : ''}</div>
+        <div><label style="font-size:.65rem;">Green lat</label><input type="number" step="0.00001" id="gp-lat-${gpsCourseId}-${n}" value="${h && h.green_lat!=null ? h.green_lat : ''}"></div>
+        <div><label style="font-size:.65rem;">Green lng</label><input type="number" step="0.00001" id="gp-lng-${gpsCourseId}-${n}" value="${h && h.green_lng!=null ? h.green_lng : ''}"></div>
+        <button class="committee-edit-btn" onclick="saveGpsPin(${gpsCourseId}, ${n})">Save</button>
+      </div>`;
+  }).join('');
+  return `<div style="max-height:18rem; overflow-y:auto; margin:.5rem 0;">${rows}</div>
+    <p class="muted" style="font-size:.7rem; margin:.2rem 0 0;">📍 = has a full green boundary from OpenStreetMap (front/back distances). Typing a new lat/lng here always replaces it with a single point.</p>
+    <div class="edit-status" id="gp-status-${gpsCourseId}"></div>`;
+}
+
+async function saveGpsPin(gpsCourseId, holeNumber){
+  if (!db) return;
+  const gv2 = id => { const el = document.getElementById(id); const v = el ? el.value.trim() : ''; return v === '' ? null : Number(v); };
+  const { existing, payload } = courseHoleBasePayload(gpsCourseId, holeNumber);
+  const green_lat = gv2(`gp-lat-${gpsCourseId}-${holeNumber}`);
+  const green_lng = gv2(`gp-lng-${gpsCourseId}-${holeNumber}`);
+  payload.green_lat = green_lat;
+  payload.green_lng = green_lng;
+  payload.source = 'manual';
+  // A hand-typed lat/lng is always a single point, never a full boundary —
+  // keep the imported polygon only if this save didn't actually move the pin.
+  payload.green_polygon = (existing && existing.green_polygon && green_lat === existing.green_lat && green_lng === existing.green_lng)
+    ? existing.green_polygon : null;
+  await upsertCourseHole(payload, existing, document.getElementById(`gp-status-${gpsCourseId}`));
 }
 async function saveCourse(id){
   const setStatus = (msg, kind) => { const el = document.getElementById('cc-status-'+id); if(el){el.textContent=msg; el.className='edit-status '+(kind||'');} };
@@ -7340,6 +7520,7 @@ async function saveCourse(id){
   const c = courses.find(x => x.id===id); if(c) Object.assign(c, payload);
   editingCourseIds.delete(id);
   renderCoursesPanel(); renderEvents();
+  if (c) autoSetupGpsForCourse(c);
 }
 async function deleteCourse(id){
   if (!confirm('Delete this course from the library? Events linked to it will keep their course name but lose the library link.')) return;
@@ -7379,6 +7560,7 @@ async function saveNewCourseLibrary(){
   if (error){ console.error(error); setStatus('Save failed.','error'); return; }
   courses.push(data); courses.sort((a,b) => a.name.localeCompare(b.name));
   renderCoursesPanel();
+  autoSetupGpsForCourse(data);
 }
 
 /* ===================== payments ===================== */
