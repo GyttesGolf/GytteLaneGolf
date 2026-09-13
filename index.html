@@ -7252,12 +7252,10 @@ function toggleCourseEdit(id){
    tables, so a correction one society makes benefits every society linked
    to the same gps_course_id. */
 let gpsSetupCourseId = null;
-let gpsSetupSearch = '';
 let gpsImportStatus = '';
 
 function toggleGpsSetup(courseId){
   gpsSetupCourseId = gpsSetupCourseId === courseId ? null : courseId;
-  gpsSetupSearch = '';
   gpsImportStatus = '';
   renderCoursesPanel();
 }
@@ -7282,27 +7280,23 @@ function gpsSetupPanelHtml(course){
       </div>`;
   }
 
-  const q = gpsSetupSearch.trim().toLowerCase();
-  const matches = q ? gpsCourses.filter(g => g.name.toLowerCase().includes(q)) : [];
-
+  // No search box here on purpose — this only ever reaches an admin once
+  // autoSetupGpsForCourse() has already tried (and failed to find or
+  // import) a match using the postcode automatically the moment it was
+  // added. This is the retry/fallback path, not the primary one.
   return `
     <div class="edit-form" style="margin:.5rem 0;">
       <h4>Manage course data</h4>
-      <p class="muted" style="font-size:.8rem; margin:0 0 .6rem;">Scorecard (par/yardage/stroke index) and GPS pins (green location) are both shared across every society on the platform — check for an existing match first, then import from OpenStreetMap, or add it by hand.</p>
+      <p class="muted" style="font-size:.8rem; margin:0 0 .6rem;">Scorecard (par/yardage/stroke index) and GPS pins (green location) are both shared across every society on the platform. This runs automatically when a postcode is added — use this if that didn't find anything, or to make a correction by hand.</p>
 
-      <label style="font-size:.8rem;">Search for an existing course</label>
-      <input placeholder="e.g. Studley Wood" value="${escapeHtml(gpsSetupSearch)}"
-        oninput="gpsSetupSearch=this.value; renderCoursesPanel();" style="margin-bottom:.5rem;">
-      ${matches.length ? matches.map(g => `
-        <div class="pc-row">
-          <span class="pc-row-label">${escapeHtml(g.name)}${g.postcode ? ' — ' + escapeHtml(g.postcode) : ''}</span>
-          <button class="committee-edit-btn" onclick="linkGpsCourse(${course.id}, ${g.id})">Link</button>
-        </div>`).join('') : (q ? '<p class="muted" style="font-size:.82rem;">No match found.</p>' : '')}
-
-      <div style="margin-top:.8rem; display:flex; gap:.6rem; align-items:center; flex-wrap:wrap;">
-        <button class="btn brass" onclick="importGpsCourseFromOsm(${course.id})">Import from OpenStreetMap</button>
-        <button class="committee-edit-btn" onclick="createManualGpsCourse(${course.id})">Add manually instead</button>
-      </div>
+      ${course.postcode
+        ? `<div style="display:flex; gap:.6rem; align-items:center; flex-wrap:wrap;">
+             <button class="btn brass" onclick="importGpsCourseFromOsm(${course.id})">Import course data</button>
+             <button class="committee-edit-btn" onclick="createManualGpsCourse(${course.id})">Add manually instead</button>
+           </div>
+           <p class="muted" style="font-size:.72rem; margin:.4rem 0 0;">Uses this course's postcode (${escapeHtml(course.postcode)}) to search OpenStreetMap.</p>`
+        : `<p class="muted" style="font-size:.82rem;">Add a postcode to this course first (under Edit) — that's what the automatic lookup searches with.</p>
+           <button class="committee-edit-btn" style="margin-top:.4rem;" onclick="createManualGpsCourse(${course.id})">Add manually instead</button>`}
       <div class="edit-status ${gpsImportStatus.startsWith('Error') ? 'error' : ''}" style="margin-top:.4rem;">${escapeHtml(gpsImportStatus)}</div>
     </div>`;
 }
