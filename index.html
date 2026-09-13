@@ -1239,6 +1239,47 @@
     display:flex; align-items:center; gap:.5rem; flex-shrink:0; font-size:.8rem; font-weight:700;
     color:#8FE3A9;
   }
+  .gps-card{
+    margin:0 1rem .8rem; padding:.75rem .85rem; border-radius:1rem; flex-shrink:0;
+    border:1px solid rgba(227,193,115,.28); background:rgba(250,248,242,.04);
+    display:flex; flex-direction:column; gap:.5rem;
+  }
+  .gps-head{display:flex; align-items:center; gap:.35rem; font-size:.65rem; letter-spacing:.08em; text-transform:uppercase; color:var(--brass-light); opacity:.85;}
+  .gps-row{display:flex; justify-content:space-between; align-items:baseline;}
+  .gps-yard{flex:1; text-align:center;}
+  .gps-yard .n{font-family:var(--display); font-weight:800; font-variant-numeric:tabular-nums;}
+  .gps-yard.center .n{font-size:1.9rem; color:var(--brass-light);}
+  .gps-yard.front .n, .gps-yard.back .n{font-size:1.1rem; color:rgba(250,248,242,.75);}
+  .gps-yard .lbl{font-size:.6rem; letter-spacing:.08em; text-transform:uppercase; color:rgba(250,248,242,.5); margin-top:.1rem;}
+  .gps-live{font-size:.62rem; color:rgba(250,248,242,.4); text-align:center;}
+  .gps-live .dot-live{display:inline-block; width:5px; height:5px; border-radius:50%; background:#5FC77E; margin-right:.3rem;}
+
+  .fmt-toggle{display:flex; justify-content:center; gap:.4rem; margin:0 1rem .6rem; flex-shrink:0;}
+  .fmt-toggle button{font-size:.62rem; font-weight:700; padding:.32rem .7rem; border-radius:999px; border:1px solid rgba(250,248,242,.18); background:none; color:rgba(250,248,242,.6); cursor:pointer;}
+  .fmt-toggle button.active{background:rgba(227,193,115,.16); border-color:var(--brass-light); color:var(--brass-light);}
+
+  .fp-strokes{display:flex; align-items:center; justify-content:center; gap:.9rem;}
+  .fp-strokes .stroke-btn{width:2.4rem; height:2.4rem; border-radius:50%; border:1px solid rgba(250,248,242,.22); background:rgba(250,248,242,.07); color:var(--paper); font-size:1.1rem; cursor:pointer;}
+  .fp-strokes .stroke-val{text-align:center; min-width:4.6rem;}
+  .fp-strokes .stroke-val .n{font-family:var(--display); font-size:1.7rem; font-weight:800; font-variant-numeric:tabular-nums;}
+  .fp-strokes .stroke-val .l{font-size:.58rem; letter-spacing:.08em; text-transform:uppercase; color:rgba(250,248,242,.5);}
+  .fp-net-line{text-align:center; font-size:.72rem; color:rgba(250,248,242,.65); margin-top:.5rem; padding-top:.5rem; border-top:1px dashed rgba(250,248,242,.12);}
+  .fp-net-line b{color:var(--brass-light); font-size:.9rem;}
+
+  .hcp-confirm-wrap{flex:1; display:flex; flex-direction:column; justify-content:flex-end; padding:0 1rem calc(env(safe-area-inset-bottom) + 1.1rem);}
+  .hcp-confirm-sheet{background:var(--paper); color:var(--text); border-radius:1.1rem 1.1rem 0 0; padding:1.2rem 1.1rem 1.4rem; box-shadow:0 -10px 30px rgba(0,0,0,.35);}
+  .hcp-confirm-sheet h3{font-family:var(--display); font-size:1.05rem; margin:0 0 .2rem; color:var(--ink);}
+  .hcp-confirm-sheet p.sub{margin:0 0 .9rem; font-size:.78rem; color:var(--text-muted); line-height:1.4;}
+  .hcp-tag{display:inline-block; font-size:.6rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:.2rem .55rem; border-radius:999px; background:color-mix(in srgb, var(--brass) 18%, transparent); color:#8a6416;}
+  .hcp-display{display:flex; align-items:center; justify-content:center; gap:.6rem; background:var(--stone); border:1px solid var(--line); border-radius:.75rem; padding:.75rem; margin:.6rem 0 .9rem;}
+  .hcp-display input{width:5rem; text-align:center; font-family:var(--display); font-size:1.4rem; font-weight:800; color:var(--ink); border:1px solid var(--line); border-radius:.5rem; padding:.2rem;}
+  .hcp-display .u{font-size:.65rem; color:var(--text-muted); letter-spacing:.05em; text-transform:uppercase;}
+  .hcp-confirm-actions{display:flex; gap:.6rem;}
+  .hcp-confirm-actions button{flex:1; padding:.7rem; border-radius:.75rem; font-family:var(--body); font-size:.8rem; font-weight:700; border:1px solid var(--claret); cursor:pointer;}
+  .hcp-confirm-actions .btn-confirm{background:var(--claret); color:#fff; border:none;}
+  .hcp-confirm-actions .btn-edit{background:none; color:var(--claret);}
+  .hcp-shared-note{font-size:.68rem; color:var(--text-muted); margin-top:.7rem; line-height:1.4;}
+
   .frozen-banner{
     margin:0 1rem .8rem; padding:.7rem .85rem; border-radius:.85rem;
     background:rgba(184,134,47,.16); border:1px solid rgba(227,193,115,.4);
@@ -1857,6 +1898,8 @@ let allScorecards = [];
 let allHoleScores = [];
 let courses = [];
 let courseRatings = [];
+let gpsCourses = [];   // shared platform-wide, not society-scoped
+let courseHoles = [];  // shared platform-wide, not society-scoped
 let ratingState = {};
 let societyPaymentDetails = null;
 let eventPayments = [];
@@ -2060,6 +2103,24 @@ async function loadData(){
     console.warn('Courses not available yet (run add-courses.sql):', err);
     courses = [];
     courseRatings = [];
+  }
+
+  /* gps_courses/course_holes are shared platform-wide reference data, not
+     scoped to this society — every society benefits from the same imported
+     GPS/scorecard data for a physical course. Small tables (a handful of
+     courses × up to 18 holes each), safe to load in full. */
+  try {
+    const [gcRes, chRes] = await Promise.all([
+      db.from('gps_courses').select('*'),
+      db.from('course_holes').select('*'),
+    ]);
+    if (gcRes.error || chRes.error) throw (gcRes.error || chRes.error);
+    gpsCourses = gcRes.data || [];
+    courseHoles = chRes.data || [];
+  } catch(err){
+    console.warn('GPS course data not available yet:', err);
+    gpsCourses = [];
+    courseHoles = [];
   }
 
   /* payment details — member-only via RLS; anonymous/non-member sessions
@@ -2424,6 +2485,14 @@ function eventDetailHtml(e){
           <div>
             <label>Format</label>
             <input id="ef-format-${e.id}" value="${escapeHtml(e.format||'')}">
+          </div>
+          <div>
+            <label>Scoring format <span style="font-family:var(--body); font-size:.7rem; color:var(--text-muted); font-weight:normal;">(drives how scores are recorded &amp; ranked)</span></label>
+            <select id="ef-scoringformat-${e.id}">
+              <option value="stableford" ${(e.scoring_format||'stableford')==='stableford'?'selected':''}>Stableford</option>
+              <option value="strokes" ${e.scoring_format==='strokes'?'selected':''}>Stroke Play</option>
+              <option value="match_play" ${e.scoring_format==='match_play'?'selected':''}>Match Play</option>
+            </select>
           </div>
           <div>
             <label>Postcode</label>
@@ -2974,6 +3043,7 @@ async function saveEvent(eventId){
     course: courseName,
     course_id: selectedCourse ? selectedCourse.id : null,
     format: gv('ef-format-' + eventId),
+    scoring_format: gv('ef-scoringformat-' + eventId) || 'stableford',
     postcode: coursePostcode,
     status: gv('ef-status-' + eventId),
     trophy: gv('ef-trophy-' + eventId) || null,
@@ -4077,6 +4147,13 @@ function renderPlayers(){
           <div><label>Last name</label><input id="ep-lname-${p.id}" value="${escapeHtml(p.last_name)}"></div>
           <div><label>Email</label><input type="email" id="ep-email-${p.id}" value="${(p.email||'').replace(/"/g,'&quot;')}"></div>
           <div><label>Handicap</label><input type="number" step="0.1" id="ep-hcap-${p.id}" value="${p.handicap??''}"></div>
+          <div class="full">
+            <label>Handicap mode <span style="font-family:var(--body); font-size:.7rem; color:var(--text-muted); font-weight:normal;">(shared = one official handicap synced across every society they play in; override = this society runs its own number for them)</span></label>
+            <select id="ep-hcapsrc-${p.id}">
+              <option value="shared" ${(p.handicap_source||'shared')==='shared'?'selected':''}>Shared (official)</option>
+              <option value="override" ${p.handicap_source==='override'?'selected':''}>Override — just for this society</option>
+            </select>
+          </div>
           <div class="full" style="display:flex;align-items:center;gap:.6rem;">
             <input type="checkbox" id="ep-active-${p.id}" ${p.active!==false?'checked':''} style="width:16px;height:16px;accent-color:var(--bracken);">
             <label for="ep-active-${p.id}" style="font-size:.85rem;">Active member</label>
@@ -4170,7 +4247,64 @@ function myAccountPlayer(){
   return players.find(p => p.email && p.email.toLowerCase() === currentUserEmail.toLowerCase());
 }
 
+let myAccountHandicapHistory = [];
+let myAccountOtherSocieties = [];
+let myAccountHandicapLoadedFor = null;
+
+/* Handicap history + "which other societies share this value" are both
+   cross-society lookups (by user_id, not society_id) — loaded lazily on
+   first view of the Profile tab rather than in loadData(), since most
+   sessions never open My Account at all. */
+async function loadMyAccountHandicapInfo(p){
+  if (!db || !p.user_id) return;
+  myAccountHandicapLoadedFor = p.id;
+  try {
+    const [histRes, othersRes] = await Promise.all([
+      db.from('handicap_history').select('*').eq('user_id', p.user_id).order('recorded_at', { ascending: false }).limit(20),
+      db.from('players').select('id,society_id').eq('user_id', p.user_id).neq('id', p.id),
+    ]);
+    myAccountHandicapHistory = histRes.data || [];
+    const otherPlayers = othersRes.data || [];
+    const societyIds = [...new Set(otherPlayers.map(x => x.society_id))];
+    let socNames = {};
+    if (societyIds.length){
+      const { data: socs } = await db.from('societies').select('id,name').in('id', societyIds);
+      (socs || []).forEach(s => { socNames[s.id] = s.name; });
+    }
+    myAccountOtherSocieties = otherPlayers.map(x => socNames[x.society_id] || 'another society');
+  } catch(err){
+    console.warn('Could not load handicap history:', err);
+    myAccountHandicapHistory = [];
+    myAccountOtherSocieties = [];
+  }
+  renderMyAccount();
+}
+
+function handicapHistoryRowHtml(h){
+  const when = new Date(h.recorded_at).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+  const label = !h.player_id ? 'Official' : (currentSociety ? escapeHtml(currentSociety.name) : 'This society');
+  return `<div class="pc-row">
+    <span class="pc-row-label">${when} <span style="color:var(--text-muted); font-size:.75rem;">${label}</span></span>
+    <span class="pc-row-val">${h.handicap ?? '—'}</span>
+  </div>`;
+}
+
 function myAccountProfileTab(p){
+  const isShared = (p.handicap_source || 'shared') === 'shared';
+  const sharedTag = isShared
+    ? `<span class="membership-pill paid" style="background:color-mix(in srgb, var(--brass) 18%, transparent); color:#8a6416;">Shared / official handicap</span>`
+    : `<span class="membership-pill" style="background:color-mix(in srgb, var(--claret) 14%, transparent); color:var(--claret);">Override for this society</span>`;
+  const sharedNote = isShared && myAccountOtherSocieties.length
+    ? `<p class="muted" style="font-size:.78rem; margin:.4rem 0 0;">You also play at ${myAccountOtherSocieties.map(escapeHtml).join(', ')} — since your handicap is shared, saving it here updates it there too.</p>`
+    : (!isShared ? `<p class="muted" style="font-size:.78rem; margin:.4rem 0 0;">This society runs its own handicap for you — saving it here only affects ${currentSociety ? escapeHtml(currentSociety.name) : 'this society'}.</p>` : '');
+
+  const historyList = myAccountHandicapHistory.length
+    ? myAccountHandicapHistory.map(handicapHistoryRowHtml).join('')
+    : '<p class="muted" style="font-size:.85rem;">No changes recorded yet.</p>';
+  const historySection = p.user_id
+    ? `<h4 style="margin:1.2rem 0 .5rem;">Handicap history</h4>${historyList}`
+    : '';
+
   return `
     <div class="edit-form">
       <div class="edit-form-grid">
@@ -4178,6 +4312,7 @@ function myAccountProfileTab(p){
         <div><label>Last name</label><input value="${escapeHtml(p.last_name)}" disabled></div>
         <div class="full"><label>Email</label><input type="email" id="my-email-input" value="${(p.email||'').replace(/"/g,'&quot;')}"></div>
         <div><label>Handicap</label><input type="number" step="0.1" id="my-handicap-input" value="${p.handicap??''}"></div>
+        <div class="full">${sharedTag}${sharedNote}</div>
       </div>
       <p class="muted" style="font-size:.8rem; margin:.5rem 0 0;">Need to change your name? Contact your captain — they keep the roster accurate.</p>
       <div class="edit-form-actions">
@@ -4185,6 +4320,7 @@ function myAccountProfileTab(p){
         <div class="edit-status" id="my-profile-status"></div>
       </div>
     </div>
+    ${historySection}
     <button class="btn ghost sign-out" onclick="memberSignOut()">Sign out</button>`;
 }
 
@@ -4271,7 +4407,10 @@ function renderMyAccount(){
   let body = '';
   if (myAccountSubView === 'signups') body = myAccountSignupsTab(p);
   else if (myAccountSubView === 'history') body = myAccountHistoryTab(p);
-  else body = myAccountProfileTab(p);
+  else {
+    body = myAccountProfileTab(p);
+    if (p.user_id && myAccountHandicapLoadedFor !== p.id) loadMyAccountHandicapInfo(p);
+  }
   el.innerHTML = `
     <p style="font-family:var(--body); font-size:1.1rem; font-weight:700; color:var(--ink); margin-bottom:1rem;">Welcome, ${escapeHtml(p.first_name)}</p>
     ${subTabs}
@@ -4294,15 +4433,16 @@ async function savePlayerEdit(id){
   const last_name  = (document.getElementById('ep-lname-'+id)?.value||'').trim();
   const email      = (document.getElementById('ep-email-'+id)?.value||'').trim()||null;
   const handicap   = document.getElementById('ep-hcap-'+id)?.value !== '' ? Number(document.getElementById('ep-hcap-'+id)?.value) : null;
+  const handicap_source = document.getElementById('ep-hcapsrc-'+id)?.value || 'shared';
   const active     = document.getElementById('ep-active-'+id)?.checked !== false;
   const is_committee = document.getElementById('ep-committee-'+id)?.checked === true;
   if (!first_name || !last_name){ setStatus('First and last name are required.','error'); return; }
   if (email && !isValidEmail(email)){ setStatus('Enter a valid email address (no spaces), or leave it blank.','error'); return; }
   setStatus('Saving\u2026','loading');
-  const { error } = await db.from('players').update({ first_name, last_name, email, handicap, active, is_committee }).eq('id', id);
+  const { error } = await db.from('players').update({ first_name, last_name, email, handicap, handicap_source, active, is_committee }).eq('id', id);
   if (error){ console.error(error); setStatus('Save failed.','error'); return; }
   const p = players.find(x => x.id === id);
-  if (p) Object.assign(p, { first_name, last_name, email, handicap, active, is_committee });
+  if (p) Object.assign(p, { first_name, last_name, email, handicap, handicap_source, active, is_committee });
   editingPlayerIds.delete(id);
   renderPlayers();
 
@@ -4524,6 +4664,84 @@ function renderHighlightsCarousel(){
   };
 }
 
+/* ===================== GPS distances + strokes scoring ===================== */
+/* gps_courses/course_holes are shared platform-wide (see loadData()) — every
+   society benefits from the same imported course data rather than each
+   maintaining its own copy. These helpers resolve from a ROUND's course
+   (via its society-scoped `courses` row's gps_course_id link) down to the
+   actual hole data, and are used by both the GPS distance readout and the
+   strokes/net-Stableford entry in Focus Mode below. */
+function gpsCourseIdForRoundCourse(round, ev){
+  const courseId = round ? round.course_id : (ev && ev.course_id);
+  const c = courseId ? courses.find(x => x.id === courseId) : null;
+  return c ? c.gps_course_id : null;
+}
+function courseHoleFor(round, ev, holeNumber){
+  const gpsCourseId = gpsCourseIdForRoundCourse(round, ev);
+  if (!gpsCourseId) return null;
+  return courseHoles.find(h => h.gps_course_id === gpsCourseId && h.hole_number === holeNumber) || null;
+}
+
+const EARTH_M = 6371000;
+const M_PER_YARD = 0.9144;
+function haversineM(lat1, lng1, lat2, lng2){
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2)**2;
+  return EARTH_M * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+function metersToYards(m){ return Math.round(m / M_PER_YARD); }
+
+/* Front/center/back distance from a player's live position to a hole's
+   green. Center is a straight haversine distance to the stored centre
+   point. Front/back use the green's full boundary polygon (from OSM) when
+   present — project every vertex onto the player→centre line via a flat
+   local-equirectangular approximation (accurate at golf-course scale) and
+   take the nearest/farthest projected point as front/back. No polygon
+   (manual pin, or a hole OSM didn't map fully) → front/back both collapse
+   to the same center distance. */
+function gpsDistancesFor(hole, playerLat, playerLng){
+  if (!hole || hole.green_lat == null || hole.green_lng == null) return null;
+  const centerM = haversineM(playerLat, playerLng, hole.green_lat, hole.green_lng);
+  if (!Array.isArray(hole.green_polygon) || !hole.green_polygon.length){
+    const y = metersToYards(centerM);
+    return { front: y, center: y, back: y };
+  }
+  // Local flat projection: 1 degree lat ~ 111,320m; 1 degree lng scales by cos(lat).
+  const lat0 = playerLat, cosLat = Math.cos(lat0 * Math.PI / 180);
+  const toXY = (lat, lng) => ({ x: (lng - playerLng) * 111320 * cosLat, y: (lat - playerLat) * 111320 });
+  const target = toXY(hole.green_lat, hole.green_lng);
+  const lineLen = Math.hypot(target.x, target.y) || 1;
+  const ux = target.x / lineLen, uy = target.y / lineLen; // unit vector player -> green centre
+  let minProj = Infinity, maxProj = -Infinity;
+  hole.green_polygon.forEach(pt => {
+    const p = toXY(pt.lat, pt.lng);
+    const proj = p.x * ux + p.y * uy; // distance along the sightline
+    if (proj < minProj) minProj = proj;
+    if (proj > maxProj) maxProj = proj;
+  });
+  const front = metersToYards((minProj / 1) < 0 ? 0 : minProj);
+  const back = metersToYards(maxProj);
+  return { front: Math.max(0, front), center: metersToYards(centerM), back: Math.max(0, back) };
+}
+
+/* Standard stroke-index handicap allocation: how many extra shots this
+   player's handicap grants on this specific hole. */
+function holeAllowance(handicap, strokeIndex){
+  if (handicap == null || strokeIndex == null) return 0;
+  const h = Math.round(handicap);
+  return Math.floor(h / 18) + (strokeIndex <= (h % 18) ? 1 : 0);
+}
+/* Net Stableford points for one hole from gross strokes — the same formula
+   used everywhere in this feature (entry screen preview, and whatever gets
+   written to hole_scores.points so every existing leaderboard/honours code
+   path keeps working unchanged). */
+function netStablefordPoints(strokes, par, strokeIndex, handicap){
+  if (strokes == null || par == null) return null;
+  const net = strokes - holeAllowance(handicap, strokeIndex);
+  return Math.max(0, 2 + (par - net));
+}
+
 /* ===================== events map ===================== */
 let eventsMapInstance = null;
 const postcodeCache = {}; // postcode -> {lat, lng} | null, kept in memory for this page load
@@ -4605,6 +4823,24 @@ let scoringFocusMode = false;
 let scoringPlayerIds = [];
 let currentHole = 1;
 let liveSubView = 'setup'; // 'setup' | 'entry' | 'leaderboard' | 'groupings'
+
+/* pre-round handicap confirm/amend — shown once per (event,round,player)
+   per browser session before Focus Mode's entry screen, for every scoring
+   format. See startScoring()/renderHandicapConfirm(). */
+let handicapConfirmQueue = [];
+let handicapConfirmedKeys = new Set();
+let handicapEditOpen = false;
+
+/* strokes vs quick-points entry toggle — defaults to strokes for a format
+   that actually uses them, but a group can always fall back to the plain
+   point-tap flow. Per browser session, not persisted. */
+let entryScoreMode = null; // null (not yet chosen) | 'points' | 'strokes'
+
+/* live GPS distance-to-green — one geolocation watch, started while Focus
+   Mode's entry view is showing and stopped the moment it isn't (mirrors
+   manageLeaderboardPoll()'s start/stop-with-the-active-view pattern). */
+let focusGeoWatchId = null;
+let focusPlayerPos = null;
 let liveChannel = null;
 let liveScoresReady = false; // true once tables confirmed to exist
 
@@ -4692,6 +4928,35 @@ function manageLeaderboardPoll(){
   }
 }
 
+/* Live GPS distance-to-green — one geolocation watch, started only while
+   Focus Mode's entry screen is actually showing (not the leaderboard, not
+   the handicap confirm step, not any other page) and stopped the instant
+   it isn't. Mirrors manageLeaderboardPoll()'s start/stop pattern above. */
+function manageFocusGpsWatch(){
+  const shouldWatch = scoringFocusMode && liveSubView === 'entry' && !handicapConfirmQueue.length
+    && !!navigator.geolocation;
+  if (shouldWatch && focusGeoWatchId === null){
+    focusGeoWatchId = navigator.geolocation.watchPosition(
+      pos => { focusPlayerPos = { lat: pos.coords.latitude, lng: pos.coords.longitude }; renderGpsCardOnly(); },
+      () => { focusPlayerPos = null; },
+      { enableHighAccuracy: true, maximumAge: 5000 }
+    );
+  } else if (!shouldWatch && focusGeoWatchId !== null){
+    navigator.geolocation.clearWatch(focusGeoWatchId);
+    focusGeoWatchId = null;
+    focusPlayerPos = null;
+  }
+}
+
+/* A full renderLiveScores() on every GPS position tick would blow away
+   whatever a player is mid-typing in the strokes stepper — just patch the
+   distance card's own numbers in place instead. */
+function renderGpsCardOnly(){
+  const el = document.getElementById('gps-card-slot');
+  if (!el) return;
+  el.innerHTML = gpsCardInnerHtml();
+}
+
 async function refreshLeaderboardNow(buttonEl){
   if (!liveEventId) return;
   if (buttonEl) buttonEl.disabled = true;
@@ -4742,9 +5007,11 @@ function renderLiveScores(){
     el.innerHTML = renderScoringFocus();
     updateSyncIndicator();
     manageLeaderboardPoll();
+    manageFocusGpsWatch();
     syncScoringFocusClass();
     return;
   }
+  manageFocusGpsWatch();
 
   const shortCourse = c => (c || '').replace(/\s+golf\s+club\s*$/i, '').replace(/\s+GC\s*$/i, '').trim();
   const shortDate = iso => {
@@ -4904,10 +5171,14 @@ function renderLeaderboardView(){
   // button never appeared at all.
   const started = fullLb.filter(e => e.started);
   const allFinished = started.length > 0 && started.every(e => e.actualThru === holes);
-  const pastBlackout = maxHoleAnyone > blackoutHole;
+  // The reveal-suspense freeze only makes sense for a genuine trophy fixture
+  // (captain's-announcement style) — a casual round with no trophy assigned
+  // stays fully live/visible the whole way through, every format.
+  const isTrophyEvent = !!(ev && ev.trophy);
+  const pastBlackout = isTrophyEvent && maxHoleAnyone > blackoutHole;
 
   // Non-committee: all holes done → sealed, no scores shown
-  if (!isLoggedIn && allFinished){
+  if (!isLoggedIn && isTrophyEvent && allFinished){
     return `
       <div style="text-align:center; padding:2.5rem 1rem;">
         <div style="font-size:2.5rem; margin-bottom:.8rem;">🏆</div>
@@ -4942,8 +5213,9 @@ function renderLeaderboardView(){
       ${committeeLeaderboardHtml(frozenLb, false, holes, liveRoundId)}`;
   }
 
-  // Normal: show live leaderboard (committee or before the blackout hole)
-  const lb = isLoggedIn ? fullLb : getLeaderboard(liveEventId, blackoutHole, liveRoundId);
+  // Normal: show live leaderboard (committee, a non-trophy event, or before
+  // the blackout hole on a trophy event).
+  const lb = (isLoggedIn || !isTrophyEvent) ? fullLb : getLeaderboard(liveEventId, blackoutHole, liveRoundId);
   return (isLoggedIn && pastBlackout
     ? `<div class="card" style="border-color:var(--bracken); margin-bottom:1rem; font-size:.88rem;">
         <strong>Admin view</strong> — public leaderboard is frozen at hole ${blackoutHole}. You can see all ${maxHoleAnyone} holes played.
@@ -5199,8 +5471,15 @@ function startScoring(){
   currentHole = myHoles.length > 0 ? Math.min(holes, Math.max(...myHoles.map(h => h.hole_number))) : 1;
   liveSubView = 'entry';
   scoringFocusMode = true;
+  entryScoreMode = null;
+  const ev = eventById(liveEventId);
+  entryScoreMode = (ev && ev.scoring_format && ev.scoring_format !== 'stableford') ? 'strokes' : 'points';
+  handicapConfirmQueue = scoringPlayerIds.filter(pid => !handicapConfirmedKeys.has(handicapConfirmKey(pid)));
+  handicapEditOpen = false;
   renderLiveScores();
 }
+
+function handicapConfirmKey(pid){ return `${liveEventId}-${liveRoundId}-${pid}`; }
 
 /* ===== focus mode (entry + leaderboard) =====
    Immersive full-screen scoring, entered via Start/Resume (startScoring())
@@ -5214,7 +5493,65 @@ function startScoring(){
    currently being scored on this device" (scoringPlayerIds), not a real
    identity check. */
 function renderScoringFocus(){
-  return liveSubView === 'leaderboard' ? renderFocusLeaderboard() : renderFocusEntry();
+  if (liveSubView === 'leaderboard') return renderFocusLeaderboard();
+  if (handicapConfirmQueue.length) return renderHandicapConfirm();
+  return renderFocusEntry();
+}
+
+/* --- pre-round handicap confirm/amend --- */
+function renderHandicapConfirm(){
+  const pid = handicapConfirmQueue[0];
+  const player = players.find(p => p.id === pid);
+  if (!player){ handicapConfirmQueue.shift(); return renderFocusEntry(); }
+  const isShared = (player.handicap_source || 'shared') === 'shared';
+  const sharedNote = isShared
+    ? `<div class="hcp-shared-note">This is their one official handicap — editing it here also updates it at any other society they play in.</div>`
+    : `<div class="hcp-shared-note">This society runs its own handicap for ${escapeHtml(player.first_name)} — editing it here only affects this society.</div>`;
+
+  const body = handicapEditOpen
+    ? `<div class="hcp-display"><input type="number" step="0.1" id="hcp-edit-input" value="${player.handicap ?? ''}"><span class="u">new value</span></div>
+       <div class="hcp-confirm-actions">
+         <button class="btn-edit" onclick="handicapEditOpen=false; renderLiveScores();">Cancel</button>
+         <button class="btn-confirm" onclick="saveHandicapConfirm(${pid})">Save &amp; continue →</button>
+       </div>`
+    : `<div class="hcp-display"><span class="n">${player.handicap ?? '—'}</span><span class="u">current</span></div>
+       <div class="hcp-confirm-actions">
+         <button class="btn-edit" onclick="handicapEditOpen=true; renderLiveScores();">Edit</button>
+         <button class="btn-confirm" onclick="confirmHandicap(${pid})">Confirm &amp; start →</button>
+       </div>`;
+
+  return `
+    ${focusTopBarHtml('entry')}
+    <div class="hcp-confirm-wrap">
+      <div class="hcp-confirm-sheet">
+        <span class="hcp-tag">${isShared ? 'Shared handicap' : 'Society override'}</span>
+        <h3 style="margin-top:.5rem;">Confirm ${escapeHtml(player.first_name)}'s handicap</h3>
+        <p class="sub">Quick check before scoring starts — skip this any time by tapping Confirm.</p>
+        ${body}
+        ${sharedNote}
+      </div>
+    </div>`;
+}
+
+function confirmHandicap(pid){
+  handicapConfirmedKeys.add(handicapConfirmKey(pid));
+  handicapConfirmQueue.shift();
+  handicapEditOpen = false;
+  renderLiveScores();
+}
+
+async function saveHandicapConfirm(pid){
+  const val = document.getElementById('hcp-edit-input')?.value;
+  const handicap = val !== '' && val != null ? Number(val) : null;
+  const player = players.find(p => p.id === pid);
+  if (player){
+    player.handicap = handicap; // optimistic — matches the rest of this app's pattern
+    if (db){
+      const { error } = await db.from('players').update({ handicap }).eq('id', pid);
+      if (error) console.warn('Could not save handicap:', error);
+    }
+  }
+  confirmHandicap(pid);
 }
 
 function focusTopBarHtml(mode, liveLabel){
@@ -5229,10 +5566,43 @@ function focusTopBarHtml(mode, liveLabel){
     </div>`;
 }
 
+/* Front/center/back yardage card for the current hole — its own function
+   so manageFocusGpsWatch() can patch just this slot on every position
+   update without re-rendering (and losing focus in) the strokes stepper. */
+function gpsCardInnerHtml(){
+  const activeRound = liveRoundId ? rounds.find(r => r.id === liveRoundId) : null;
+  const ev = eventById(liveEventId);
+  const hole = courseHoleFor(activeRound, ev, currentHole);
+  if (!hole || !focusPlayerPos) return '';
+  const d = gpsDistancesFor(hole, focusPlayerPos.lat, focusPlayerPos.lng);
+  if (!d) return '';
+  return `
+    <div class="gps-head">📍 Distance to green</div>
+    <div class="gps-row">
+      <div class="gps-yard front"><div class="n">${d.front}</div><div class="lbl">Front</div></div>
+      <div class="gps-yard center"><div class="n">${d.center}</div><div class="lbl">Center</div></div>
+      <div class="gps-yard back"><div class="n">${d.back}</div><div class="lbl">Back</div></div>
+    </div>
+    <div class="gps-live"><span class="dot-live"></span>Live from your phone's GPS</div>`;
+}
+
+function toggleEntryScoreMode(mode){
+  entryScoreMode = mode;
+  renderLiveScores();
+}
+
+async function setStrokeScore(scorecardId, hole, strokes, par, strokeIndex, handicap){
+  const points = netStablefordPoints(strokes, par, strokeIndex, handicap);
+  await setHoleScore(scorecardId, hole, points, strokes);
+}
+
 function renderFocusEntry(){
   const activeRound = liveRoundId ? rounds.find(r => r.id === liveRoundId) : null;
   const ev = eventById(liveEventId);
   const holes = roundHoles(activeRound, ev);
+  const holeData = courseHoleFor(activeRound, ev, currentHole);
+  const canUseStrokes = !!(ev && ev.scoring_format && ev.scoring_format !== 'stableford' && holeData && holeData.par != null && holeData.stroke_index != null);
+  const useStrokes = canUseStrokes && entryScoreMode === 'strokes';
 
   const allDone = scoringPlayerIds.length > 0 && scoringPlayerIds.every(pid => {
     const sc = scorecardFor(liveEventId, liveRoundId, pid);
@@ -5252,10 +5622,29 @@ function renderFocusEntry(){
     if (!sc) return '';
     const running = getRunningTotal(sc.id);
     const curScore = getHoleScore(sc.id, currentHole);
+    const scIdJson = JSON.stringify(sc.id).replace(/"/g, '&quot;');
+
+    if (useStrokes && player && player.handicap != null){
+      const curStrokes = getHoleStrokes(sc.id, currentHole) ?? holeData.par;
+      const netPts = netStablefordPoints(curStrokes, holeData.par, holeData.stroke_index, player.handicap);
+      return `<div class="fp-row">
+        <div class="fp-head">
+          <span class="fp-name">${player ? escapeHtml(player.first_name + ' ' + player.last_name) : 'Player'}</span>
+          <span class="fp-total">${running} pts</span>
+        </div>
+        <div class="fp-strokes">
+          <button class="stroke-btn" onclick="setStrokeScore(${scIdJson}, ${currentHole}, ${Math.max(1, curStrokes-1)}, ${holeData.par}, ${holeData.stroke_index}, ${player.handicap})">–</button>
+          <div class="stroke-val"><div class="n">${curStrokes}</div><div class="l">Gross strokes</div></div>
+          <button class="stroke-btn" onclick="setStrokeScore(${scIdJson}, ${currentHole}, ${curStrokes+1}, ${holeData.par}, ${holeData.stroke_index}, ${player.handicap})">+</button>
+        </div>
+        <div class="fp-net-line">Net Stableford this hole: <b>${netPts} pt${netPts===1?'':'s'}</b></div>
+      </div>`;
+    }
+
     const btns = [0,1,2,3,4,5].map(pts => {
       const isSel = curScore === pts;
       return `<button class="${isSel?'sel':''}"
-        onclick="setHoleScore(${JSON.stringify(sc.id).replace(/"/g, '&quot;')}, ${currentHole}, ${pts})">${pts}</button>`;
+        onclick="setHoleScore(${scIdJson}, ${currentHole}, ${pts})">${pts}</button>`;
     }).join('');
     return `<div class="fp-row">
       <div class="fp-head">
@@ -5268,6 +5657,14 @@ function renderFocusEntry(){
 
   const courseName = activeRound ? activeRound.course : (ev ? ev.course : '');
   const doneBanner = allDone ? `<div class="done-banner">✓ All ${holes} holes scored for your group</div>` : '';
+  const gpsInner = gpsCardInnerHtml();
+  const gpsCard = gpsInner ? `<div class="gps-card" id="gps-card-slot">${gpsInner}</div>` : `<div id="gps-card-slot"></div>`;
+  const fmtToggle = canUseStrokes
+    ? `<div class="fmt-toggle">
+         <button class="${useStrokes?'active':''}" onclick="toggleEntryScoreMode('strokes')">Strokes entry</button>
+         <button class="${!useStrokes?'active':''}" onclick="toggleEntryScoreMode('points')">Quick points</button>
+       </div>`
+    : '';
 
   return `
     ${focusTopBarHtml('entry')}
@@ -5276,7 +5673,10 @@ function renderFocusEntry(){
       <div class="label">Hole</div>
       <div class="num">${currentHole}</div>
       ${courseName ? `<div class="course">${escapeHtml(courseName)}</div>` : ''}
+      ${holeData && holeData.par != null ? `<div class="course">Par ${holeData.par}${holeData.stroke_index!=null ? ' · SI '+holeData.stroke_index : ''}</div>` : ''}
     </div>
+    ${gpsCard}
+    ${fmtToggle}
     ${doneBanner}
     <div class="focus-players">${rows}</div>
     <div class="focus-nav">
@@ -5329,7 +5729,8 @@ function renderFocusLeaderboard(){
   const maxHoleAnyone = fullLb.reduce((max, e) => Math.max(max, e.actualThru), 0);
   const started = fullLb.filter(e => e.started);
   const allFinished = started.length > 0 && started.every(e => e.actualThru === holes);
-  const pastBlackout = maxHoleAnyone > blackoutHole;
+  const isTrophyEvent = !!(ev && ev.trophy);
+  const pastBlackout = isTrophyEvent && maxHoleAnyone > blackoutHole;
 
   // Admin: bypasses the blackout entirely, same as the normal chrome view
   if (isLoggedIn){
@@ -5346,8 +5747,9 @@ function renderFocusLeaderboard(){
     return topBar + title + doneBanner + `<div class="focus-lb-list">${rows}</div>` + cta;
   }
 
-  // Non-admin, everyone finished → the reveal once finalised, generic "sealed" message before that
-  if (allFinished){
+  // Non-admin, everyone finished → the reveal once finalised, generic "sealed" message before that.
+  // A non-trophy event has nothing to "reveal" — falls straight through to the plain live view below instead.
+  if (isTrophyEvent && allFinished){
     const honour = honours.find(h => h.event_id === liveEventId && (liveRoundId ? h.round_id === liveRoundId : !h.round_id));
     if (honour){
       return topBar + `
@@ -5383,8 +5785,9 @@ function renderFocusLeaderboard(){
       <div class="focus-lb-foot">Group scores still visible in ⛳ Scoring — it's only the field-wide board that's held back</div>`;
   }
 
-  // Normal live view, before the blackout hole
-  const lb = getLeaderboard(liveEventId, blackoutHole, liveRoundId);
+  // Normal live view: full board for a non-trophy event, or before the
+  // blackout hole on a trophy one.
+  const lb = isTrophyEvent ? getLeaderboard(liveEventId, blackoutHole, liveRoundId) : fullLb;
   const rows = lb.map((e,i) => focusLbRowHtml(e,i,false)).join('');
   return topBar + title + `<div class="focus-lb-list">${rows}</div>` + focusLbFootHtml();
 }
@@ -5394,8 +5797,15 @@ function getHoleScore(scorecardId, hole){
   const hs = holeScores.find(h => h.scorecard_id === scorecardId && h.hole_number === hole);
   return hs ? hs.points : null;
 }
+function getHoleStrokes(scorecardId, hole){
+  const hs = holeScores.find(h => h.scorecard_id === scorecardId && h.hole_number === hole);
+  return hs && hs.strokes != null ? hs.strokes : null;
+}
 function getRunningTotal(scorecardId){
   return holeScores.filter(h => h.scorecard_id === scorecardId).reduce((s,h) => s + h.points, 0);
+}
+function getRunningStrokes(scorecardId){
+  return holeScores.filter(h => h.scorecard_id === scorecardId && h.strokes != null).reduce((s,h) => s + h.strokes, 0);
 }
 
 function renderEntryView(){
@@ -5547,15 +5957,15 @@ async function processScorecardQueue(){
   processScoreQueue();
 }
 
-async function setHoleScore(scorecardId, hole, points){
+async function setHoleScore(scorecardId, hole, points, strokes = null){
   // 1. Update the screen immediately
   const existing = holeScores.find(h => h.scorecard_id === scorecardId && h.hole_number === hole);
-  if (existing) existing.points = points;
-  else holeScores.push({ scorecard_id: scorecardId, hole_number: hole, points });
+  if (existing) Object.assign(existing, { points, strokes });
+  else holeScores.push({ scorecard_id: scorecardId, hole_number: hole, points, strokes });
 
   // 2. Queue it locally (replacing any earlier queued tap for the same hole)
   scoreQueue = scoreQueue.filter(q => !(q.scorecard_id === scorecardId && q.hole_number === hole));
-  scoreQueue.push({ scorecard_id: scorecardId, hole_number: hole, points });
+  scoreQueue.push({ scorecard_id: scorecardId, hole_number: hole, points, strokes });
   persistScoreQueue();
 
   renderLiveScores();
@@ -5579,7 +5989,7 @@ async function processScoreQueue(){
     }
     try {
       const { error } = await db.from('hole_scores').upsert(
-        { scorecard_id: item.scorecard_id, hole_number: item.hole_number, points: item.points, updated_at: new Date().toISOString(), society_id: societyId },
+        { scorecard_id: item.scorecard_id, hole_number: item.hole_number, points: item.points, strokes: item.strokes ?? null, updated_at: new Date().toISOString(), society_id: societyId },
         { onConflict: 'scorecard_id,hole_number' }
       );
       if (error) throw error;
@@ -6673,9 +7083,11 @@ function renderCoursesPanel(){
             ${ratingOpen ? 'Rate ▴' : 'Rate'}
           </button>
           ${isLoggedIn ? `<button class="committee-edit-btn" onclick="toggleCourseEdit(${c.id})">${isEditing?'✕':'Edit'}</button>` : ''}
+          ${isLoggedIn ? `<button class="committee-edit-btn" onclick="toggleGpsSetup(${c.id})">${gpsSetupCourseId===c.id ? 'GPS ▴' : (c.gps_course_id ? '📍 GPS set up' : '📍 Set up GPS & scorecard')}</button>` : ''}
         </div>
         ${rateForm}
         ${editForm}
+        ${isLoggedIn && gpsSetupCourseId===c.id ? gpsSetupPanelHtml(c) : ''}
       </div>`;
   }).join('');
 
@@ -6691,6 +7103,231 @@ function renderCoursesPanel(){
 function toggleCourseEdit(id){
   if (editingCourseIds.has(id)) editingCourseIds.delete(id); else editingCourseIds.add(id);
   renderCoursesPanel();
+}
+
+/* ===== GPS & scorecard setup (shared gps_courses/course_holes data) =====
+   Reachable from each course row in this admin panel. Three paths, in
+   order: link to an existing gps_courses row (another society may already
+   have imported this same physical course), import fresh from OpenStreetMap,
+   or edit hole-by-hole by hand — see the plan this was built from for the
+   full reasoning. All three write to the same shared, non-tenant-scoped
+   tables, so a correction one society makes benefits every society linked
+   to the same gps_course_id. */
+let gpsSetupCourseId = null;
+let gpsSetupSearch = '';
+let gpsImportStatus = '';
+
+function toggleGpsSetup(courseId){
+  gpsSetupCourseId = gpsSetupCourseId === courseId ? null : courseId;
+  gpsSetupSearch = '';
+  gpsImportStatus = '';
+  renderCoursesPanel();
+}
+
+function gpsSetupPanelHtml(course){
+  if (course.gps_course_id){
+    const gc = gpsCourses.find(g => g.id === course.gps_course_id);
+    return `
+      <div class="edit-form" style="margin:.5rem 0;">
+        <h4>GPS &amp; scorecard — ${escapeHtml(gc ? gc.name : course.name)}</h4>
+        <p class="muted" style="font-size:.8rem; margin:0 0 .6rem;">Shared platform-wide — a correction here is visible to every society linked to this same course.</p>
+        ${gpsHoleEditorHtml(course.gps_course_id)}
+        <button class="delete-btn" style="margin-top:.6rem;" onclick="unlinkGpsCourse(${course.id})">Unlink this course's GPS data</button>
+      </div>`;
+  }
+
+  const q = gpsSetupSearch.trim().toLowerCase();
+  const matches = q ? gpsCourses.filter(g => g.name.toLowerCase().includes(q)) : [];
+
+  return `
+    <div class="edit-form" style="margin:.5rem 0;">
+      <h4>Set up GPS &amp; scorecard</h4>
+      <p class="muted" style="font-size:.8rem; margin:0 0 .6rem;">Course GPS/par/stroke-index data is shared across every society on the platform — check for an existing match first, then import from OpenStreetMap, or add it by hand.</p>
+
+      <label style="font-size:.8rem;">Search for an existing course</label>
+      <input placeholder="e.g. Studley Wood" value="${escapeHtml(gpsSetupSearch)}"
+        oninput="gpsSetupSearch=this.value; renderCoursesPanel();" style="margin-bottom:.5rem;">
+      ${matches.length ? matches.map(g => `
+        <div class="pc-row">
+          <span class="pc-row-label">${escapeHtml(g.name)}${g.postcode ? ' — ' + escapeHtml(g.postcode) : ''}</span>
+          <button class="committee-edit-btn" onclick="linkGpsCourse(${course.id}, ${g.id})">Link</button>
+        </div>`).join('') : (q ? '<p class="muted" style="font-size:.82rem;">No match found.</p>' : '')}
+
+      <div style="margin-top:.8rem; display:flex; gap:.6rem; align-items:center; flex-wrap:wrap;">
+        <button class="btn brass" onclick="importGpsCourseFromOsm(${course.id})">Import from OpenStreetMap</button>
+        <button class="committee-edit-btn" onclick="createManualGpsCourse(${course.id})">Add manually instead</button>
+      </div>
+      <div class="edit-status ${gpsImportStatus.startsWith('Error') ? 'error' : ''}" style="margin-top:.4rem;">${escapeHtml(gpsImportStatus)}</div>
+    </div>`;
+}
+
+async function linkGpsCourse(courseId, gpsCourseId){
+  if (!db) return;
+  const { error } = await db.from('courses').update({ gps_course_id: gpsCourseId }).eq('id', courseId);
+  if (error){ console.error(error); alert('Could not link — please try again.'); return; }
+  const c = courses.find(x => x.id === courseId);
+  if (c) c.gps_course_id = gpsCourseId;
+  renderCoursesPanel();
+}
+
+async function unlinkGpsCourse(courseId){
+  if (!db || !confirm('Unlink this course from its shared GPS data? The shared data itself is not deleted.')) return;
+  const { error } = await db.from('courses').update({ gps_course_id: null }).eq('id', courseId);
+  if (error){ console.error(error); return; }
+  const c = courses.find(x => x.id === courseId);
+  if (c) c.gps_course_id = null;
+  renderCoursesPanel();
+}
+
+async function createManualGpsCourse(courseId){
+  if (!db) return;
+  const c = courses.find(x => x.id === courseId);
+  if (!c) return;
+  gpsImportStatus = 'Creating…';
+  renderCoursesPanel();
+  const { data, error } = await db.from('gps_courses').insert({ name: c.name, postcode: c.postcode || null }).select().single();
+  if (error){ console.error(error); gpsImportStatus = 'Error: could not create.'; renderCoursesPanel(); return; }
+  gpsCourses.push(data);
+  await linkGpsCourse(courseId, data.id);
+}
+
+/* Best-effort import: geocode the course's postcode, then ask Overpass for
+   every golf=hole way (carries ref + par directly), golf=green way (full
+   boundary — what makes front/back distances possible) and golf=pin node
+   in a ~1.2km box around it, and spatially match each green/pin to its
+   nearest hole way. Always followed by the manual editor below so anything
+   missed or wrong is fixable by hand — never a dead end. */
+async function importGpsCourseFromOsm(courseId){
+  if (!db) return;
+  const c = courses.find(x => x.id === courseId);
+  if (!c || !c.postcode){ gpsImportStatus = 'Error: this course needs a postcode set first.'; renderCoursesPanel(); return; }
+  gpsImportStatus = 'Geocoding postcode…';
+  renderCoursesPanel();
+  try {
+    const coords = await geocodePostcode(c.postcode);
+    if (!coords) throw new Error('Could not geocode postcode');
+    const d = 0.011; // roughly 1.2km — comfortably covers a course from one postcode
+    const bbox = `${coords.lat-d},${coords.lng-d},${coords.lat+d},${coords.lng+d}`;
+
+    gpsImportStatus = 'Querying OpenStreetMap…';
+    renderCoursesPanel();
+    const query = `[out:json][timeout:25];(way["golf"="hole"](${bbox});way["golf"="green"](${bbox});node["golf"="pin"](${bbox}););out geom;`;
+    const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: 'data=' + encodeURIComponent(query) });
+    if (!res.ok) throw new Error('Overpass request failed: ' + res.status);
+    const json = await res.json();
+    const elements = json.elements || [];
+    const holeWays = elements.filter(e => e.type === 'way' && e.tags && e.tags.golf === 'hole');
+    const greenWays = elements.filter(e => e.type === 'way' && e.tags && e.tags.golf === 'green');
+    const pinNodes = elements.filter(e => e.type === 'node' && e.tags && e.tags.golf === 'pin');
+    if (!holeWays.length) throw new Error('OpenStreetMap has no mapped holes for this course yet — try "Add manually instead".');
+
+    const centroid = geom => {
+      const pts = geom || [];
+      return pts.length ? { lat: pts.reduce((s,p)=>s+p.lat,0)/pts.length, lng: pts.reduce((s,p)=>s+p.lon,0)/pts.length } : null;
+    };
+    const dist2 = (a,b) => (a.lat-b.lat)**2 + (a.lng-b.lng)**2;
+
+    const holeAnchors = holeWays.map(w => {
+      const geom = w.geometry || [];
+      const anchor = geom.length ? { lat: geom[geom.length-1].lat, lng: geom[geom.length-1].lon } : null; // green end of the hole line
+      return { ref: parseInt(w.tags.ref, 10) || null, par: parseInt(w.tags.par, 10) || null, anchor };
+    }).filter(h => h.ref && h.anchor);
+
+    const holesOut = holeAnchors.map(h => ({ hole_number: h.ref, par: h.par, green_lat: null, green_lng: null, green_polygon: null, source: 'osm' }));
+    const findHole = anchor => {
+      let best = null, bestD = Infinity;
+      holeAnchors.forEach((h, i) => { const dd = dist2(h.anchor, anchor); if (dd < bestD){ bestD = dd; best = i; } });
+      return best;
+    };
+
+    greenWays.forEach(w => {
+      const cen = centroid(w.geometry);
+      if (!cen) return;
+      const i = findHole(cen);
+      if (i === null) return;
+      holesOut[i].green_lat = cen.lat;
+      holesOut[i].green_lng = cen.lng;
+      holesOut[i].green_polygon = (w.geometry || []).map(p => ({ lat: p.lat, lng: p.lon }));
+    });
+    pinNodes.forEach(n => {
+      const pt = { lat: n.lat, lng: n.lon };
+      const i = findHole(pt);
+      if (i === null || holesOut[i].green_lat != null) return; // prefer the green polygon's centroid when we have one
+      holesOut[i].green_lat = pt.lat;
+      holesOut[i].green_lng = pt.lng;
+    });
+
+    gpsImportStatus = 'Saving…';
+    renderCoursesPanel();
+    const { data: gc, error: gcErr } = await db.from('gps_courses').insert({ name: c.name, postcode: c.postcode }).select().single();
+    if (gcErr) throw gcErr;
+    gpsCourses.push(gc);
+
+    const rows = holesOut.map(h => ({ ...h, gps_course_id: gc.id }));
+    const { data: chData, error: chErr } = await db.from('course_holes').insert(rows).select();
+    if (chErr) throw chErr;
+    courseHoles.push(...(chData || []));
+
+    await linkGpsCourse(courseId, gc.id);
+    gpsImportStatus = `Imported ${holesOut.length} hole${holesOut.length===1?'':'s'} from OpenStreetMap. Check them below and fix anything that looks off.`;
+    renderCoursesPanel();
+  } catch(err){
+    console.error(err);
+    gpsImportStatus = 'Error: ' + (err.message || 'import failed — try "Add manually instead".');
+    renderCoursesPanel();
+  }
+}
+
+function gpsHoleEditorHtml(gpsCourseId){
+  const holes = courseHoles.filter(h => h.gps_course_id === gpsCourseId).sort((a,b) => a.hole_number - b.hole_number);
+  const rows = Array.from({length:18}, (_,i) => i+1).map(n => {
+    const h = holes.find(x => x.hole_number === n);
+    return `
+      <div style="display:grid; grid-template-columns:2rem 4.5rem 4.5rem 6rem 6rem auto; gap:.35rem; align-items:end; margin-bottom:.3rem;">
+        <div style="font-size:.75rem; font-weight:700; padding-bottom:.5rem;">${n}</div>
+        <div><label style="font-size:.65rem;">Par</label><input type="number" id="gh-par-${gpsCourseId}-${n}" value="${h && h.par!=null ? h.par : ''}"></div>
+        <div><label style="font-size:.65rem;">Stroke idx</label><input type="number" id="gh-si-${gpsCourseId}-${n}" value="${h && h.stroke_index!=null ? h.stroke_index : ''}"></div>
+        <div><label style="font-size:.65rem;">Green lat</label><input type="number" step="0.00001" id="gh-lat-${gpsCourseId}-${n}" value="${h && h.green_lat!=null ? h.green_lat : ''}"></div>
+        <div><label style="font-size:.65rem;">Green lng</label><input type="number" step="0.00001" id="gh-lng-${gpsCourseId}-${n}" value="${h && h.green_lng!=null ? h.green_lng : ''}"></div>
+        <button class="committee-edit-btn" onclick="saveCourseHole(${gpsCourseId}, ${n})">Save</button>
+      </div>`;
+  }).join('');
+  return `<div style="max-height:22rem; overflow-y:auto; margin:.5rem 0;">${rows}</div>
+    <div class="edit-status" id="gh-status-${gpsCourseId}"></div>`;
+}
+
+async function saveCourseHole(gpsCourseId, holeNumber){
+  if (!db) return;
+  const gv2 = id => { const el = document.getElementById(id); const v = el ? el.value.trim() : ''; return v === '' ? null : Number(v); };
+  const par = gv2(`gh-par-${gpsCourseId}-${holeNumber}`);
+  const stroke_index = gv2(`gh-si-${gpsCourseId}-${holeNumber}`);
+  const green_lat = gv2(`gh-lat-${gpsCourseId}-${holeNumber}`);
+  const green_lng = gv2(`gh-lng-${gpsCourseId}-${holeNumber}`);
+  const existing = courseHoles.find(h => h.gps_course_id === gpsCourseId && h.hole_number === holeNumber);
+  const statusEl = document.getElementById(`gh-status-${gpsCourseId}`);
+  if (statusEl){ statusEl.textContent = 'Saving…'; statusEl.className = 'edit-status'; }
+
+  const payload = { gps_course_id: gpsCourseId, hole_number: holeNumber, par, stroke_index, green_lat, green_lng, source: 'manual' };
+  // Manual edits replace only the point — a hand-typed lat/lng is a single
+  // pin, never a full boundary, so front/back collapses to that one point
+  // (see gpsDistancesFor) rather than keeping a stale imported polygon that
+  // no longer matches a manually-moved pin.
+  if (existing && existing.green_polygon && green_lat === existing.green_lat && green_lng === existing.green_lng){
+    payload.green_polygon = existing.green_polygon;
+  } else {
+    payload.green_polygon = null;
+  }
+
+  try {
+    const { data, error } = await db.from('course_holes').upsert(payload, { onConflict: 'gps_course_id,hole_number' }).select().single();
+    if (error) throw error;
+    if (existing) Object.assign(existing, data);
+    else courseHoles.push(data);
+    if (statusEl){ statusEl.textContent = 'Saved!'; statusEl.className = 'edit-status success'; }
+  } catch(err){
+    console.error(err);
+    if (statusEl){ statusEl.textContent = 'Save failed — please try again.'; statusEl.className = 'edit-status error'; }
+  }
 }
 async function saveCourse(id){
   const setStatus = (msg, kind) => { const el = document.getElementById('cc-status-'+id); if(el){el.textContent=msg; el.className='edit-status '+(kind||'');} };
