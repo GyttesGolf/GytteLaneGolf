@@ -1923,8 +1923,11 @@ let allScorecards = [];
 let allHoleScores = [];
 let courses = [];
 let courseRatings = [];
-let gpsCourses = [];   // shared platform-wide, not society-scoped
+let gpsClubs = [];     // shared platform-wide, not society-scoped — the venue
+let gpsCourses = [];   // shared platform-wide, not society-scoped — a named layout at a club
 let courseHoles = [];  // shared platform-wide, not society-scoped
+let gpsTees = [];      // shared platform-wide, not society-scoped — a tee position on a course
+let gpsTeeHoles = [];  // shared platform-wide, not society-scoped — per-tee yardage + tee-box location
 let ratingState = {};
 let societyPaymentDetails = null;
 let eventPayments = [];
@@ -2135,17 +2138,26 @@ async function loadData(){
      GPS/scorecard data for a physical course. Small tables (a handful of
      courses × up to 18 holes each), safe to load in full. */
   try {
-    const [gcRes, chRes] = await Promise.all([
+    const [clRes, gcRes, chRes, teRes, thRes] = await Promise.all([
+      db.from('gps_clubs').select('*'),
       db.from('gps_courses').select('*'),
       db.from('course_holes').select('*'),
+      db.from('gps_tees').select('*'),
+      db.from('gps_tee_holes').select('*'),
     ]);
-    if (gcRes.error || chRes.error) throw (gcRes.error || chRes.error);
+    if (clRes.error || gcRes.error || chRes.error || teRes.error || thRes.error) throw (clRes.error || gcRes.error || chRes.error || teRes.error || thRes.error);
+    gpsClubs = clRes.data || [];
     gpsCourses = gcRes.data || [];
     courseHoles = chRes.data || [];
+    gpsTees = teRes.data || [];
+    gpsTeeHoles = thRes.data || [];
   } catch(err){
     console.warn('GPS course data not available yet:', err);
+    gpsClubs = [];
     gpsCourses = [];
     courseHoles = [];
+    gpsTees = [];
+    gpsTeeHoles = [];
   }
 
   /* payment details — member-only via RLS; anonymous/non-member sessions
@@ -7070,18 +7082,36 @@ let courseGpsAutoStatus = {};
    otherwise imports fresh from OpenStreetMap. Best-effort and silent on
    failure beyond the status badge — "Manage course data" is always there
    as the fallback for a course OSM has nothing for. */
+/* Which gps_club a course's auto-lookup matched, when that club turns out
+   to have more than one course — OSM has no way to tell us which one is
+   "this" society's course, so this parks it for an admin to pick manually
+   in "Manage course data" rather than guessing or creating a duplicate. */
+let pendingClubMatch = {};
+
 async function autoSetupGpsForCourse(course){
   if (!db || !course.postcode || course.gps_course_id) return;
   courseGpsAutoStatus[course.id] = 'checking';
   renderCoursesPanel();
 
   const nameLower = course.name.trim().toLowerCase();
-  const existingMatch = gpsCourses.find(g => g.name.trim().toLowerCase() === nameLower);
-  if (existingMatch){
-    await linkGpsCourse(course.id, existingMatch.id);
-    courseGpsAutoStatus[course.id] = 'done';
-    renderCoursesPanel();
-    return;
+  const club = gpsClubs.find(cl => cl.name.trim().toLowerCase() === nameLower);
+  if (club){
+    const clubCourses = gpsCourses.filter(g => g.gps_club_id === club.id);
+    if (clubCourses.length === 1){
+      await linkGpsCourse(course.id, clubCourses[0].id);
+      courseGpsAutoStatus[course.id] = 'done';
+      renderCoursesPanel();
+      return;
+    }
+    if (clubCourses.length > 1){
+      // A known multi-course club — needs a human to say which course this is.
+      pendingClubMatch[course.id] = club.id;
+      courseGpsAutoStatus[course.id] = 'needs_pick';
+      renderCoursesPanel();
+      return;
+    }
+    // Club exists with zero courses somehow — fall through to import, which
+    // will create the first course under it.
   }
 
   courseGpsAutoStatus[course.id] = 'importing';
@@ -7096,6 +7126,9 @@ function courseGpsStatusBadgeHtml(course){
   const status = courseGpsAutoStatus[course.id];
   if (status === 'checking' || status === 'importing'){
     return `<div class="course-card-none">⏳ ${status === 'checking' ? 'Checking for existing GPS data…' : 'Importing GPS data from OpenStreetMap…'}</div>`;
+  }
+  if (status === 'needs_pick' && !course.gps_course_id){
+    return `<div class="course-card-none">⚠️ Found a club with multiple courses — pick the right one under "Manage course data".</div>`;
   }
   const holes = course.gps_course_id ? courseHoles.filter(h => h.gps_course_id === course.gps_course_id) : [];
   const hasGps = holes.some(h => h.green_lat != null);
@@ -7112,14 +7145,32 @@ function scorecardHolesFor(course){
     .sort((a,b) => a.hole_number - b.hole_number);
 }
 
+let selectedTeeForCourse = {}; // courseId -> gpsTeeId, remembered while browsing
+
+function teesForCourse(course){
+  return course.gps_course_id
+    ? gpsTees.filter(t => t.gps_course_id === course.gps_course_id).sort((a,b) => (a.sort_order||0) - (b.sort_order||0) || a.name.localeCompare(b.name))
+    : [];
+}
+
 function scorecardSummaryHtml(course){
   const holes = scorecardHolesFor(course);
   if (!holes.length) return '<div class="course-card-none" style="margin-top:.3rem;">No scorecard yet.</div>';
   const totalPar = holes.reduce((s,h) => s + (h.par||0), 0);
-  const totalYards = holes.reduce((s,h) => s + (h.yardage||0), 0);
+  const tees = teesForCourse(course);
+  const selectedTeeId = selectedTeeForCourse[course.id] ?? (tees[0] && tees[0].id) ?? null;
+  const teeHoles = selectedTeeId ? gpsTeeHoles.filter(h => h.gps_tee_id === selectedTeeId) : [];
+  const totalYards = teeHoles.reduce((s,h) => s + (h.yardage||0), 0);
   const open = expandedScorecardCourseId === course.id;
+
+  const teeSelector = tees.length ? `
+    <select style="margin:.4rem 0; font-size:.78rem;" onchange="selectedTeeForCourse[${course.id}]=Number(this.value); renderCoursesPanel();">
+      ${tees.map(t => `<option value="${t.id}" ${t.id===selectedTeeId?'selected':''}>${escapeHtml(t.name)} tees</option>`).join('')}
+    </select>` : '';
+
   const table = open ? `
-    <div style="overflow-x:auto; margin-top:.5rem;">
+    ${teeSelector}
+    <div style="overflow-x:auto; margin-top:.3rem;">
       <table style="width:100%; border-collapse:collapse; font-size:.78rem;">
         <thead><tr style="color:var(--text-muted); text-align:right;">
           <th style="text-align:left; padding:.2rem .4rem;">Hole</th>
@@ -7128,7 +7179,7 @@ function scorecardSummaryHtml(course){
         </tr></thead>
         <tbody>
           <tr><td style="text-align:left; padding:.2rem .4rem; color:var(--text-muted);">Par</td>${holes.map(h => `<td style="padding:.2rem .4rem; text-align:right;">${h.par ?? '–'}</td>`).join('')}<td style="padding:.2rem .4rem; text-align:right; font-weight:800;">${totalPar}</td></tr>
-          <tr><td style="text-align:left; padding:.2rem .4rem; color:var(--text-muted);">Yards</td>${holes.map(h => `<td style="padding:.2rem .4rem; text-align:right;">${h.yardage ?? '–'}</td>`).join('')}<td style="padding:.2rem .4rem; text-align:right; font-weight:800;">${totalYards||'–'}</td></tr>
+          <tr><td style="text-align:left; padding:.2rem .4rem; color:var(--text-muted);">Yards</td>${holes.map(h => { const th = teeHoles.find(x=>x.hole_number===h.hole_number); return `<td style="padding:.2rem .4rem; text-align:right;">${th && th.yardage!=null ? th.yardage : '–'}</td>`; }).join('')}<td style="padding:.2rem .4rem; text-align:right; font-weight:800;">${totalYards||'–'}</td></tr>
         </tbody>
       </table>
     </div>` : '';
@@ -7263,20 +7314,46 @@ function toggleGpsSetup(courseId){
 function gpsSetupPanelHtml(course){
   if (course.gps_course_id){
     const gc = gpsCourses.find(g => g.id === course.gps_course_id);
+    const club = gc ? gpsClubs.find(cl => cl.id === gc.gps_club_id) : null;
+    const title = club && club.name !== (gc && gc.name) ? `${escapeHtml(club.name)} — ${escapeHtml(gc.name)}` : escapeHtml(gc ? gc.name : course.name);
     return `
       <div class="edit-form" style="margin:.5rem 0;">
-        <h4>Manage course data — ${escapeHtml(gc ? gc.name : course.name)}</h4>
+        <h4>Manage course data — ${title}</h4>
         <p class="muted" style="font-size:.8rem; margin:0 0 .6rem;">Shared platform-wide — a correction here is visible to every society linked to this same course.</p>
 
         <h5 style="margin:.8rem 0 .2rem;">Scorecard</h5>
-        <p class="muted" style="font-size:.76rem; margin:0 0 .4rem;">Par, yardage and stroke index — what players see when browsing this course, and what net-Stableford scoring needs.</p>
+        <p class="muted" style="font-size:.76rem; margin:0 0 .4rem;">Par and stroke index — the same for every tee. Yardage lives under Tees below, since it depends which tee you're playing.</p>
         ${scorecardEditorHtml(course.gps_course_id)}
+
+        <h5 style="margin:1rem 0 .2rem;">Tees</h5>
+        <p class="muted" style="font-size:.76rem; margin:0 0 .4rem;">Yardage per hole, by tee position (White, Yellow, Red…) — what players see on the scorecard, and where distance-to-green is measured from.</p>
+        ${teesEditorHtml(course.gps_course_id)}
 
         <h5 style="margin:1rem 0 .2rem;">GPS pins</h5>
         <p class="muted" style="font-size:.76rem; margin:0 0 .4rem;">Green location per hole — only used for the live distance readout while scoring. Import gets you most of the way; fix anything by hand below.</p>
         ${gpsPinsEditorHtml(course.gps_course_id)}
 
         <button class="delete-btn" style="margin-top:.6rem;" onclick="unlinkGpsCourse(${course.id})">Unlink this course's data</button>
+      </div>`;
+  }
+
+  // A club-name match came back but that club has more than one course
+  // (e.g. Duke's/Duchess's) — OSM has no way to say which one this society
+  // actually plays, so a human picks here rather than guessing.
+  const clubId = pendingClubMatch[course.id];
+  if (clubId != null){
+    const club = gpsClubs.find(cl => cl.id === clubId);
+    const clubCourses = gpsCourses.filter(g => g.gps_club_id === clubId);
+    return `
+      <div class="edit-form" style="margin:.5rem 0;">
+        <h4>Which course at ${escapeHtml(club ? club.name : 'this club')}?</h4>
+        <p class="muted" style="font-size:.8rem; margin:0 0 .6rem;">This club already has more than one course set up on the platform — pick the one this society actually plays.</p>
+        ${clubCourses.map(gc => `
+          <div class="pc-row">
+            <span class="pc-row-label">${escapeHtml(gc.name)}</span>
+            <button class="committee-edit-btn" onclick="delete pendingClubMatch[${course.id}]; linkGpsCourse(${course.id}, ${gc.id})">Link</button>
+          </div>`).join('')}
+        <button class="committee-edit-btn" style="margin-top:.6rem;" onclick="delete pendingClubMatch[${course.id}]; createManualGpsCourse(${course.id})">None of these — add a new course at this club</button>
       </div>`;
   }
 
@@ -7287,7 +7364,7 @@ function gpsSetupPanelHtml(course){
   return `
     <div class="edit-form" style="margin:.5rem 0;">
       <h4>Manage course data</h4>
-      <p class="muted" style="font-size:.8rem; margin:0 0 .6rem;">Scorecard (par/yardage/stroke index) and GPS pins (green location) are both shared across every society on the platform. This runs automatically when a postcode is added — use this if that didn't find anything, or to make a correction by hand.</p>
+      <p class="muted" style="font-size:.8rem; margin:0 0 .6rem;">Scorecard (par/stroke index), tee yardages, and GPS pins (green location) are all shared across every society on the platform. This runs automatically when a postcode is added — use this if that didn't find anything, or to make a correction by hand.</p>
 
       ${course.postcode
         ? `<div style="display:flex; gap:.6rem; align-items:center; flex-wrap:wrap;">
@@ -7319,24 +7396,54 @@ async function unlinkGpsCourse(courseId){
   renderCoursesPanel();
 }
 
+/* Finds a club by exact case-insensitive name, or creates one. Every
+   gps_courses row hangs off a gps_clubs row now — even a single-course
+   club gets one, invisibly (the admin never sees "club" as a concept
+   unless their club actually has more than one course). */
+async function findOrCreateGpsClub(name, postcode, coords){
+  const nameLower = name.trim().toLowerCase();
+  let club = gpsClubs.find(cl => cl.name.trim().toLowerCase() === nameLower);
+  if (club) return club;
+  const { data, error } = await db.from('gps_clubs')
+    .insert({ name, postcode: postcode || null, lat: coords ? coords.lat : null, lng: coords ? coords.lng : null })
+    .select().single();
+  if (error) throw error;
+  gpsClubs.push(data);
+  return data;
+}
+
 async function createManualGpsCourse(courseId){
   if (!db) return;
   const c = courses.find(x => x.id === courseId);
   if (!c) return;
   gpsImportStatus = 'Creating…';
   renderCoursesPanel();
-  const { data, error } = await db.from('gps_courses').insert({ name: c.name, postcode: c.postcode || null }).select().single();
-  if (error){ console.error(error); gpsImportStatus = 'Error: could not create.'; renderCoursesPanel(); return; }
-  gpsCourses.push(data);
-  await linkGpsCourse(courseId, data.id);
+  try {
+    const club = await findOrCreateGpsClub(c.name, c.postcode, null);
+    const { data, error } = await db.from('gps_courses').insert({ name: c.name, gps_club_id: club.id }).select().single();
+    if (error) throw error;
+    gpsCourses.push(data);
+    await linkGpsCourse(courseId, data.id);
+  } catch(err){
+    console.error(err);
+    gpsImportStatus = 'Error: could not create.';
+    renderCoursesPanel();
+  }
 }
+
+const TEE_SORT_ORDER = { gold: 1, black: 1, championship: 1, white: 2, blue: 2, yellow: 3, silver: 3, red: 4, bronze: 4, green: 5 };
 
 /* Best-effort import: geocode the course's postcode, then ask Overpass for
    every golf=hole way (carries ref + par directly), golf=green way (full
-   boundary — what makes front/back distances possible) and golf=pin node
-   in a ~1.2km box around it, and spatially match each green/pin to its
-   nearest hole way. Always followed by the manual editor below so anything
-   missed or wrong is fixable by hand — never a dead end. */
+   boundary — what makes front/back distances possible), golf=pin node, and
+   golf=tee way (carries a colour, sometimes several e.g. "gold;silver" for
+   a shared teeing ground) in a ~1.2km box around it. Greens/pins match to
+   the nearest hole way's far end, tees to the nearest hole way's near end
+   (tee-side vs green-side of the hole line) — then each tee's yardage is
+   simply the haversine distance from that tee's own coordinate to the
+   hole's now-known green coordinate, no paid yardage data needed at all.
+   Always followed by the manual editor below so anything missed or wrong
+   is fixable by hand — never a dead end. */
 async function importGpsCourseFromOsm(courseId){
   if (!db) return;
   const c = courses.find(x => x.id === courseId);
@@ -7351,7 +7458,7 @@ async function importGpsCourseFromOsm(courseId){
 
     gpsImportStatus = 'Querying OpenStreetMap…';
     renderCoursesPanel();
-    const query = `[out:json][timeout:25];(way["golf"="hole"](${bbox});way["golf"="green"](${bbox});node["golf"="pin"](${bbox}););out geom;`;
+    const query = `[out:json][timeout:25];(way["golf"="hole"](${bbox});way["golf"="green"](${bbox});node["golf"="pin"](${bbox});way["golf"="tee"](${bbox}););out geom;`;
     const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: 'data=' + encodeURIComponent(query) });
     if (!res.ok) throw new Error('Overpass request failed: ' + res.status);
     const json = await res.json();
@@ -7359,6 +7466,7 @@ async function importGpsCourseFromOsm(courseId){
     const holeWays = elements.filter(e => e.type === 'way' && e.tags && e.tags.golf === 'hole');
     const greenWays = elements.filter(e => e.type === 'way' && e.tags && e.tags.golf === 'green');
     const pinNodes = elements.filter(e => e.type === 'node' && e.tags && e.tags.golf === 'pin');
+    const teeWays = elements.filter(e => e.type === 'way' && e.tags && e.tags.golf === 'tee');
     if (!holeWays.length) throw new Error('OpenStreetMap has no mapped holes for this course yet — try "Add manually instead".');
 
     const centroid = geom => {
@@ -7366,24 +7474,30 @@ async function importGpsCourseFromOsm(courseId){
       return pts.length ? { lat: pts.reduce((s,p)=>s+p.lat,0)/pts.length, lng: pts.reduce((s,p)=>s+p.lon,0)/pts.length } : null;
     };
     const dist2 = (a,b) => (a.lat-b.lat)**2 + (a.lng-b.lng)**2;
-
-    const holeAnchors = holeWays.map(w => {
-      const geom = w.geometry || [];
-      const anchor = geom.length ? { lat: geom[geom.length-1].lat, lng: geom[geom.length-1].lon } : null; // green end of the hole line
-      return { ref: parseInt(w.tags.ref, 10) || null, par: parseInt(w.tags.par, 10) || null, anchor };
-    }).filter(h => h.ref && h.anchor);
-
-    const holesOut = holeAnchors.map(h => ({ hole_number: h.ref, par: h.par, green_lat: null, green_lng: null, green_polygon: null, source: 'osm' }));
-    const findHole = anchor => {
+    const nearest = (anchors, point) => {
       let best = null, bestD = Infinity;
-      holeAnchors.forEach((h, i) => { const dd = dist2(h.anchor, anchor); if (dd < bestD){ bestD = dd; best = i; } });
+      anchors.forEach((a, i) => { const dd = dist2(a, point); if (dd < bestD){ bestD = dd; best = i; } });
       return best;
     };
+
+    const holeMeta = holeWays.map(w => {
+      const geom = w.geometry || [];
+      return {
+        ref: parseInt(w.tags.ref, 10) || null,
+        par: parseInt(w.tags.par, 10) || null,
+        startAnchor: geom.length ? { lat: geom[0].lat, lng: geom[0].lon } : null,
+        endAnchor: geom.length ? { lat: geom[geom.length-1].lat, lng: geom[geom.length-1].lon } : null,
+      };
+    }).filter(h => h.ref && h.startAnchor && h.endAnchor);
+
+    const holesOut = holeMeta.map(h => ({ hole_number: h.ref, par: h.par, green_lat: null, green_lng: null, green_polygon: null, source: 'osm' }));
+    const endAnchors = holeMeta.map(h => h.endAnchor);
+    const startAnchors = holeMeta.map(h => h.startAnchor);
 
     greenWays.forEach(w => {
       const cen = centroid(w.geometry);
       if (!cen) return;
-      const i = findHole(cen);
+      const i = nearest(endAnchors, cen);
       if (i === null) return;
       holesOut[i].green_lat = cen.lat;
       holesOut[i].green_lng = cen.lng;
@@ -7391,7 +7505,7 @@ async function importGpsCourseFromOsm(courseId){
     });
     pinNodes.forEach(n => {
       const pt = { lat: n.lat, lng: n.lon };
-      const i = findHole(pt);
+      const i = nearest(endAnchors, pt);
       if (i === null || holesOut[i].green_lat != null) return; // prefer the green polygon's centroid when we have one
       holesOut[i].green_lat = pt.lat;
       holesOut[i].green_lng = pt.lng;
@@ -7399,7 +7513,8 @@ async function importGpsCourseFromOsm(courseId){
 
     gpsImportStatus = 'Saving…';
     renderCoursesPanel();
-    const { data: gc, error: gcErr } = await db.from('gps_courses').insert({ name: c.name, postcode: c.postcode }).select().single();
+    const club = await findOrCreateGpsClub(c.name, c.postcode, coords);
+    const { data: gc, error: gcErr } = await db.from('gps_courses').insert({ name: c.name, gps_club_id: club.id }).select().single();
     if (gcErr) throw gcErr;
     gpsCourses.push(gc);
 
@@ -7408,8 +7523,41 @@ async function importGpsCourseFromOsm(courseId){
     if (chErr) throw chErr;
     courseHoles.push(...(chData || []));
 
+    // Tees: match each tee-box polygon to its hole's near end, split any
+    // combined colour tag ("gold;silver") into one entry per colour, and
+    // derive yardage as the distance to that hole's now-known green.
+    const teeColourHoles = new Map(); // colour name -> [{hole_number, tee_lat, tee_lng, yardage}]
+    teeWays.forEach(w => {
+      const cen = centroid(w.geometry);
+      const tagVal = w.tags.tee;
+      if (!cen || !tagVal) return;
+      const i = nearest(startAnchors, cen);
+      if (i === null) return;
+      const hole = chData.find(h => h.hole_number === holesOut[i].hole_number);
+      if (!hole || hole.green_lat == null) return;
+      const yards = metersToYards(haversineM(cen.lat, cen.lng, hole.green_lat, hole.green_lng));
+      tagVal.split(';').map(s => s.trim()).filter(Boolean).forEach(colour => {
+        const name = colour.charAt(0).toUpperCase() + colour.slice(1);
+        if (!teeColourHoles.has(name)) teeColourHoles.set(name, []);
+        teeColourHoles.get(name).push({ hole_number: hole.hole_number, tee_lat: cen.lat, tee_lng: cen.lng, yardage: yards });
+      });
+    });
+
+    let teesImported = 0;
+    for (const [name, holeRows] of teeColourHoles){
+      const sortOrder = TEE_SORT_ORDER[name.toLowerCase()] ?? 50;
+      const { data: teeRow, error: teeErr } = await db.from('gps_tees').insert({ gps_course_id: gc.id, name, sort_order: sortOrder }).select().single();
+      if (teeErr){ console.warn('Could not create tee', name, teeErr); continue; }
+      gpsTees.push(teeRow);
+      const teeHoleRows = holeRows.map(r => ({ gps_tee_id: teeRow.id, hole_number: r.hole_number, tee_lat: r.tee_lat, tee_lng: r.tee_lng, yardage: r.yardage }));
+      const { data: thData, error: thErr } = await db.from('gps_tee_holes').insert(teeHoleRows).select();
+      if (thErr){ console.warn('Could not save tee holes for', name, thErr); continue; }
+      gpsTeeHoles.push(...(thData || []));
+      teesImported++;
+    }
+
     await linkGpsCourse(courseId, gc.id);
-    gpsImportStatus = `Imported ${holesOut.length} hole${holesOut.length===1?'':'s'} from OpenStreetMap. Check them below and fix anything that looks off.`;
+    gpsImportStatus = `Imported ${holesOut.length} hole${holesOut.length===1?'':'s'}${teesImported ? ` and ${teesImported} tee${teesImported===1?'':'s'}` : ''} from OpenStreetMap. Check them below and fix anything that looks off.`;
     renderCoursesPanel();
   } catch(err){
     console.error(err);
@@ -7428,9 +7576,9 @@ function courseHoleBasePayload(gpsCourseId, holeNumber){
     existing,
     payload: {
       gps_course_id: gpsCourseId, hole_number: holeNumber,
-      par: existing?.par ?? null, stroke_index: existing?.stroke_index ?? null, yardage: existing?.yardage ?? null,
+      par: existing?.par ?? null, stroke_index: existing?.stroke_index ?? null,
       green_lat: existing?.green_lat ?? null, green_lng: existing?.green_lng ?? null,
-      green_polygon: existing?.green_polygon ?? null, tee_lat: existing?.tee_lat ?? null, tee_lng: existing?.tee_lng ?? null,
+      green_polygon: existing?.green_polygon ?? null,
       source: existing?.source ?? 'manual',
     },
   };
@@ -7450,17 +7598,16 @@ async function upsertCourseHole(payload, existing, statusEl){
   }
 }
 
-/* ---- Scorecard: par, yardage, stroke index — what players see + what
-   net-Stableford scoring needs. Has nothing to do with GPS pins below. ---- */
+/* ---- Scorecard: par + stroke index only — the same for every tee. Yardage
+   moved to the Tees editor below, since it genuinely varies by tee. ---- */
 function scorecardEditorHtml(gpsCourseId){
   const holes = courseHoles.filter(h => h.gps_course_id === gpsCourseId).sort((a,b) => a.hole_number - b.hole_number);
   const rows = Array.from({length:18}, (_,i) => i+1).map(n => {
     const h = holes.find(x => x.hole_number === n);
     return `
-      <div style="display:grid; grid-template-columns:2rem 4.5rem 4.5rem 4.5rem auto; gap:.35rem; align-items:end; margin-bottom:.3rem;">
+      <div style="display:grid; grid-template-columns:2rem 4.5rem 4.5rem auto; gap:.35rem; align-items:end; margin-bottom:.3rem;">
         <div style="font-size:.75rem; font-weight:700; padding-bottom:.5rem;">${n}</div>
         <div><label style="font-size:.65rem;">Par</label><input type="number" id="sc-par-${gpsCourseId}-${n}" value="${h && h.par!=null ? h.par : ''}"></div>
-        <div><label style="font-size:.65rem;">Yards</label><input type="number" id="sc-yd-${gpsCourseId}-${n}" value="${h && h.yardage!=null ? h.yardage : ''}"></div>
         <div><label style="font-size:.65rem;">Stroke idx</label><input type="number" id="sc-si-${gpsCourseId}-${n}" value="${h && h.stroke_index!=null ? h.stroke_index : ''}"></div>
         <button class="committee-edit-btn" onclick="saveScorecardHole(${gpsCourseId}, ${n})">Save</button>
       </div>`;
@@ -7474,9 +7621,95 @@ async function saveScorecardHole(gpsCourseId, holeNumber){
   const gv2 = id => { const el = document.getElementById(id); const v = el ? el.value.trim() : ''; return v === '' ? null : Number(v); };
   const { existing, payload } = courseHoleBasePayload(gpsCourseId, holeNumber);
   payload.par = gv2(`sc-par-${gpsCourseId}-${holeNumber}`);
-  payload.yardage = gv2(`sc-yd-${gpsCourseId}-${holeNumber}`);
   payload.stroke_index = gv2(`sc-si-${gpsCourseId}-${holeNumber}`);
   await upsertCourseHole(payload, existing, document.getElementById(`sc-status-${gpsCourseId}`));
+}
+
+/* ---- Tees: yardage per hole by tee position (White, Yellow, Red…) — what
+   players actually see when browsing, mirroring how every other golf app
+   asks "which tee are you playing from?" ---- */
+let expandedTeeId = null;
+
+function teesEditorHtml(gpsCourseId){
+  const tees = gpsTees.filter(t => t.gps_course_id === gpsCourseId).sort((a,b) => (a.sort_order||0) - (b.sort_order||0) || a.name.localeCompare(b.name));
+  const rows = tees.map(t => {
+    const holes = gpsTeeHoles.filter(h => h.gps_tee_id === t.id);
+    const total = holes.reduce((s,h) => s + (h.yardage||0), 0);
+    const open = expandedTeeId === t.id;
+    return `
+      <div class="pc-row" style="align-items:center;">
+        <span class="pc-row-label">${escapeHtml(t.name)}${total ? ` — ${total} yds` : ''}</span>
+        <div style="display:flex; gap:.4rem;">
+          <button class="committee-edit-btn" onclick="expandedTeeId=(expandedTeeId===${t.id}?null:${t.id}); renderCoursesPanel();">${open?'Hide':'Edit'}</button>
+          <button class="delete-btn" onclick="deleteTee(${t.id})">Delete</button>
+        </div>
+      </div>
+      ${open ? teeYardageEditorHtml(t.id) : ''}`;
+  }).join('');
+  return `${rows || '<p class="muted" style="font-size:.82rem;">No tees yet.</p>'}
+    <div style="display:flex; gap:.4rem; align-items:center; margin-top:.5rem;">
+      <input id="new-tee-name-${gpsCourseId}" placeholder="e.g. White" style="max-width:10rem;">
+      <button class="committee-edit-btn" onclick="saveNewTee(${gpsCourseId})">+ Add tee</button>
+    </div>
+    <div class="edit-status" id="tee-add-status-${gpsCourseId}"></div>`;
+}
+
+function teeYardageEditorHtml(teeId){
+  const holes = gpsTeeHoles.filter(h => h.gps_tee_id === teeId);
+  const rows = Array.from({length:18}, (_,i) => i+1).map(n => {
+    const h = holes.find(x => x.hole_number === n);
+    return `
+      <div style="display:grid; grid-template-columns:2rem 5rem auto; gap:.35rem; align-items:end; margin-bottom:.3rem;">
+        <div style="font-size:.75rem; font-weight:700; padding-bottom:.5rem;">${n}</div>
+        <div><label style="font-size:.65rem;">Yards</label><input type="number" id="tee-yd-${teeId}-${n}" value="${h && h.yardage!=null ? h.yardage : ''}"></div>
+        <button class="committee-edit-btn" onclick="saveTeeYardage(${teeId}, ${n})">Save</button>
+      </div>`;
+  }).join('');
+  return `<div style="max-height:16rem; overflow-y:auto; margin:.4rem 0; padding-left:.5rem; border-left:2px solid var(--line);">${rows}</div>
+    <div class="edit-status" id="tee-yd-status-${teeId}"></div>`;
+}
+
+async function saveNewTee(gpsCourseId){
+  if (!db) return;
+  const name = (document.getElementById(`new-tee-name-${gpsCourseId}`)?.value || '').trim();
+  const statusEl = document.getElementById(`tee-add-status-${gpsCourseId}`);
+  if (!name){ if(statusEl){ statusEl.textContent='Name required.'; statusEl.className='edit-status error'; } return; }
+  const sortOrder = TEE_SORT_ORDER[name.toLowerCase()] ?? 50;
+  const { data, error } = await db.from('gps_tees').insert({ gps_course_id: gpsCourseId, name, sort_order: sortOrder }).select().single();
+  if (error){ console.error(error); if(statusEl){ statusEl.textContent='Save failed.'; statusEl.className='edit-status error'; } return; }
+  gpsTees.push(data);
+  expandedTeeId = data.id;
+  renderCoursesPanel();
+}
+
+async function deleteTee(teeId){
+  if (!db || !confirm('Delete this tee and its yardages? This cannot be undone.')) return;
+  const { error } = await db.from('gps_tees').delete().eq('id', teeId);
+  if (error){ console.error(error); alert('Delete failed.'); return; }
+  gpsTees = gpsTees.filter(t => t.id !== teeId);
+  gpsTeeHoles = gpsTeeHoles.filter(h => h.gps_tee_id !== teeId);
+  if (expandedTeeId === teeId) expandedTeeId = null;
+  renderCoursesPanel();
+}
+
+async function saveTeeYardage(teeId, holeNumber){
+  if (!db) return;
+  const val = document.getElementById(`tee-yd-${teeId}-${holeNumber}`)?.value.trim();
+  const yardage = val === '' || val == null ? null : Number(val);
+  const existing = gpsTeeHoles.find(h => h.gps_tee_id === teeId && h.hole_number === holeNumber);
+  const statusEl = document.getElementById(`tee-yd-status-${teeId}`);
+  if (statusEl){ statusEl.textContent = 'Saving…'; statusEl.className = 'edit-status'; }
+  const payload = { gps_tee_id: teeId, hole_number: holeNumber, yardage, tee_lat: existing?.tee_lat ?? null, tee_lng: existing?.tee_lng ?? null };
+  try {
+    const { data, error } = await db.from('gps_tee_holes').upsert(payload, { onConflict: 'gps_tee_id,hole_number' }).select().single();
+    if (error) throw error;
+    if (existing) Object.assign(existing, data);
+    else gpsTeeHoles.push(data);
+    if (statusEl){ statusEl.textContent = 'Saved!'; statusEl.className = 'edit-status success'; }
+  } catch(err){
+    console.error(err);
+    if (statusEl){ statusEl.textContent = 'Save failed — please try again.'; statusEl.className = 'edit-status error'; }
+  }
 }
 
 /* ---- GPS pins: green location only — used purely for the live
