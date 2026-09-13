@@ -637,7 +637,7 @@
   }
   .course-card:hover{box-shadow:0 10px 26px rgba(75,19,32,.14); transform:translateY(-2px);}
   .course-card-banner{
-    position:relative; height:84px; flex-shrink:0;
+    position:relative; height:84px; flex-shrink:0; cursor:pointer;
     background:linear-gradient(115deg, var(--ink) 0%, var(--ink) 42%, var(--claret) 42%, var(--claret) 58%, var(--brass) 58%, var(--brass) 100%);
     display:flex; align-items:center; justify-content:center;
   }
@@ -7046,6 +7046,17 @@ const editingCourseIds = new Set();
 let expandedRatingCourseId = null;
 let expandedScorecardCourseId = null;
 
+/* Clicking a card's banner collapses whatever's open on it — the scorecard
+   table, the rate form, the edit form, and (admin) the manage-course-data
+   panel — since none of those had an obvious way to close back down. */
+function collapseCourseCard(courseId){
+  expandedScorecardCourseId = expandedScorecardCourseId === courseId ? null : expandedScorecardCourseId;
+  expandedRatingCourseId = expandedRatingCourseId === String(courseId) ? null : expandedRatingCourseId;
+  editingCourseIds.delete(courseId);
+  if (gpsSetupCourseId === courseId) gpsSetupCourseId = null;
+  renderCoursesPanel();
+}
+
 /* Transient per-course auto-import status ('checking'|'importing'|'done'|
    'no_data'|'error') — only tracked while a lookup is actually in flight or
    just finished this session; the steady-state badge below is otherwise
@@ -7194,7 +7205,7 @@ function renderCoursesPanel(){
 
     return `
       <div class="course-card">
-        <div class="course-card-banner">
+        <div class="course-card-banner" onclick="collapseCourseCard(${c.id})" role="button" tabindex="0" aria-label="Collapse">
           ${parBadge}
           <svg viewBox="0 0 24 24"><path d="M5 21V4l14 6-9 3v8" stroke-linejoin="round"/></svg>
         </div>
