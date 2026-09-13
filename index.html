@@ -741,7 +741,9 @@
   .trophy-winners .committee-edit-btn:hover{border-color:var(--brass-light); color:var(--brass-light);}
   .trophy-winners .edit-form{background:var(--paper); color:var(--text);}
 
-  /* Order of Merit — per-event summary cards + final standings, both
+  /* Season Standings (internally "oom", for order-of-merit — the original
+     working name before it was renamed for the public-facing UI) —
+     per-event summary cards + final standings, both
      living inside the same dark .trophy-winners panel as everything else
      in Hall of Fame. */
   .oom-events{display:flex; flex-direction:column; gap:.7rem; max-width:520px; margin:0 auto;}
@@ -5816,7 +5818,7 @@ async function addRule(){
 const editingHonourIds = new Set();
 const expandedHonourScoreIds = new Set(); // honours rows with a winner_score, tapped to reveal it
 let expandedTrophy = null;
-let oomYear = null; // selected year for the Order of Merit tile — set on first open
+let oomYear = null; // selected year for the Season Standings tile — set on first open
 
 /* Trophy silhouettes — brass on the card, keyed by competition */
 function trophySvg(baseName){
@@ -5902,7 +5904,7 @@ function trophySvg(baseName){
     <rect x="23" y="56" width="34" height="8" rx="1.5" fill="${dd}"/></svg>`;
 }
 
-/* ===== Order of Merit (season aggregation across trophy events) =====
+/* ===== Season Standings (season aggregation across trophy events) =====
    Only ever includes events that were actually live-scored (real
    hole_scores rows exist) — historical trophy winners recorded before live
    scoring existed only ever captured the WINNER, not the full field, so
@@ -6096,7 +6098,7 @@ function renderHonours(){
       </div>`;
   }
 
-  /* Order of Merit — only shown once at least one trophy event has real
+  /* Season Standings — only shown once at least one trophy event has real
      live-scored results for some year (see oomAvailableYears()) */
   const oomYears = oomAvailableYears();
   const oomSelected = expandedTrophy === '__oom__';
@@ -6106,8 +6108,8 @@ function renderHonours(){
       <div class="trophy-card ${oomSelected ? 'selected' : ''}" role="button" tabindex="0"
            onclick="toggleTrophy('__oom__')"
            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); toggleTrophy('__oom__');}">
-        ${trophySvg('Order of Merit')}
-        <h3>Order of Merit</h3>
+        ${trophySvg('Season Standings')}
+        <h3>Season Standings</h3>
         <div class="trophy-count">${oomYears.length} season${oomYears.length===1?'':'s'}</div>
       </div>`;
   }
@@ -6182,7 +6184,7 @@ function renderHonours(){
     const medal = i => i<3 ? ['🥇','🥈','🥉'][i] : null;
     winnersPanel.innerHTML = `
       <div class="trophy-winners">
-        <h3>Order of Merit</h3>
+        <h3>Season Standings</h3>
         <p style="font-size:.85rem; color:rgba(255,255,255,.55); margin:.3rem 0 1rem; max-width:44ch; line-height:1.6;">
           Combined Stableford points across every trophy fixture scored via Live Scores in ${oomYear} — only includes events actually live-scored, so earlier years without live scoring aren't shown.
         </p>
