@@ -630,6 +630,11 @@
      diagonal ink/claret/brass motif used across the header/dividers) as a
      stand-in for a photo we don't have, plus its scorecard/rating surfaced
      directly on the card rather than hidden behind a toggle. */
+  .club-group{margin-bottom:1.6rem;}
+  .club-group-heading{
+    font-family:var(--display); font-size:1rem; font-weight:800; color:var(--ink);
+    margin:0 0 .3rem; padding-bottom:.3rem; border-bottom:2px solid var(--brass);
+  }
   .course-card-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:1.1rem; margin-top:.6rem;}
   .course-card{
     border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--paper);
@@ -3051,7 +3056,7 @@ async function saveEvent(eventId){
     ? courses.find(c => c.id === Number(courseSelVal)) : null;
 
   /* if a legacy/manual course name exists with no library link, try to auto-link or create */
-  const courseName = selectedCourse ? selectedCourse.name : gv('ef-course-' + eventId);
+  const courseName = selectedCourse ? courseDisplayName(selectedCourse) : gv('ef-course-' + eventId);
   const coursePostcode = selectedCourse
     ? (selectedCourse.postcode || gv('ef-postcode-' + eventId))
     : gv('ef-postcode-' + eventId);
@@ -7145,6 +7150,38 @@ function scorecardHolesFor(course){
     .sort((a,b) => a.hole_number - b.hole_number);
 }
 
+/* The club a society's course row belongs to, via its shared gps_courses
+   link — falls back to the course's own name when there's no link yet, so
+   an unlinked course still groups sensibly (as its own group of one). */
+function clubNameForCourse(course){
+  if (course.gps_course_id){
+    const gc = gpsCourses.find(g => g.id === course.gps_course_id);
+    const club = gc ? gpsClubs.find(cl => cl.id === gc.gps_club_id) : null;
+    if (club) return club.name;
+  }
+  return course.name;
+}
+
+/* A course name that's actually unambiguous on its own — "Duke's Course"
+   means nothing out of context, so once a club is known to have more than
+   one named course, this returns "Woburn Golf Club — Duke's Course"
+   instead. A single-course club's own name already equals its club name,
+   so this is a no-op for the overwhelming majority of courses. Used
+   wherever a course name gets baked into text that outlives the courses
+   table itself — event/round course fields, and from there Hall of Fame
+   honour titles — so the disambiguation survives even if the course is
+   later deleted or renamed. */
+function courseDisplayName(course){
+  if (course.gps_course_id){
+    const gc = gpsCourses.find(g => g.id === course.gps_course_id);
+    const club = gc ? gpsClubs.find(cl => cl.id === gc.gps_club_id) : null;
+    if (club && gc && club.name.trim().toLowerCase() !== gc.name.trim().toLowerCase()){
+      return `${club.name} — ${gc.name}`;
+    }
+  }
+  return course.name;
+}
+
 let selectedTeeForCourse = {}; // courseId -> gpsTeeId, remembered while browsing
 
 function teesForCourse(course){
@@ -7200,7 +7237,36 @@ function renderCoursesPanel(){
     return rb - ra || a.name.localeCompare(b.name);
   });
 
-  const rows = sorted.map(c => {
+  // Grouped by club (via the shared gps_clubs link where one exists,
+  // otherwise a course groups under its own name) — the vast majority of
+  // clubs have exactly one course, so this reads as a plain directory for
+  // them; a genuine multi-course club (Duke's/Duchess's etc.) gets its
+  // courses visibly bundled instead of scattered across the alphabet.
+  const groups = new Map();
+  sorted.forEach(c => {
+    const club = clubNameForCourse(c);
+    if (!groups.has(club)) groups.set(club, []);
+    groups.get(club).push(c);
+  });
+  const clubSections = [...groups.keys()].sort((a,b) => a.localeCompare(b)).map(clubName => {
+    const clubCourses = groups.get(clubName);
+    const cards = clubCourses.map(c => courseCardHtml(c)).join('');
+    return `<div class="club-group">
+      <h3 class="club-group-heading">${escapeHtml(clubName)}</h3>
+      <div class="course-card-grid">${cards}</div>
+    </div>`;
+  }).join('');
+
+  panel.innerHTML = `
+    <div class="courses-panel">
+      <p style="font-size:.82rem; color:var(--text-muted); margin:0 0 .8rem;">Ranked by member rating. Click a name to open in Google Maps — tap Scorecard for par and yardage where it's been added.</p>
+      ${clubSections || '<p class="muted">No courses yet.</p>'}
+      ${isLoggedIn ? `<button class="add-item-btn" style="margin-top:1rem;" onclick="openAddCourseForm()">+ Add course</button>
+      <div id="add-course-panel"></div>` : ''}
+    </div>`;
+}
+
+function courseCardHtml(c){
     const avg = courseAvgRating(c.id); const cnt = courseRatingCount(c.id);
     const played = timesPlayed(c.id);
     const isEditing = editingCourseIds.has(c.id);
@@ -7278,15 +7344,6 @@ function renderCoursesPanel(){
           </div>
         </div>
       </div>`;
-  }).join('');
-
-  panel.innerHTML = `
-    <div class="courses-panel">
-      <p style="font-size:.82rem; color:var(--text-muted); margin:0 0 .8rem;">Ranked by member rating. Click a name to open in Google Maps — tap Scorecard for par and yardage where it's been added.</p>
-      <div class="course-card-grid">${rows || '<p class="muted">No courses yet.</p>'}</div>
-      ${isLoggedIn ? `<button class="add-item-btn" style="margin-top:1rem;" onclick="openAddCourseForm()">+ Add course</button>
-      <div id="add-course-panel"></div>` : ''}
-    </div>`;
 }
 
 function toggleCourseEdit(id){
@@ -7313,9 +7370,7 @@ function toggleGpsSetup(courseId){
 
 function gpsSetupPanelHtml(course){
   if (course.gps_course_id){
-    const gc = gpsCourses.find(g => g.id === course.gps_course_id);
-    const club = gc ? gpsClubs.find(cl => cl.id === gc.gps_club_id) : null;
-    const title = club && club.name !== (gc && gc.name) ? `${escapeHtml(club.name)} — ${escapeHtml(gc.name)}` : escapeHtml(gc ? gc.name : course.name);
+    const title = escapeHtml(courseDisplayName(course));
     return `
       <div class="edit-form" style="margin:.5rem 0;">
         <h4>Manage course data — ${title}</h4>
