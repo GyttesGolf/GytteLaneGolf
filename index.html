@@ -3671,7 +3671,18 @@ function evwRenderStep(){
   }
 
   const skipVisible = !inSubView && (s==='rounds'||s==='trophy');
-  document.getElementById('event-wizard-overlay').innerHTML = `
+  const overlay = document.getElementById('event-wizard-overlay');
+  // Re-rendering on every keystroke (needed for live search suggestions)
+  // replaces the whole overlay's innerHTML, which destroys and recreates
+  // the input the user is typing into — losing focus after each character
+  // so only one letter could ever be typed before it stopped responding.
+  // Capture focus/cursor position here and restore it after the rebuild.
+  const active = document.activeElement;
+  const focusId = (active && overlay.contains(active) && active.id) ? active.id : null;
+  const selStart = (focusId && active.selectionStart != null) ? active.selectionStart : null;
+  const selEnd = (focusId && active.selectionEnd != null) ? active.selectionEnd : null;
+
+  overlay.innerHTML = `
     <div class="evw-top">
       <button class="evw-exit" onclick="closeEventWizard()" aria-label="Close">✕</button>
       <div class="evw-dots">${dots}</div>
@@ -3682,6 +3693,14 @@ function evwRenderStep(){
     <div class="evw-body">${body}</div>
     ${evwNavHtml()}
   `;
+
+  if (focusId){
+    const el = document.getElementById(focusId);
+    if (el){
+      el.focus();
+      if (selStart != null && el.setSelectionRange) el.setSelectionRange(selStart, selEnd);
+    }
+  }
 }
 
 function evwNavHtml(){
@@ -3733,7 +3752,7 @@ function evwCourseFieldHtml(){
   const q = evwState.courseName.trim();
   const matches = q ? courses.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())).slice(0,4) : [];
   return `
-    <input type="text" placeholder="Start typing a course name…" value="${evwEsc(evwState.courseName)}" oninput="evwState.courseName=this.value; evwRenderStep();">
+    <input type="text" id="evw-course-name-input" placeholder="Start typing a course name…" value="${evwEsc(evwState.courseName)}" oninput="evwState.courseName=this.value; evwRenderStep();">
     ${q ? `<div class="evw-course-suggest">
       ${matches.map(c => `
         <div class="evw-course-opt" onclick="evwSelectCourse(${c.id})">
