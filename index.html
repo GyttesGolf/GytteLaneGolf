@@ -1301,6 +1301,118 @@
   .hcp-confirm-actions .btn-edit{background:none; color:var(--claret);}
   .hcp-shared-note{font-size:.68rem; color:var(--text-muted); margin-top:.7rem; line-height:1.4;}
 
+  /* ===== event creation wizard =====
+     Full-screen, step-by-step, same dark chrome as Focus Mode — see
+     renderEventWizard() and friends. Classes prefixed evw- throughout so
+     nothing collides with the site's own .chip (event filter pills),
+     .switch, etc. Mocked up as a standalone artifact before building
+     (same as Focus Mode and the GPS/scoring work were) — see CLAUDE.md. */
+  .evw-overlay{
+    position:fixed; inset:0; z-index:600; background:var(--ink); color:var(--paper);
+    display:flex; flex-direction:column; font-family:var(--body);
+  }
+  .evw-top{ display:flex; align-items:center; justify-content:space-between; padding:calc(env(safe-area-inset-top) + 1rem) 1rem .6rem; flex-shrink:0; }
+  .evw-exit{
+    width:2rem; height:2rem; border-radius:50%; background:rgba(250,248,242,.12); border:none;
+    color:var(--paper); font-size:1rem; display:flex; align-items:center; justify-content:center;
+    flex-shrink:0; cursor:pointer; transition:background .15s, transform .08s;
+  }
+  .evw-exit:hover{ background:rgba(250,248,242,.2); }
+  .evw-exit:active{ transform:scale(.92); }
+  .evw-dots{ display:flex; gap:6px; }
+  .evw-dots span{ width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.18); }
+  .evw-dots span.done{ background:var(--brass); }
+  .evw-dots span.cur{ background:var(--brass-light); box-shadow:0 0 0 3px rgba(227,193,115,.25); }
+  .evw-skip{ font-size:.68rem; font-weight:700; letter-spacing:.03em; color:rgba(250,248,242,.55); background:none; border:none; cursor:pointer; transition:color .15s; }
+  .evw-skip:hover{ color:var(--brass-light); }
+
+  .evw-head{ padding:.25rem 1.25rem .9rem; flex-shrink:0; max-width:520px; margin:0 auto; width:100%; }
+  .evw-step-label{ font-size:.62rem; letter-spacing:.14em; text-transform:uppercase; color:var(--brass-light); opacity:.8; margin:0 0 .3rem; }
+  .evw-title{ font-family:var(--display); font-size:1.5rem; font-weight:800; margin:0; line-height:1.15; }
+  .evw-sub{ font-size:.78rem; color:rgba(250,248,242,.55); margin:.4rem 0 0; line-height:1.4; }
+
+  .evw-body{ flex:1; min-height:0; overflow-y:auto; padding:0 1.25rem 1rem; display:flex; flex-direction:column; gap:14px; max-width:520px; margin:0 auto; width:100%; }
+  .evw-field label{ display:block; font-size:.68rem; letter-spacing:.05em; text-transform:uppercase; color:rgba(250,248,242,.5); margin-bottom:.3rem; }
+  .evw-body input[type="text"], .evw-body input[type="date"], .evw-body input[type="time"], .evw-body input[type="number"], .evw-body textarea{
+    width:100%; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14); border-radius:10px;
+    padding:.65rem .75rem; color:var(--paper); font-family:var(--body); font-size:.9rem;
+  }
+  .evw-body textarea{ resize:vertical; min-height:4.2rem; }
+  .evw-body input::placeholder, .evw-body textarea::placeholder{ color:rgba(250,248,242,.35); }
+  .evw-row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  .evw-chip-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .evw-chip{ font-family:var(--body); font-size:.78rem; font-weight:700; padding:.5rem .9rem; border-radius:999px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.05); color:var(--paper); cursor:pointer; }
+  .evw-chip.sel{ background:var(--brass); color:var(--ink); border-color:var(--brass); }
+  .evw-chip small{ display:block; font-weight:500; font-size:.62rem; opacity:.75; margin-top:1px; }
+  .evw-chip.sel small{ opacity:.8; }
+
+  .evw-toggle-pair{ display:flex; gap:8px; }
+  .evw-toggle-pair button{ flex:1; padding:.7rem; border-radius:10px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.05); color:var(--paper); font-size:.82rem; font-weight:700; cursor:pointer; }
+  .evw-toggle-pair button.sel{ background:var(--brass); color:var(--ink); border-color:var(--brass); }
+
+  .evw-course-suggest{ display:flex; flex-direction:column; gap:6px; margin-top:6px; }
+  .evw-course-opt{ display:flex; justify-content:space-between; align-items:center; padding:.55rem .7rem; border-radius:8px; background:rgba(255,255,255,.05); border:1px solid transparent; font-size:.82rem; cursor:pointer; }
+  .evw-course-opt .evw-tag{ font-size:.64rem; color:var(--brass-light); }
+  .evw-new-club-opt{ border:1px dashed rgba(255,255,255,.25); color:rgba(250,248,242,.7); justify-content:center; text-align:center; }
+  .evw-course-selected{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:rgba(227,193,115,.1); border:1px solid var(--brass-light); border-radius:10px; padding:.65rem .8rem;
+  }
+  .evw-course-selected .name{ font-weight:700; font-size:.88rem; }
+  .evw-course-selected .evw-tag{ font-size:.72rem; color:rgba(250,248,242,.55); margin-top:1px; }
+  .evw-course-field-actions{ display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .evw-course-field-actions button{ flex:1; }
+
+  .evw-round-card{ border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:.7rem .8rem; background:rgba(255,255,255,.03); }
+  .evw-round-card .evw-rc-head{ display:flex; justify-content:space-between; align-items:center; font-size:.8rem; font-weight:700; margin-bottom:.4rem; }
+  .evw-round-card .evw-rc-head .evw-del{ color:rgba(250,248,242,.4); font-size:.7rem; cursor:pointer; }
+  .evw-add-round-btn{ border:1px dashed rgba(255,255,255,.25); border-radius:10px; padding:.7rem; text-align:center; font-size:.8rem; color:rgba(250,248,242,.7); background:none; width:100%; cursor:pointer; }
+
+  .evw-toggle-row{ display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,.05); border-radius:10px; padding:.7rem .8rem; gap:10px; }
+  .evw-switch{ width:38px; height:22px; border-radius:999px; background:rgba(255,255,255,.15); position:relative; flex-shrink:0; cursor:pointer; }
+  .evw-switch.on{ background:var(--brass); }
+  .evw-switch .evw-knob{ position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:var(--paper); transition:left .15s; }
+  .evw-switch.on .evw-knob{ left:18px; }
+  .evw-ntp-recorded{ font-size:.7rem; color:var(--brass-light); margin-top:2px; line-height:1.4; }
+
+  .evw-secondary-btn{
+    font-family:var(--body); font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+    background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.28); color:rgba(250,248,242,.72);
+    padding:.5rem .85rem; border-radius:999px; cursor:pointer;
+    transition:border-color .15s, color .15s, background .15s, transform .08s;
+  }
+  .evw-secondary-btn:hover{ border-color:var(--brass-light); color:var(--brass-light); background:rgba(227,193,115,.08); }
+  .evw-secondary-btn:active{ transform:scale(.96); }
+
+  .evw-nav{ display:flex; align-items:center; gap:.7rem; padding:.8rem 1.25rem calc(env(safe-area-inset-bottom) + 1.1rem); flex-shrink:0; max-width:520px; margin:0 auto; width:100%; }
+  .evw-nav button{
+    flex:1; padding:.75rem 0; border-radius:.85rem; border:1px solid rgba(250,248,242,.25);
+    background:transparent; color:var(--paper); font-size:.82rem; font-weight:700; cursor:pointer;
+    transition:border-color .15s, background .15s, transform .08s;
+  }
+  .evw-nav button:hover{ border-color:rgba(250,248,242,.45); }
+  .evw-nav button.primary{ background:var(--brass); color:var(--ink); border-color:var(--brass); font-weight:800; }
+  .evw-nav button.primary:hover{ background:var(--brass-light); border-color:var(--brass-light); }
+  .evw-nav button:disabled{ opacity:.35; cursor:default; }
+  .evw-nav button:active:not(:disabled){ transform:scale(.97); }
+
+  .evw-rev-card{ background:rgba(255,255,255,.05); border-radius:12px; padding:.9rem 1rem; }
+  .evw-rev-card h4{ margin:0 0 .5rem; font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:var(--brass-light); }
+  .evw-rev-row{ display:flex; justify-content:space-between; font-size:.82rem; padding:.28rem 0; border-bottom:1px solid rgba(255,255,255,.06); gap:1rem; }
+  .evw-rev-row:last-child{ border-bottom:none; }
+  .evw-rev-row .k{ color:rgba(250,248,242,.55); flex-shrink:0; }
+  .evw-rev-row .v{ font-weight:600; text-align:right; }
+  .evw-create-btn{
+    margin-top:4px; background:var(--brass); color:var(--ink); border:1px solid var(--brass); border-radius:.85rem;
+    padding:1rem; font-size:.95rem; font-weight:800; cursor:pointer;
+    transition:background .15s, transform .08s;
+  }
+  .evw-create-btn:hover{ background:var(--brass-light); border-color:var(--brass-light); }
+  .evw-create-btn:active{ transform:scale(.98); }
+  .evw-status{ font-size:.8rem; text-align:center; min-height:1.2em; }
+  .evw-status.error{ color:#ff9b9b; }
+
   .frozen-banner{
     margin:0 1rem .8rem; padding:.7rem .85rem; border-radius:.85rem;
     background:rgba(184,134,47,.16); border:1px solid rgba(227,193,115,.4);
@@ -1468,7 +1580,7 @@
     <div class="map-section">
       <h3 class="mini-title">Where we play</h3>
       <div id="events-map"></div>
-      <p class="map-empty-note" id="map-empty-note" style="display:none;">Add a postcode to a fixture in Supabase to see it plotted here.</p>
+      <p class="map-empty-note" id="map-empty-note" style="display:none;">Add a postcode to an event in Supabase to see it plotted here.</p>
     </div>
 
     <div class="highlights-section">
@@ -1637,6 +1749,9 @@
       </button>
     </div>
   </nav>
+
+  <!-- ============ EVENT CREATION WIZARD ============ -->
+  <div id="event-wizard-overlay" class="evw-overlay" style="display:none;"></div>
 
   <!-- ============ MORE DRAWER ============ -->
   <div class="more-drawer-backdrop" id="more-drawer-backdrop" onclick="closeMoreDrawer()"></div>
@@ -2498,7 +2613,7 @@ function eventDetailHtml(e){
 
   const editForm = (isLoggedIn && isEditing) ? `
       <div class="edit-form">
-        <h4>Edit fixture</h4>
+        <h4>Edit event</h4>
         <div class="edit-form-grid">
           <div>
             <label>Event name</label>
@@ -2602,14 +2717,14 @@ function eventDetailHtml(e){
             <textarea id="ef-included-${e.id}">${escapeHtml(e.whats_included||'')}</textarea>
           </div>
           <div class="full">
-            <label>Holes <span style="font-family:var(--body); font-size:.7rem; color:var(--text-muted); font-weight:normal;">(only used if this fixture has no separate rounds below)</span></label>
+            <label>Holes <span style="font-family:var(--body); font-size:.7rem; color:var(--text-muted); font-weight:normal;">(only used if this event has no separate rounds below)</span></label>
             <select id="ef-holes-${e.id}">
               <option value="18" ${(e.holes||18)===18?'selected':''}>18 holes</option>
               <option value="9" ${e.holes===9?'selected':''}>9 holes</option>
             </select>
           </div>
           <div class="full">
-            <label>Rounds <span style="font-family:var(--body); font-size:.7rem; color:var(--text-muted); font-weight:normal;">(for a multi-day/multi-round event, e.g. a tour — leave empty for a normal single-round fixture)</span></label>
+            <label>Rounds <span style="font-family:var(--body); font-size:.7rem; color:var(--text-muted); font-weight:normal;">(for a multi-day/multi-round event, e.g. a tour — leave empty for a normal single-round event)</span></label>
             ${roundsEditorHtml(e.id)}
           </div>
         </div>
@@ -2617,7 +2732,7 @@ function eventDetailHtml(e){
           <button class="btn brass" onclick="saveEvent('${e.id}')">Save</button>
           <button class="btn ghost" onclick="toggleEventEdit('${e.id}')">Cancel</button>
           <div class="edit-status" id="ef-status-msg-${e.id}"></div>
-          <button class="delete-btn" onclick="deleteEvent('${e.id}')">Delete fixture</button>
+          <button class="delete-btn" onclick="deleteEvent('${e.id}')">Delete event</button>
         </div>
       </div>` : '';
 
@@ -2625,7 +2740,7 @@ function eventDetailHtml(e){
   const editToggle = isLoggedIn
     ? `<div style="margin-top:.5rem; display:flex; gap:.6rem; flex-wrap:wrap; align-items:center;">
          <button class="wa-share-btn" onclick="event.stopPropagation(); shareEventToWhatsApp('${e.id}')">${WA_ICON} Share to WhatsApp</button>
-         <button class="committee-edit-btn" onclick="toggleEventEdit('${e.id}')">${isEditing ? 'Cancel edit' : 'Edit fixture'}</button>
+         <button class="committee-edit-btn" onclick="toggleEventEdit('${e.id}')">${isEditing ? 'Cancel edit' : 'Edit event'}</button>
          ${eventStatus(e) === 'past' ? `<button class="committee-edit-btn" onclick="toggleScoresEditor('${e.id}')">${isEditingScores ? 'Close scores' : 'Enter full scores'}</button>` : ''}
        </div>`
     : '';
@@ -2865,7 +2980,7 @@ async function submitSignup(eventId){
   if (!suError) logActivity('event_signup', { event_id: eventId, player_id: playerId });
   if (suError){
     if (suError.code === '23505'){
-      setStatus('You\u2019re already signed up for this fixture.', 'notice');
+      setStatus('You\u2019re already signed up for this event.', 'notice');
     } else {
       console.error('Insert signup error:', suError);
       setStatus('Something went wrong signing up. Please try again.', 'error');
@@ -3118,7 +3233,7 @@ async function saveEvent(eventId){
 }
 
 async function deleteEvent(eventId){
-  if (!confirm('Delete this fixture? This will also remove all sign-ups for it. This cannot be undone.')) return;
+  if (!confirm('Delete this event? This will also remove all sign-ups for it. This cannot be undone.')) return;
   if (!db) return;
   const { error } = await db.from('events').delete().eq('id', eventId);
   if (error){ console.error(error); alert('Delete failed. Please try again.'); return; }
@@ -3148,7 +3263,7 @@ function roundsEditorHtml(eventId){
         <button class="delete-btn" onclick="deleteRound(${r.id},'${eventId}')">✕</button>
       </div>
     </div>`).join('');
-  return `${rows || '<p class="muted" style="font-size:.82rem;">No rounds added — this is a normal single-round fixture.</p>'}
+  return `${rows || '<p class="muted" style="font-size:.82rem;">No rounds added — this is a normal single-round event.</p>'}
     <button class="add-item-btn" style="width:auto;" onclick="addRound('${eventId}')">+ Add round</button>`;
 }
 
@@ -3192,19 +3307,426 @@ async function deleteRound(roundId, eventId){
   renderEvents();
 }
 
-async function addNewEvent(){
-  if (!db) return;
+function addNewEvent(){
+  openEventWizard();
+}
+
+/* ===== event creation wizard =====
+   Full-screen, step-by-step, mirroring Focus Mode's chrome — mocked up as
+   a standalone artifact and approved before building (same process used
+   for Focus Mode and the GPS/scoring work). Six steps: the basics, course
+   & format, rounds, trophy & prizes, logistics & cost, review & create.
+   Scoped to CREATING a new event only for this pass — editing an existing
+   event keeps the classic inline expandable form on the event card
+   unchanged; see the plan notes on why (Status, an already-recorded
+   Nearest the Pin winner, and Meet at/Max players all need care before
+   this can double as the edit flow too). */
+const EVW_PLAY_FORMATS = [
+  {v:'individual', l:'Individual'},
+  {v:'better_ball', l:'Better Ball'},
+  {v:'foursomes', l:'Foursomes'},
+  {v:'greensomes', l:'Greensomes'},
+  {v:'scramble', l:'Scramble'},
+  {v:'ryder_cup', l:'Ryder Cup'},
+  {v:'other', l:'Other…'},
+];
+const EVW_STEPS = ['basics','course','rounds','trophy','logistics','review'];
+const EVW_STEP_LABELS = {
+  basics:"Let's Get Started", course:'Course & format', rounds:'Rounds',
+  trophy:'Trophy & prizes', logistics:'Logistics & cost', review:'Review & create',
+};
+const EVW_STEP_DESC = {
+  basics:'Name it and date it — everything else builds on this.',
+  course:"Pick where it's being played and what format the round is scored in.",
+  rounds:'Optional — for a weekend or tour with more than one round.',
+  trophy:'Optional — feeds the Hall of Fame automatically once finalised.',
+  logistics:'Times, cost, and anything players need to know.',
+  review:'Check it over, then create the event.',
+};
+
+function evwBlankState(){
+  return {
+    name: '', date: '',
+    courseId: null, courseName: '', postcode: '',
+    formatPreset: '', formatCustom: '', scoringMethod: 'stableford', holes: 18,
+    multiRound: false, rounds: [],
+    hasTrophy: false, trophy: '',
+    hasNtp1: false, hasNtp2: false,
+    meetingTime: '09:00', teeTime: '10:00', meetAt: '', maxPlayers: '',
+    cost: '', signupBy: '', payBy: '', included: '',
+  };
+}
+let evwState = evwBlankState();
+let evwStepIndex = 0;
+let evwSubView = null; // null | 'newCourseClub' | 'browseCourses'
+let evwNewClub = { name:'', postcode:'', status:null };
+let evwMoreDetailsOpen = false;
+let evwSaving = false;
+
+function openEventWizard(){
+  evwState = evwBlankState();
+  evwStepIndex = 0; evwSubView = null; evwMoreDetailsOpen = false; evwSaving = false;
+  document.getElementById('event-wizard-overlay').style.display = 'flex';
+  evwRenderStep();
+}
+function closeEventWizard(){
+  if (evwState.name || evwState.date || evwState.courseId){
+    if (!confirm('Discard this event?')) return;
+  }
+  document.getElementById('event-wizard-overlay').style.display = 'none';
+}
+
+function evwFld(labelText, inner){
+  return `<div class="evw-field"><label>${labelText}</label>${inner}</div>`;
+}
+function evwEsc(s){ return escapeHtml(s || ''); }
+
+function evwRenderStep(){
+  const s = EVW_STEPS[evwStepIndex];
+  const inSubView = s === 'course' ? evwSubView : null;
+  const subMeta = {
+    newCourseClub: { label:'New club & course', title:'Add it here', sub:"Not on the list yet — add the club, and we'll try to find its scorecard and GPS data automatically." },
+    browseCourses: { label:'Browse clubs', title:'Pick from the list', sub:'Every course already in your library — tap one to select it.' },
+  };
+
+  const dots = EVW_STEPS.map((st,i) => `<span class="${i<evwStepIndex?'done':i===evwStepIndex?'cur':''}"></span>`).join('');
+  const head = inSubView ? `<div class="evw-head">
+      <p class="evw-step-label">${subMeta[inSubView].label}</p>
+      <h2 class="evw-title">${subMeta[inSubView].title}</h2>
+      <p class="evw-sub">${subMeta[inSubView].sub}</p>
+    </div>` : `<div class="evw-head">
+      <p class="evw-step-label">Step ${evwStepIndex+1} of ${EVW_STEPS.length}</p>
+      <h2 class="evw-title">${EVW_STEP_LABELS[s]}</h2>
+      <p class="evw-sub">${EVW_STEP_DESC[s]}</p>
+    </div>`;
+
+  let body = '';
+  if (s === 'course' && evwSubView === 'newCourseClub'){
+    body = evwNewCourseClubHtml();
+  } else if (s === 'course' && evwSubView === 'browseCourses'){
+    body = evwBrowseCoursesHtml();
+  } else if (s === 'basics'){
+    body = `
+      ${evwFld('Event name', `<input type="text" placeholder="e.g. Autumn Trophy" value="${evwEsc(evwState.name)}" oninput="evwState.name=this.value">`)}
+      ${evwFld('Date', `<input type="date" value="${evwState.date}" oninput="evwState.date=this.value">`)}
+    `;
+  } else if (s === 'course'){
+    body = `
+      ${evwFld('Course', evwCourseFieldHtml())}
+      ${evwFld('Format', `
+        <div class="evw-chip-row">
+          ${EVW_PLAY_FORMATS.map(f => `<button class="evw-chip ${evwState.formatPreset===f.v?'sel':''}" onclick="evwState.formatPreset='${f.v}'; evwRenderStep();">${f.l}</button>`).join('')}
+        </div>
+        ${evwState.formatPreset==='other' ? `<input type="text" style="margin-top:8px;" placeholder="Describe the format" value="${evwEsc(evwState.formatCustom)}" oninput="evwState.formatCustom=this.value">` : ''}
+        <p style="font-size:.7rem; color:rgba(250,248,242,.45); margin:.4rem 0 0;">How players group up on the day.</p>`)}
+      ${evwFld('Scoring method', `
+        <div class="evw-chip-row">
+          ${evwScoringChip('stableford','Stableford','Tap points, works today')}
+          ${evwScoringChip('strokes','Stroke Play','Net score from real strokes')}
+          ${evwScoringChip('match_play','Match Play','Head-to-head, coming soon')}
+        </div>
+        <p style="font-size:.7rem; color:rgba(250,248,242,.45); margin:.4rem 0 0;">How the round gets recorded — independent of the format above (a Ryder Cup is a format, played with Match Play scoring).</p>`)}
+      ${!evwState.multiRound ? evwFld('Holes', `
+        <div class="evw-toggle-pair">
+          <button class="${evwState.holes===18?'sel':''}" onclick="evwState.holes=18; evwRenderStep();">18 holes</button>
+          <button class="${evwState.holes===9?'sel':''}" onclick="evwState.holes=9; evwRenderStep();">9 holes</button>
+        </div>`) : `<p style="font-size:.76rem; color:rgba(250,248,242,.55); margin:0;">Holes are set per round, since this event has multiple rounds.</p>`}
+    `;
+  } else if (s === 'rounds'){
+    body = `
+      <div class="evw-toggle-row">
+        <div><div style="font-weight:700; font-size:.85rem;">Multi-round event</div><div style="font-size:.7rem; color:rgba(250,248,242,.5);">e.g. a Saturday + Sunday tour</div></div>
+        <div class="evw-switch ${evwState.multiRound?'on':''}" onclick="evwState.multiRound=!evwState.multiRound; evwRenderStep();"><div class="evw-knob"></div></div>
+      </div>
+      ${evwState.multiRound ? `
+        ${evwState.rounds.map((r,i) => `
+          <div class="evw-round-card">
+            <div class="evw-rc-head"><span>Round ${i+1}</span><span class="evw-del" onclick="evwState.rounds.splice(${i},1); evwRenderStep();">Remove</span></div>
+            <div class="evw-row2" style="margin-bottom:8px;">
+              <input type="text" placeholder="Label (e.g. Saturday)" value="${evwEsc(r.label)}" oninput="evwState.rounds[${i}].label=this.value">
+              <input type="date" value="${r.date}" oninput="evwState.rounds[${i}].date=this.value">
+            </div>
+            <div class="evw-row2" style="margin-bottom:8px;">
+              <input type="text" placeholder="Course" value="${evwEsc(r.course)}" oninput="evwState.rounds[${i}].course=this.value">
+              <input type="time" value="${r.teeTime||''}" oninput="evwState.rounds[${i}].teeTime=this.value">
+            </div>
+            <div class="evw-toggle-pair">
+              <button class="${r.holes===18?'sel':''}" onclick="evwState.rounds[${i}].holes=18; evwRenderStep();">18 holes</button>
+              <button class="${r.holes===9?'sel':''}" onclick="evwState.rounds[${i}].holes=9; evwRenderStep();">9 holes</button>
+            </div>
+          </div>`).join('')}
+        <button class="evw-add-round-btn" onclick="evwState.rounds.push({label:'Round '+(evwState.rounds.length+1), date:'', course: evwState.courseName, teeTime:'', holes:18}); evwRenderStep();">+ Add a round</button>
+      ` : `<p style="font-size:.8rem; color:rgba(250,248,242,.6);">Single round — skip ahead, nothing else to set up here.</p>`}
+    `;
+  } else if (s === 'trophy'){
+    const knownTrophies = [...new Set(events.map(x => x.trophy).filter(Boolean))].sort((a,b) => {
+      const ia = TROPHY_ORDER.indexOf(a), ib = TROPHY_ORDER.indexOf(b);
+      if (ia === -1 && ib === -1) return a.localeCompare(b);
+      if (ia === -1) return 1; if (ib === -1) return -1;
+      return ia - ib;
+    });
+    body = `
+      <div class="evw-toggle-row">
+        <div><div style="font-weight:700; font-size:.85rem;">Counts toward a trophy</div><div style="font-size:.7rem; color:rgba(250,248,242,.5);">Feeds the Hall of Fame once finalised</div></div>
+        <div class="evw-switch ${evwState.hasTrophy?'on':''}" onclick="evwState.hasTrophy=!evwState.hasTrophy; evwRenderStep();"><div class="evw-knob"></div></div>
+      </div>
+      ${evwState.hasTrophy ? `
+        ${evwFld('Trophy', `
+          <div class="evw-chip-row">
+            ${knownTrophies.map(t => `<button class="evw-chip ${evwState.trophy===t?'sel':''}" onclick="evwState.trophy='${evwEsc(t)}'; evwRenderStep();">${evwEsc(t)}</button>`).join('')}
+            <button class="evw-chip ${evwState.trophy==='__new__'?'sel':''}" onclick="evwState.trophy='__new__'; evwRenderStep();">＋ New…</button>
+          </div>`)}
+        ${evwState.trophy==='__new__' ? evwFld('New trophy name', `<input type="text" placeholder="e.g. Spring Cup" oninput="evwState.trophy=this.value">`) : ''}
+      ` : ''}
+      ${evwNtpToggleHtml('hasNtp1', 'Nearest the Pin', "One prize hole on the day — the winner's name gets added later via this event's own edit form, once the round's finished")}
+      ${evwNtpToggleHtml('hasNtp2', 'Nearest the Pin in 2', 'A second prize hole, e.g. a par 5')}
+    `;
+  } else if (s === 'logistics'){
+    body = `
+      <div class="evw-row2">
+        ${evwFld('Meeting time', `<input type="time" value="${evwState.meetingTime}" oninput="evwState.meetingTime=this.value">`)}
+        ${evwFld('First tee time', `<input type="time" value="${evwState.teeTime}" oninput="evwState.teeTime=this.value">`)}
+      </div>
+      ${evwFld('Cost', `<input type="text" placeholder="e.g. £55" value="${evwEsc(evwState.cost)}" oninput="evwState.cost=this.value">`)}
+      <div class="evw-row2">
+        ${evwFld('Sign up by', `<input type="date" value="${evwState.signupBy}" oninput="evwState.signupBy=this.value">`)}
+        ${evwFld('Pay by', `<input type="date" value="${evwState.payBy}" oninput="evwState.payBy=this.value">`)}
+      </div>
+      ${evwFld("What's included", `<textarea placeholder="e.g. Bacon roll, coffee, 2-course meal…" oninput="evwState.included=this.value">${evwEsc(evwState.included)}</textarea>`)}
+      ${evwMoreDetailsHtml()}
+    `;
+  } else if (s === 'review'){
+    const formatText = [evwFormatLabel(), evwScoringLabel(evwState.scoringMethod)].filter(Boolean).join(' ');
+    body = `
+      <div class="evw-rev-card">
+        <h4>${evwEsc(evwState.name) || 'Untitled event'}</h4>
+        <div class="evw-rev-row"><span class="k">Date</span><span class="v">${evwState.date || '—'}</span></div>
+        <div class="evw-rev-row"><span class="k">Course</span><span class="v">${evwEsc(evwState.courseName) || '—'}</span></div>
+        <div class="evw-rev-row"><span class="k">Format</span><span class="v">${evwEsc(formatText)}</span></div>
+        <div class="evw-rev-row"><span class="k">Rounds</span><span class="v">${evwState.multiRound ? evwState.rounds.length+' rounds' : (evwState.holes+' holes, single round')}</span></div>
+        <div class="evw-rev-row"><span class="k">Trophy</span><span class="v">${evwState.hasTrophy ? (evwEsc(evwState.trophy)||'—') : 'No'}</span></div>
+        <div class="evw-rev-row"><span class="k">Cost</span><span class="v">${evwEsc(evwState.cost) || '—'}</span></div>
+        <div class="evw-rev-row"><span class="k">Tee time</span><span class="v">${evwState.teeTime || '—'}</span></div>
+      </div>
+      <button class="evw-create-btn" ${evwSaving?'disabled':''} onclick="evwCreateEvent()">${evwSaving ? 'Creating…' : '🏌️ Create Event'}</button>
+      <div class="evw-status" id="evw-status"></div>
+    `;
+  }
+
+  const skipVisible = !inSubView && (s==='rounds'||s==='trophy');
+  document.getElementById('event-wizard-overlay').innerHTML = `
+    <div class="evw-top">
+      <button class="evw-exit" onclick="closeEventWizard()" aria-label="Close">✕</button>
+      <div class="evw-dots">${dots}</div>
+      <button class="evw-skip" style="visibility:${skipVisible?'visible':'hidden'}" onclick="evwNextStep()">Skip</button>
+    </div>
+    ${head}
+    <div class="evw-body">${body}</div>
+    ${evwNavHtml()}
+  `;
+}
+
+function evwNavHtml(){
+  if (evwSubView === 'newCourseClub' || evwSubView === 'browseCourses') return '';
+  const isFirst = evwStepIndex===0, isLast = evwStepIndex===EVW_STEPS.length-1;
+  return `<div class="evw-nav">
+    <button ${isFirst?'disabled':''} onclick="evwPrevStep()">← Back</button>
+    ${!isLast ? `<button class="primary" onclick="evwNextStep()">Next →</button>` : ''}
+  </div>`;
+}
+function evwNextStep(){ if (evwStepIndex<EVW_STEPS.length-1){ evwStepIndex++; evwRenderStep(); } }
+function evwPrevStep(){ if (evwStepIndex>0){ evwStepIndex--; evwRenderStep(); } }
+
+function evwScoringChip(val,label,sub){
+  const sel = evwState.scoringMethod===val;
+  return `<button class="evw-chip ${sel?'sel':''}" onclick="evwState.scoringMethod='${val}'; evwRenderStep();">${label}<small>${sub}</small></button>`;
+}
+function evwScoringLabel(v){ return v==='stableford'?'Stableford':v==='strokes'?'Stroke Play':'Match Play'; }
+function evwFormatLabel(){
+  const preset = EVW_PLAY_FORMATS.find(f=>f.v===evwState.formatPreset);
+  if (!preset) return '';
+  return preset.v==='other' ? (evwState.formatCustom || 'Other') : preset.l;
+}
+function evwNtpToggleHtml(flagKey, label, sub){
+  return `<div class="evw-toggle-row">
+    <div><div style="font-weight:700; font-size:.85rem;">${label}</div><div style="font-size:.7rem; color:rgba(250,248,242,.5);">${sub}</div></div>
+    <div class="evw-switch ${evwState[flagKey]?'on':''}" onclick="evwState.${flagKey}=!evwState.${flagKey}; evwRenderStep();"><div class="evw-knob"></div></div>
+  </div>`;
+}
+function evwMoreDetailsHtml(){
+  const open = evwMoreDetailsOpen || !!(evwState.meetAt || evwState.maxPlayers);
+  if (!open) return `<button class="evw-secondary-btn" onclick="evwMoreDetailsOpen=true; evwRenderStep();">+ More details (meet-at point, max players)</button>`;
+  return `
+    ${evwFld('Meet at', `<input type="text" placeholder="e.g. Golf Club car park" value="${evwEsc(evwState.meetAt)}" oninput="evwState.meetAt=this.value">`)}
+    ${evwFld('Max players', `<input type="number" placeholder="e.g. 40" value="${evwEsc(evwState.maxPlayers)}" oninput="evwState.maxPlayers=this.value">`)}
+  `;
+}
+
+/* ---- course field: two clean states — a compact "selected" summary row,
+   or a search box that only reveals suggestions once you've typed
+   something (never dumps the whole course library on screen). ---- */
+function evwCourseFieldHtml(){
+  if (evwState.courseId != null){
+    return `<div class="evw-course-selected">
+      <div><div class="name">${evwEsc(evwState.courseName)}</div><div class="evw-tag">${evwEsc(evwState.postcode) || ''}</div></div>
+      <button class="evw-secondary-btn" onclick="evwClearCourseSelection()">Change</button>
+    </div>`;
+  }
+  const q = evwState.courseName.trim();
+  const matches = q ? courses.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())).slice(0,4) : [];
+  return `
+    <input type="text" placeholder="Start typing a course name…" value="${evwEsc(evwState.courseName)}" oninput="evwState.courseName=this.value; evwRenderStep();">
+    ${q ? `<div class="evw-course-suggest">
+      ${matches.map(c => `
+        <div class="evw-course-opt" onclick="evwSelectCourse(${c.id})">
+          <span>${evwEsc(c.name)}</span><span class="evw-tag">${evwEsc(c.postcode||'')}</span>
+        </div>`).join('')}
+      ${!matches.length ? `<p style="font-size:.76rem; color:rgba(250,248,242,.5); margin:2px 0 6px;">No match for "${evwEsc(q)}".</p>` : ''}
+      <div class="evw-course-opt evw-new-club-opt" onclick="evwOpenNewCourseClub()">
+        <span>＋ Add "${evwEsc(q)}" as a new club &amp; course</span>
+      </div>
+    </div>` : `
+    <div class="evw-course-field-actions">
+      <button class="evw-secondary-btn" onclick="evwOpenBrowseCourses()">📋 Browse existing clubs</button>
+      <button class="evw-secondary-btn" onclick="evwOpenNewCourseClub()">＋ Add a new club</button>
+    </div>`}
+  `;
+}
+function evwSelectCourse(id){
+  const c = courses.find(x => x.id === id);
+  if (!c) return;
+  evwState.courseId = id; evwState.courseName = c.name; evwState.postcode = c.postcode || '';
+  evwRenderStep();
+}
+function evwClearCourseSelection(){ evwState.courseId=null; evwState.courseName=''; evwState.postcode=''; evwRenderStep(); }
+function evwOpenBrowseCourses(){ evwSubView = 'browseCourses'; evwRenderStep(); }
+function evwCloseBrowseCourses(){ evwSubView = null; evwRenderStep(); }
+function evwBrowseCoursesHtml(){
+  return `
+    <div class="evw-course-suggest">
+      ${courses.map(c => `
+        <div class="evw-course-opt" onclick="evwSelectCourse(${c.id}); evwCloseBrowseCourses();">
+          <span>${evwEsc(c.name)}</span><span class="evw-tag">${evwEsc(c.postcode||'')}</span>
+        </div>`).join('') || '<p class="muted" style="font-size:.82rem; color:rgba(250,248,242,.5);">No courses in the library yet.</p>'}
+    </div>
+    <div class="evw-nav" style="padding:14px 0 0;">
+      <button onclick="evwCloseBrowseCourses()">← Back to search</button>
+    </div>
+  `;
+}
+
+/* ---- new club & course: creates a real courses row for this society,
+   then runs the same automatic GPS/scorecard lookup the Courses admin
+   page uses (autoSetupGpsForCourse) — same shared infrastructure, just
+   reachable without leaving the wizard. ---- */
+function evwOpenNewCourseClub(){
+  evwSubView = 'newCourseClub';
+  evwNewClub = { name: evwState.courseName, postcode: '', status: null };
+  evwRenderStep();
+}
+function evwCloseNewCourseClub(useIt){
+  if (useIt && evwNewClub.createdCourse){
+    evwState.courseId = evwNewClub.createdCourse.id;
+    evwState.courseName = evwNewClub.createdCourse.name;
+    evwState.postcode = evwNewClub.createdCourse.postcode || '';
+  }
+  evwSubView = null;
+  evwRenderStep();
+}
+async function evwLookUpNewClub(){
+  const name = evwNewClub.name.trim();
+  if (!name || !db) return;
+  evwNewClub.status = 'looking';
+  evwRenderStep();
+  try {
+    const postcode = evwNewClub.postcode.trim().toUpperCase() || null;
+    const { data, error } = await db.from('courses').insert({ name, postcode, society_id: societyId }).select().single();
+    if (error) throw error;
+    courses.push(data);
+    courses.sort((a,b) => a.name.localeCompare(b.name));
+    evwNewClub.createdCourse = data;
+    await autoSetupGpsForCourse(data);
+    evwNewClub.status = data.gps_course_id ? 'found' : 'none';
+  } catch(err){
+    console.error(err);
+    evwNewClub.status = 'none';
+  }
+  evwRenderStep();
+}
+function evwNewCourseClubHtml(){
+  return `
+    <div class="evw-round-card" style="margin-bottom:2px;">
+      <p style="font-size:.76rem; color:rgba(250,248,242,.6); margin:0 0 10px;">This is the same club/course setup used across the app — once added here, it's available to pick for every future event too.</p>
+      ${evwFld('Club name', `<input type="text" placeholder="e.g. Woburn Golf Club" value="${evwEsc(evwNewClub.name)}" oninput="evwNewClub.name=this.value" ${evwNewClub.createdCourse?'disabled':''}>`)}
+      ${evwFld('Postcode', `<input type="text" placeholder="e.g. MK17 9LJ" value="${evwEsc(evwNewClub.postcode)}" oninput="evwNewClub.postcode=this.value" ${evwNewClub.createdCourse?'disabled':''}>`)}
+      ${!evwNewClub.createdCourse ? `<button class="evw-chip" style="margin-top:10px;" onclick="evwLookUpNewClub()">🔍 Look up course data</button>` : ''}
+      ${evwNewClub.status==='looking' ? `<p style="font-size:.78rem; color:rgba(250,248,242,.6); margin-top:10px;">⏳ Checking OpenStreetMap…</p>` : ''}
+      ${evwNewClub.status==='found' ? `<p style="font-size:.78rem; color:#8FE3A9; margin-top:10px;">✓ Found it — scorecard and GPS pins are ready to use.</p>` : ''}
+      ${evwNewClub.status==='none' ? `<p style="font-size:.78rem; color:var(--brass-light); margin-top:10px;">No data found automatically — that's fine, add the scorecard and GPS pins by hand later from the Courses page.</p>` : ''}
+    </div>
+    <div class="evw-nav" style="padding:0;">
+      <button onclick="evwCloseNewCourseClub(false)">Cancel</button>
+      <button class="primary" ${!evwNewClub.createdCourse?'disabled':''} onclick="evwCloseNewCourseClub(true)">Use this course</button>
+    </div>
+  `;
+}
+
+async function evwCreateEvent(){
+  // Looked up fresh each call, not captured once — evwRenderStep() rebuilds
+  // the whole overlay's innerHTML, which would otherwise detach an earlier
+  // reference and leave every status update invisible.
+  const setStatus = (msg, isError) => { const el = document.getElementById('evw-status'); if (el){ el.textContent = msg; el.className = 'evw-status' + (isError?' error':''); } };
+  if (!db){ setStatus('Not connected.', true); return; }
+  if (!evwState.name.trim() || !evwState.date){ setStatus('Name and date are required.', true); return; }
+  evwSaving = true; evwRenderStep();
+  setStatus('Creating…');
+
   const id = 'ev-' + Date.now();
-  const payload = { id, name: 'New event', date: new Date().toISOString().slice(0,10), status: 'upcoming', society_id: societyId };
-  const { error } = await db.from('events').insert(payload);
-  if (error){ console.error(error); alert('Could not create event. Please try again.'); return; }
-  events.push(payload);
-  expandedEventId = id;
-  renderEvents('all');
-  setTimeout(() => {
-    const card = document.querySelector('.event-card[data-id="' + id + '"]');
-    if (card) card.scrollIntoView({ behavior:'smooth', block:'center' });
-  }, 60);
+  const formatText = [evwFormatLabel(), evwScoringLabel(evwState.scoringMethod)].filter(Boolean).join(' ');
+  const payload = {
+    id, society_id: societyId,
+    name: evwState.name.trim(), date: evwState.date, status: 'upcoming',
+    course: evwState.courseName || null, course_id: evwState.courseId ?? null, postcode: evwState.postcode || null,
+    format: formatText, format_preset: evwState.formatPreset || null, scoring_format: evwState.scoringMethod,
+    holes: evwState.multiRound ? 18 : evwState.holes,
+    trophy: evwState.hasTrophy ? (evwState.trophy === '__new__' ? null : evwState.trophy) : null,
+    // A toggled-on NTP with no winner yet is stored as '' (distinct from
+    // null "not applicable") — Hall of Fame's existing truthiness checks
+    // already treat both as "no winner to show", so this is a no-risk way
+    // to remember intent for whenever editing reuses this wizard.
+    nearest_pin_1: evwState.hasNtp1 ? '' : null,
+    nearest_pin_2: evwState.hasNtp2 ? '' : null,
+    meeting_time: evwState.meetingTime || null, tee_time: evwState.teeTime || null,
+    meet_at: evwState.meetAt || null, max_players: evwState.maxPlayers ? Number(evwState.maxPlayers) : null,
+    cost: evwState.cost || null, signup_by: evwState.signupBy || null, pay_by: evwState.payBy || null,
+    whats_included: evwState.included || null,
+  };
+
+  try {
+    const { error } = await db.from('events').insert(payload);
+    if (error) throw error;
+    events.push(payload);
+
+    if (evwState.multiRound && evwState.rounds.length){
+      const roundRows = evwState.rounds.map((r,i) => ({
+        event_id: id, society_id: societyId,
+        label: r.label || ('Round ' + (i+1)), date: r.date || null, course: r.course || null,
+        tee_time: r.teeTime || null, holes: r.holes || 18, sort_order: i+1,
+      }));
+      const { data: rdData, error: rdErr } = await db.from('rounds').insert(roundRows).select();
+      if (rdErr) throw rdErr;
+      rounds.push(...(rdData || []));
+    }
+
+    document.getElementById('event-wizard-overlay').style.display = 'none';
+    goTo('events', { highlightEvent: id });
+    renderEvents('all');
+  } catch(err){
+    console.error(err);
+    evwSaving = false;
+    setStatus('Could not create the event — please try again.', true);
+    evwRenderStep();
+  }
 }
 
 /* ===================== render: committee ===================== */
@@ -4837,7 +5359,7 @@ async function renderEventsMap(){
     marker.bindPopup(`
       <h4>${e.name}</h4>
       ${eventCourseDisplay(e) ? eventCourseDisplay(e) + '<br>' : ''}${fmtDate(e.date)}<br>
-      <a href="#" onclick="goTo('events',{highlightEvent:'${e.id}'}); return false;">View fixture &rarr;</a>
+      <a href="#" onclick="goTo('events',{highlightEvent:'${e.id}'}); return false;">View event &rarr;</a>
     `);
   }
 
@@ -5200,7 +5722,7 @@ function renderLeaderboardView(){
   const blackoutHole = blackoutHoleFor(holes);
 
   const fullLb = getLeaderboard(liveEventId, holes, liveRoundId);
-  if (!fullLb.length) return `<p class="muted" style="margin-top:.5rem;">No scores yet for this ${activeRound ? 'round' : 'fixture'}. Use "Enter scores" to start recording.</p>`;
+  if (!fullLb.length) return `<p class="muted" style="margin-top:.5rem;">No scores yet for this ${activeRound ? 'round' : 'event'}. Use "Enter scores" to start recording.</p>`;
 
   const maxHoleAnyone = fullLb.reduce((max, e) => Math.max(max, e.actualThru), 0);
   // "Finished" only looks at players who actually started — someone signed
@@ -6125,7 +6647,7 @@ async function finaliseScores(eventId, roundId = null){
     const name = e.player ? e.player.first_name + ' ' + e.player.last_name : 'Unknown';
     return `${i+1}. ${name} — ${e.total} pts`;
   }).join('\n');
-  const label = round ? `"${ev ? ev.name : 'this fixture'}" — ${round.label}` : `"${ev ? ev.name : 'this fixture'}"`;
+  const label = round ? `"${ev ? ev.name : 'this event'}" — ${round.label}` : `"${ev ? ev.name : 'this event'}"`;
   const trophyNote = ev && ev.trophy ? `\n\nThe winner will be added to the Hall of Fame (${ev.trophy}).` : '';
   if (!confirm(`Finalise scores for ${label}?\n\n${summary}${trophyNote}`)) return;
 
@@ -6639,7 +7161,7 @@ function renderHonours(){
       <div class="trophy-winners">
         <h3>Season Standings</h3>
         <p style="font-size:.85rem; color:rgba(255,255,255,.55); margin:.3rem 0 1rem; max-width:44ch; line-height:1.6;">
-          Combined Stableford points across every trophy fixture scored via Live Scores in ${oomYear} — only includes events actually live-scored, so earlier years without live scoring aren't shown.
+          Combined Stableford points across every trophy event scored via Live Scores in ${oomYear} — only includes events actually live-scored, so earlier years without live scoring aren't shown.
         </p>
         ${oomYears.length > 1 ? `
           <div class="event-select-row" style="margin-bottom:1.2rem;">
