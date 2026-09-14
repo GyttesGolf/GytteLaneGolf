@@ -1310,6 +1310,10 @@
   .evw-overlay{
     position:fixed; inset:0; z-index:600; background:var(--ink); color:var(--paper);
     display:flex; flex-direction:column; font-family:var(--body);
+    overflow-x:hidden; /* a fixed-position box has no overflow clipping of
+      its own by default — without this, anything a descendant renders
+      wider than the viewport (iOS Safari's date control included) is free
+      to visually spill past the screen edge instead of being contained. */
   }
   .evw-top{ display:flex; align-items:center; justify-content:space-between; padding:calc(env(safe-area-inset-top) + 1rem) 1rem .6rem; flex-shrink:0; }
   .evw-exit{
@@ -1331,7 +1335,7 @@
   .evw-title{ font-family:var(--display); font-size:2rem; font-weight:800; margin:0; line-height:1.15; }
   .evw-sub{ font-size:.95rem; color:rgba(250,248,242,.6); margin:.5rem 0 0; line-height:1.45; }
 
-  .evw-body{ flex:1; min-height:0; overflow-y:auto; padding:0 1.25rem 1rem; display:flex; flex-direction:column; gap:18px; max-width:520px; margin:0 auto; width:100%; }
+  .evw-body{ flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding:0 1.25rem 1rem; display:flex; flex-direction:column; gap:18px; max-width:520px; margin:0 auto; width:100%; }
   /* .evw-field is a direct child of the flex-column .evw-body above — flex
      items default to min-width:auto, which lets a native date/time
      input's own intrinsic control width (wider than the container on
