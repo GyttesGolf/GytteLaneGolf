@@ -1344,6 +1344,12 @@
     width:100%; max-width:100%; box-sizing:border-box; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14); border-radius:10px;
     padding:.8rem .9rem; color:var(--paper); font-family:var(--body); font-size:1.05rem;
   }
+  /* iOS Safari's native date/time control has its own internal minimum
+     width that doesn't fully respect CSS width/max-width no matter what
+     the parent allows — the one lever that actually shrinks it further is
+     a smaller font-size (it scales with the control's own text), so these
+     get their own smaller size rather than the larger text-input default. */
+  .evw-body input[type="date"], .evw-body input[type="time"]{ font-size:.85rem; padding:.75rem .5rem; }
   .evw-body textarea{ resize:vertical; min-height:4.2rem; }
   .evw-body input::placeholder, .evw-body textarea::placeholder{ color:rgba(250,248,242,.35); }
   .evw-row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; min-width:0; }
