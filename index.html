@@ -6242,14 +6242,12 @@ function renderSetupView(){
       const isSelected = gPlayers.length && gPlayers.every(gp => scoringPlayerIds.includes(gp.player_id))
         && scoringPlayerIds.length === gPlayers.length;
 
-      // Non-admins pick their own group by tee time only — showing every
-      // group's full roster up front let anyone browse the whole field's
-      // names before a round even starts, which is more than a player
-      // scoring their own round needs to see. Admins still get the full
-      // breakdown, useful for fixing a mis-assigned group on the day.
-      const rosterLine = isLoggedIn
-        ? (playerNames.join(', ') || '<span style="color:var(--text-muted);">No players assigned</span>')
-        : `<span style="color:var(--text-muted);">${gPlayers.length} player${gPlayers.length===1?'':'s'}</span>`;
+      // Once groups have actually been picked, who's in each one is just
+      // the tee sheet — the same info Groupings shows everyone — so it
+      // stays visible to non-admins too. Only the no-groups-set-up
+      // fallback below (browsing/searching the *entire* society roster)
+      // is admin-only.
+      const rosterLine = playerNames.join(', ') || '<span style="color:var(--text-muted);">No players assigned</span>';
 
       return `
         <div style="background:var(--paper); border:2px solid ${isSelected ? 'var(--brass)' : 'var(--line)'}; border-radius:var(--radius);
