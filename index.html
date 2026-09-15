@@ -1823,7 +1823,7 @@
 
   <!-- ============ LIVE SCORES ============ -->
   <section class="section" id="sec-scores" data-section="scores">
-    <p class="eyebrow">Live from the course</p>
+    <p class="eyebrow">Today's round</p>
     <h2 class="section-title">Live Scores</h2>
     <div id="live-scores-content"></div>
   </section>
@@ -5919,7 +5919,7 @@ function renderLiveLandingView(){
 
   return `
     <div class="live-hero">
-      <p class="live-hero-eyebrow">Live from the course</p>
+      <p class="live-hero-eyebrow">Today's round</p>
       <h2 class="live-hero-title">${escapeHtml(ev.name)}</h2>
       ${subLine ? `<p class="live-hero-sub">${escapeHtml(subLine)}</p>` : ''}
       <div class="live-hero-sync"><span id="sync-indicator" class="sync-indicator"></span></div>
