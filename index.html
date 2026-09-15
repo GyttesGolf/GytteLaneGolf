@@ -1202,7 +1202,10 @@
   body.scoring-focus #sec-scores{padding:0; margin:0;}
   body.scoring-focus #live-scores-content{
     position:fixed; inset:0; z-index:600; overflow-y:auto;
-    background:var(--ink); color:var(--paper);
+    /* same diagonal fade toward black used by the event wizard overlay,
+       rather than a flat ink fill — see .evw-overlay for the original. */
+    background:linear-gradient(170deg, var(--ink) 0%, color-mix(in srgb, var(--ink) 55%, black) 60%, black 100%);
+    color:var(--paper);
     display:flex; flex-direction:column;
     font-family:var(--body);
   }
@@ -1212,6 +1215,17 @@
     display:flex; align-items:center; justify-content:space-between; gap:.5rem;
     padding:calc(env(safe-area-inset-top) + .9rem) .9rem .5rem; flex-shrink:0;
   }
+  /* title row + thin gold stripe under it, same pattern as the event
+     wizard's own banner (.evw-banner/.evw-banner-line) — kept as its own
+     class here since focus mode's content isn't width-capped like the
+     wizard's is, but the visual language matches. */
+  .focus-banner{
+    flex-shrink:0; display:flex; align-items:center; gap:.5rem; padding:0 .9rem .7rem;
+    color:rgba(250,248,242,.85);
+  }
+  .focus-banner svg{ opacity:.95; color:var(--brass-light); }
+  .focus-banner span{ font-family:var(--display); font-size:.8rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+  .focus-banner-line{ height:3px; background:var(--brass); flex-shrink:0; }
   .focus-exit{
     width:2rem; height:2rem; border-radius:50%; background:rgba(250,248,242,.12);
     display:flex; align-items:center; justify-content:center; font-size:1rem; color:var(--paper);
@@ -6318,6 +6332,7 @@ async function saveHandicapConfirm(pid){
   confirmHandicap(pid);
 }
 
+const FOCUS_BANNER_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" style="stroke:currentColor; fill:none; stroke-width:1.8; flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>`;
 function focusTopBarHtml(mode, liveLabel){
   const other = mode === 'leaderboard'
     ? `<div class="focus-icon-btn" onclick="setLiveSubView('entry')" role="button" tabindex="0"><span class="ic">⛳</span> Scoring</div>`
@@ -6327,7 +6342,9 @@ function focusTopBarHtml(mode, liveLabel){
       <button class="focus-exit" onclick="exitScoringFocus()" aria-label="Exit focus mode">✕</button>
       <div class="focus-live"><span class="live-dot"></span> ${liveLabel || '<span id="sync-indicator" class="sync-indicator"></span>'}</div>
       ${other}
-    </div>`;
+    </div>
+    <div class="focus-banner">${FOCUS_BANNER_ICON}<span>Live Scoring</span></div>
+    <div class="focus-banner-line"></div>`;
 }
 
 /* Front/center/back yardage card for the current hole — its own function
