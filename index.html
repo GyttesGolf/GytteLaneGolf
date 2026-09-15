@@ -1321,7 +1321,12 @@
      .switch, etc. Mocked up as a standalone artifact before building
      (same as Focus Mode and the GPS/scoring work were) — see CLAUDE.md. */
   .evw-overlay{
-    position:fixed; inset:0; z-index:600; background:var(--ink); color:var(--paper);
+    position:fixed; inset:0; z-index:600; color:var(--paper);
+    /* a diagonal fade toward black rather than a flat ink fill — same idea
+       as login.html's own background gradient, but built from this page's
+       own --ink token (color-mix, not a hardcoded hex) so it still follows
+       a society's own branded colour rather than always going burgundy. */
+    background:linear-gradient(170deg, var(--ink) 0%, color-mix(in srgb, var(--ink) 55%, black) 60%, black 100%);
     display:flex; flex-direction:column; font-family:var(--body);
     overflow-x:hidden; /* a fixed-position box has no overflow clipping of
       its own by default — without this, anything a descendant renders
@@ -1442,17 +1447,18 @@
   .evw-status{ font-size:.8rem; text-align:center; min-height:1.2em; }
   .evw-status.error{ color:#ff9b9b; }
 
-  /* wizard banner — reuses the diagonal club-tie stripe from the Courses
-     page's own card banner (.course-card-banner) so the wizard picks up
-     the site's one repeated visual signature instead of sitting blank;
-     built reusable so any future wizard can drop in the same strip. */
+  /* wizard banner — a plain icon+label row followed by the same thin gold
+     stripe (.stripe-band) the home page uses under its own header, rather
+     than the busier diagonal club-tie stripe (too much colour on an
+     already-burgundy screen); built reusable so any future wizard can
+     drop in the same row + line. */
   .evw-banner{
-    flex-shrink:0; display:flex; align-items:center; gap:.6rem; padding:.85rem 1.25rem;
-    background:linear-gradient(115deg, var(--ink) 0%, var(--ink) 42%, var(--claret) 42%, var(--claret) 58%, var(--brass) 58%, var(--brass) 100%);
+    flex-shrink:0; display:flex; align-items:center; gap:.6rem; padding:0 1.25rem .85rem;
     color:var(--paper);
   }
-  .evw-banner svg{ opacity:.95; }
-  .evw-banner span{ font-family:var(--display); font-size:.85rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+  .evw-banner svg{ opacity:.95; color:var(--brass-light); }
+  .evw-banner span{ font-family:var(--display); font-size:.85rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:rgba(250,248,242,.85); }
+  .evw-banner-line{ height:3px; background:var(--brass); flex-shrink:0; }
 
   /* custom date picker — replaces native <input type="date"> everywhere in
      this wizard (see evwDateFieldHtml/evwCalendarHtml): iOS Safari's own
@@ -3689,6 +3695,7 @@ function evwRenderStep(){
       <button class="evw-skip" style="visibility:${skipVisible?'visible':'hidden'}" onclick="evwNextStep()">Skip</button>
     </div>
     ${evwBannerHtml(EVW_FLAG_ICON, 'Create Event')}
+    <div class="evw-banner-line"></div>
     ${head}
     <div class="evw-body">${body}</div>
     ${evwNavHtml()}
