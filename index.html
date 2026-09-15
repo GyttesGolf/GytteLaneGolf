@@ -952,6 +952,43 @@
     color:var(--text); flex:1; min-width:200px;
   }
 
+  /* ---------- live scores: landing ----------
+     First screen on opening Live Scores — which event you're on, then one
+     tap into each of the three real screens, instead of dropping straight
+     into Enter Scores' own group/player picker with no orientation. Same
+     dark-fade-to-black treatment as the event wizard/focus mode banners,
+     so "this is matchday" reads immediately. */
+  .live-hero{
+    background:linear-gradient(180deg, var(--ink) 0%, color-mix(in srgb, var(--ink) 55%, black) 100%);
+    color:var(--paper); border-radius:var(--radius); padding:1.3rem 1.3rem 1.6rem; text-align:center;
+  }
+  .live-hero-eyebrow{font-family:var(--body); font-size:.65rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--brass-light); margin:0 0 .3rem;}
+  .live-hero-title{font-family:var(--display); font-size:1.4rem; font-weight:800; margin:0 0 .3rem;}
+  .live-hero-sub{font-size:.82rem; color:rgba(250,248,242,.65); margin:0;}
+  .live-hero-sync{margin-top:.7rem;}
+  .live-hero-sync .sync-indicator{display:inline-flex;}
+
+  .live-action-rows{display:flex; flex-direction:column; gap:.7rem; padding-top:.9rem;}
+  .live-action-row{
+    display:flex; align-items:center; gap:.8rem; background:var(--paper); border:1px solid var(--line);
+    border-radius:var(--radius); padding:.95rem 1.1rem; cursor:pointer;
+    box-shadow:0 6px 16px rgba(75,19,32,.08); transition:transform .15s, box-shadow .15s;
+  }
+  .live-action-row:hover{transform:translateY(-1px); box-shadow:0 8px 20px rgba(75,19,32,.14);}
+  .live-action-row.featured{background:var(--brass); border-color:var(--brass);}
+  .lar-ic{font-size:1.3rem; width:32px; text-align:center; flex-shrink:0;}
+  .lar-body{flex:1; min-width:0;}
+  .lar-title{font-family:var(--display); font-weight:700; font-size:.98rem; color:var(--ink);}
+  .lar-sub{font-size:.76rem; color:var(--text-muted); margin-top:.1rem;}
+  .live-action-row.featured .lar-sub{color:color-mix(in srgb, var(--ink) 75%, transparent);}
+  .lar-chev{margin-left:auto; color:var(--text-muted); font-size:1.1rem; flex-shrink:0;}
+  .live-action-row.featured .lar-chev{color:var(--ink);}
+
+  .live-back-link{
+    display:inline-block; font-family:var(--body); font-size:.78rem; font-weight:600;
+    color:var(--bracken); margin-bottom:.9rem;
+  }
+
   .score-setup{max-width:480px;}
   .score-setup h3{font-family:var(--display); font-size:1.2rem; margin:0 0 .7rem; color:var(--ink);}
   .player-pick-list{display:flex; flex-direction:column; gap:.4rem; margin:.6rem 0 1rem;}
@@ -5591,7 +5628,7 @@ let liveRoundId = null;
 let scoringFocusMode = false;
 let scoringPlayerIds = [];
 let currentHole = 1;
-let liveSubView = 'setup'; // 'setup' | 'entry' | 'leaderboard' | 'groupings'
+let liveSubView = 'landing'; // 'landing' | 'setup' | 'entry' | 'leaderboard' | 'groupings'
 
 /* pre-round handicap confirm/amend — shown once per (event,round,player)
    per browser session before Focus Mode's entry screen, for every scoring
@@ -5790,13 +5827,6 @@ function renderLiveScores(){
   const evOpts = [...events].sort((a,b) => new Date(b.date) - new Date(a.date))
     .map(e => `<option value="${e.id}" ${liveEventId===e.id?'selected':''}>${e.name}${eventCourseDisplay(e) ? ' — ' + shortCourse(eventCourseDisplay(e)) : ''} — ${shortDate(e.date)}</option>`).join('');
 
-  const subTabs = `
-    <div class="scores-sub-tabs">
-      <button class="scores-sub-tab ${liveSubView==='setup'||liveSubView==='entry'?'active':''}" onclick="setLiveSubView('setup')">⛳ Enter Scores</button>
-      <button class="scores-sub-tab ${liveSubView==='leaderboard'?'active':''}" onclick="setLiveSubView('leaderboard')">🏆 Leaderboard</button>
-      <button class="scores-sub-tab ${liveSubView==='groupings'?'active':''}" onclick="setLiveSubView('groupings')">👥 Groupings</button>
-    </div>`;
-
   const eventSelector = `
     <div class="event-select-row">
       <select onchange="switchLiveEvent(this.value)">${evOpts}</select>
@@ -5814,16 +5844,91 @@ function renderLiveScores(){
       </select>
     </div>` : '';
 
+  if (liveSubView === 'landing'){
+    el.innerHTML = eventSelector + roundSelector + renderLiveLandingView();
+    updateSyncIndicator();
+    manageLeaderboardPoll();
+    syncScoringFocusClass();
+    return;
+  }
+
+  const backLink = `<a href="#" class="live-back-link" onclick="setLiveSubView('landing'); return false;">← Live Scores overview</a>`;
+
+  const subTabs = `
+    <div class="scores-sub-tabs">
+      <button class="scores-sub-tab ${liveSubView==='setup'||liveSubView==='entry'?'active':''}" onclick="setLiveSubView('setup')">⛳ Enter Scores</button>
+      <button class="scores-sub-tab ${liveSubView==='leaderboard'?'active':''}" onclick="setLiveSubView('leaderboard')">🏆 Leaderboard</button>
+      <button class="scores-sub-tab ${liveSubView==='groupings'?'active':''}" onclick="setLiveSubView('groupings')">👥 Groupings</button>
+    </div>`;
+
   let body = '';
   if (liveSubView === 'groupings')    body = renderGroupingsInScores();
   else if (liveSubView === 'leaderboard')  body = renderLeaderboardView();
   else if (liveSubView === 'setup')   body = renderSetupView();
   else if (liveSubView === 'entry')   body = renderEntryView();
 
-  el.innerHTML = subTabs + eventSelector + roundSelector + body;
+  el.innerHTML = backLink + subTabs + eventSelector + roundSelector + body;
   updateSyncIndicator();
   manageLeaderboardPoll();
   syncScoringFocusClass();
+}
+
+/* Live Scores landing — the first thing you see on opening the page:
+   which event you're synced against, plus one tap into each of the
+   three real screens (scoring, leaderboard, groupings). Replaces what
+   used to be an immediate drop into "Enter Scores"' own group/player
+   picker, which read as a bare player list with no orientation. */
+function renderLiveLandingView(){
+  const ev = eventById(liveEventId);
+  if (!ev) return `<p class="muted" style="margin-top:.5rem;">No events yet.</p>`;
+
+  const activeRound = liveRoundId ? rounds.find(r => r.id === liveRoundId) : null;
+  const evRounds = roundsForEvent(liveEventId);
+  const holes = roundHoles(activeRound, ev);
+  const courseText = activeRound ? activeRound.course : eventCourseDisplay(ev);
+  const subLine = [courseText, fmtDate(ev.date)].filter(Boolean).join(' — ');
+
+  const evGroups = matchGroups.filter(g => g.event_id === liveEventId && (liveRoundId ? g.round_id === liveRoundId : !g.round_id));
+
+  let scoreTitle = 'Enter scores';
+  let scoreSub;
+  if (evRounds.length && liveRoundId === null){
+    scoreSub = 'Select a round above to start scoring';
+  } else if (scoringPlayerIds.length){
+    scoreTitle = 'Resume scoring';
+    scoreSub = `Hole ${currentHole} of ${holes}`;
+  } else if (evGroups.length){
+    scoreSub = `${evGroups.length} group${evGroups.length===1?'':'s'} ready — pick yours to begin`;
+  } else {
+    scoreSub = 'No groups set up yet';
+  }
+
+  const lb = getLeaderboard(liveEventId, holes, liveRoundId);
+  const startedCount = lb.filter(e => e.started).length;
+  const lbSub = startedCount ? `${startedCount} player${startedCount===1?'':'s'} on the course` : 'Live standings, updates automatically';
+
+  const groupingsSub = evGroups.length ? `${evGroups.length} group${evGroups.length===1?'':'s'} set` : 'No groups set up yet';
+
+  const row = (cls, icon, title, sub, onclick) => `
+    <div class="live-action-row ${cls}" onclick="${onclick}" role="button" tabindex="0"
+      onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); ${onclick}}">
+      <div class="lar-ic">${icon}</div>
+      <div class="lar-body"><div class="lar-title">${escapeHtml(title)}</div><div class="lar-sub">${escapeHtml(sub)}</div></div>
+      <div class="lar-chev">›</div>
+    </div>`;
+
+  return `
+    <div class="live-hero">
+      <p class="live-hero-eyebrow">Live from the course</p>
+      <h2 class="live-hero-title">${escapeHtml(ev.name)}</h2>
+      ${subLine ? `<p class="live-hero-sub">${escapeHtml(subLine)}</p>` : ''}
+      <div class="live-hero-sync"><span id="sync-indicator" class="sync-indicator"></span></div>
+    </div>
+    <div class="live-action-rows">
+      ${row('featured', '⛳', scoreTitle, scoreSub, "setLiveSubView('setup')")}
+      ${row('', '🏆', 'Leaderboard', lbSub, "setLiveSubView('leaderboard')")}
+      ${row('', '👥', 'Groupings', groupingsSub, "setLiveSubView('groupings')")}
+    </div>`;
 }
 
 /* Keeps body.scoring-focus in sync with actual state — separated from
