@@ -6030,6 +6030,20 @@ function renderLeaderboardView(){
   const holes = roundHoles(activeRound, ev);
   const blackoutHole = blackoutHoleFor(holes);
 
+  // Nothing meaningful to show — and every signed-up player listed as
+  // "Not started" reads as broken, not just empty — until groups have
+  // actually been sorted for this event/round. Same for everyone,
+  // admin included, since there's genuinely no leaderboard yet either way.
+  const evGroupsForLb = matchGroups.filter(g => g.event_id === liveEventId && (liveRoundId ? g.round_id === liveRoundId : !g.round_id));
+  if (!evGroupsForLb.length){
+    return `
+      <div style="text-align:center; padding:2.5rem 1rem;">
+        <div style="font-size:1.8rem; margin-bottom:.6rem;">🏆</div>
+        <h3 style="font-family:var(--display); font-size:1.15rem; margin:0 0 .4rem; color:var(--ink);">Leaderboard not ready yet</h3>
+        <p style="color:var(--text-muted); max-width:36ch; margin:0 auto;">This shows up once groups have been sorted for this ${activeRound ? 'round' : 'event'}.</p>
+      </div>`;
+  }
+
   const fullLb = getLeaderboard(liveEventId, holes, liveRoundId);
   if (!fullLb.length) return `<p class="muted" style="margin-top:.5rem;">No scores yet for this ${activeRound ? 'round' : 'event'}. Use "Enter scores" to start recording.</p>`;
 
