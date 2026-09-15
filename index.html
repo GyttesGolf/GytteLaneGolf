@@ -6242,6 +6242,15 @@ function renderSetupView(){
       const isSelected = gPlayers.length && gPlayers.every(gp => scoringPlayerIds.includes(gp.player_id))
         && scoringPlayerIds.length === gPlayers.length;
 
+      // Non-admins pick their own group by tee time only — showing every
+      // group's full roster up front let anyone browse the whole field's
+      // names before a round even starts, which is more than a player
+      // scoring their own round needs to see. Admins still get the full
+      // breakdown, useful for fixing a mis-assigned group on the day.
+      const rosterLine = isLoggedIn
+        ? (playerNames.join(', ') || '<span style="color:var(--text-muted);">No players assigned</span>')
+        : `<span style="color:var(--text-muted);">${gPlayers.length} player${gPlayers.length===1?'':'s'}</span>`;
+
       return `
         <div style="background:var(--paper); border:2px solid ${isSelected ? 'var(--brass)' : 'var(--line)'}; border-radius:var(--radius);
           padding:1rem 1.2rem; margin-bottom:.7rem; cursor:pointer;"
@@ -6252,7 +6261,7 @@ function renderSetupView(){
             ${isSelected ? `<span style="margin-left:auto; font-family:var(--body); font-size:.7rem; color:var(--brass); font-weight:600;">✓ Selected</span>` : ''}
           </div>
           <div style="font-size:.9rem; color:var(--text);">
-            ${playerNames.join(', ') || '<span style="color:var(--text-muted);">No players assigned</span>'}
+            ${rosterLine}
           </div>
         </div>`;
     }).join('');
@@ -6271,7 +6280,19 @@ function renderSetupView(){
       </div>`;
   }
 
-  /* fallback — no groups set up, manual player selection */
+  /* fallback — no groups set up. Manual player selection (the full roster,
+     searchable by name) is an admin-only tool for exactly that reason —
+     a non-admin never needs to browse/identify anyone by name here, so
+     they get a plain message instead of the player list until an admin
+     sets up real groups. */
+  if (!isLoggedIn){
+    return `
+      <div class="score-setup">
+        <h3 style="margin:0 0 .5rem;">Select your group</h3>
+        <p class="muted" style="font-size:.85rem;">Groups haven't been set up for this event yet — check back once your captain has added them.</p>
+      </div>`;
+  }
+
   const filtered = [...players]
     .filter(p => p.active !== false && (p.first_name + ' ' + p.last_name).toLowerCase().includes(playerSearchTerm.toLowerCase()))
     .sort((a,b) => a.first_name.localeCompare(b.first_name));
