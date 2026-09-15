@@ -2046,14 +2046,30 @@ function placeholderCrestDataUri(soc){
 /* iOS/Android and most browsers need a raster icon at a known pixel size,
    not an arbitrary source — a real uploaded logo might be any resolution,
    and the generated placeholder crest is SVG, so always render both onto a
-   canvas at the exact size being declared, rather than trust the source. */
-function rasterizeToPng(srcDataUri, size){
+   canvas at the exact size being declared, rather than trust the source.
+   bgColor (optional) fills the canvas first — needed for home screen
+   icons specifically: most uploaded crests are a transparent PNG with an
+   already-white/cream shield shape, so with no fill iOS pads the
+   transparent corners white too, and the crest's own white background
+   blends straight into it — the icon reads as bare line art floating on
+   white instead of a proper coloured app-icon tile. When a bgColor is
+   given, the logo is also inset (drawn at 82% size, centered) so it
+   doesn't touch the edges, matching how a normal app icon looks. */
+function rasterizeToPng(srcDataUri, size, bgColor){
   return new Promise(resolve => {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
       canvas.width = size; canvas.height = size;
-      canvas.getContext('2d').drawImage(img, 0, 0, size, size);
+      const ctx = canvas.getContext('2d');
+      if (bgColor){
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(0, 0, size, size);
+        const inset = size * 0.09;
+        ctx.drawImage(img, inset, inset, size - inset*2, size - inset*2);
+      } else {
+        ctx.drawImage(img, 0, 0, size, size);
+      }
       try { resolve(canvas.toDataURL('image/png')); }
       catch(e){ resolve(srcDataUri); }
     };
@@ -2081,9 +2097,9 @@ async function updateHomeScreenIcon(soc){
   if (!touchIcon && !favicon && !manifestLink) return;
 
   const [icon180, icon192, icon512] = await Promise.all([
-    rasterizeToPng(baseSrc, 180),
-    rasterizeToPng(baseSrc, 192),
-    rasterizeToPng(baseSrc, 512),
+    rasterizeToPng(baseSrc, 180, primaryColour),
+    rasterizeToPng(baseSrc, 192, primaryColour),
+    rasterizeToPng(baseSrc, 512, primaryColour),
   ]);
   if (touchIcon) touchIcon.setAttribute('href', icon180);
   if (favicon) favicon.setAttribute('href', icon180);
