@@ -931,6 +931,7 @@
   .lb-total{font-family:var(--body); font-size:1.1rem; font-weight:600; color:var(--ink); text-align:right;}
   .lb-thru{font-family:var(--body); font-size:.78rem; color:var(--text-muted); text-align:right;}
   .lb-complete{color:var(--bracken); font-weight:600;}
+  .lb-group-label{font-family:var(--body); font-size:.68rem; font-weight:400; color:var(--text-muted); margin-top:.1rem;}
   .lb-fun-label{
     font-size:.76rem; font-weight:400; font-style:italic; margin-top:.15rem;
   }
@@ -6196,6 +6197,17 @@ function committeeLeaderboardHtml(lb, showFinalise, holes = 18, roundId = null){
   let lastStartedIndex = -1;
   lb.forEach((e, idx) => { if (e.started) lastStartedIndex = idx; });
   const labelSeed = new Date().getDate(); // varies day to day, stable within the day
+
+  // Which group each player's in — same "Group N" numbering (sorted by tee
+  // time) used on the Groupings/Enter Scores screens, not the raw group id,
+  // so it actually means something at a glance.
+  const evGroupsForLb = matchGroups.filter(g => g.event_id === liveEventId && (roundId ? g.round_id === roundId : !g.round_id))
+    .sort((a,b) => a.tee_time.localeCompare(b.tee_time));
+  const groupLabelForPlayer = new Map();
+  evGroupsForLb.forEach((g, idx) => {
+    matchGroupPlayers.filter(gp => gp.group_id === g.id).forEach(gp => groupLabelForPlayer.set(gp.player_id, `Group ${idx+1}`));
+  });
+
   const rows = lb.map((entry, i) => {
     const isFirst = startedCount >= 2 && entry.started && i === 0;
     const isLast = startedCount >= 2 && entry.started && i === lastStartedIndex && i !== 0;
@@ -6208,9 +6220,11 @@ function committeeLeaderboardHtml(lb, showFinalise, holes = 18, roundId = null){
       : isLast
         ? `<div class="lb-fun-label last">${pickLabel(LAST_PLACE_LABELS, labelSeed)}</div>`
         : '';
+    const groupLabel = entry.player && groupLabelForPlayer.has(entry.player.id)
+      ? `<div class="lb-group-label">${groupLabelForPlayer.get(entry.player.id)}</div>` : '';
     return `<tr>
       <td>${pos}</td>
-      <td class="lb-player">${entry.player ? entry.player.first_name + ' ' + entry.player.last_name : 'Unknown'}${funLabel}</td>
+      <td class="lb-player">${entry.player ? entry.player.first_name + ' ' + entry.player.last_name : 'Unknown'}${groupLabel}${funLabel}</td>
       <td class="lb-total">${entry.started ? entry.total : '—'}</td>
       <td class="lb-thru">${thruLabel}</td>
     </tr>`;
