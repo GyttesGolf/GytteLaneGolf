@@ -596,24 +596,19 @@
   .edit-status.error{color:var(--claret); font-weight:600;}
   .edit-status.loading{color:var(--text-muted);}
 
+  /* Same quiet outline-pill treatment as the account page's Sign out
+     button (.btn.ghost) — used for every "add a new thing" admin action
+     site-wide, so they all read consistently rather than each page
+     inventing its own (a dashed muted outline here, a bright filled brass
+     button there). Ink-coloured rather than sign-out's claret, since
+     claret is reserved for the one destructive/exit action. */
   .add-item-btn{
     font-family:var(--body); font-size:.8rem; text-transform:uppercase; letter-spacing:.04em;
-    background:none; border:2px dashed var(--line); color:var(--text-muted);
-    padding:.75rem 1.2rem; border-radius:var(--radius); cursor:pointer; width:100%;
-    transition:border-color .15s, color .15s; margin-top:.5rem;
+    background:transparent; border:2px solid var(--ink); color:var(--ink);
+    padding:.7rem 1.2rem; border-radius:var(--radius); cursor:pointer; width:100%;
+    transition:background .15s, color .15s; margin:.5rem 0;
   }
-  .add-item-btn:hover{border-color:var(--brass); color:var(--ink);}
-
-  .add-event-btn{
-    font-family:var(--body); font-size:.85rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
-    background:var(--brass); color:var(--ink); border:2px solid var(--brass);
-    padding:.85rem 1.2rem; border-radius:var(--radius); cursor:pointer; width:100%;
-    display:flex; align-items:center; justify-content:center; gap:.4rem;
-    margin-bottom:1rem; box-shadow:0 6px 16px rgba(184,134,47,.28);
-    transition:background .15s, border-color .15s, transform .08s, box-shadow .15s;
-  }
-  .add-event-btn:hover{background:var(--brass-light); border-color:var(--brass-light); box-shadow:0 8px 20px rgba(184,134,47,.36);}
-  .add-event-btn:active{transform:scale(.98);}
+  .add-item-btn:hover{background:var(--ink); color:var(--paper);}
 
   /* ---------- group randomiser ---------- */
   @keyframes dice-spin{
@@ -1772,16 +1767,16 @@
     <p class="eyebrow">Caught on camera</p>
     <h2 class="section-title">Gallery</h2>
     <div class="filter-row" id="gallery-filter" role="group" aria-label="Filter gallery by event"></div>
-    <div class="gallery-grid" id="gallery-grid"></div>
     <div id="gallery-add-slot"></div>
+    <div class="gallery-grid" id="gallery-grid"></div>
   </section>
 
   <!-- ============ NEWS ============ -->
   <section class="section" id="sec-news" data-section="news">
     <p class="eyebrow">From the clubhouse</p>
     <h2 class="section-title">News</h2>
-    <div class="news-list" id="news-list"></div>
     <div id="add-news-slot"></div>
+    <div class="news-list" id="news-list"></div>
   </section>
 
   <!-- ============ SHOP ============ -->
@@ -1806,8 +1801,8 @@
   <section class="section" id="sec-rules" data-section="rules">
     <p class="eyebrow">How we play</p>
     <h2 class="section-title">Rules &amp; Regulations</h2>
-    <div class="rules-list" id="rules-list"></div>
     <div id="add-rule-slot"></div>
+    <div class="rules-list" id="rules-list"></div>
   </section>
 
   <!-- ============ HALL OF FAME ============ -->
@@ -2660,7 +2655,7 @@ function renderEvents(filter){
 
   const addSlot = document.getElementById('add-event-slot');
   if (addSlot) addSlot.innerHTML = isLoggedIn
-    ? `<button class="add-event-btn" onclick="addNewEvent()">+ Add new event</button>` : '';
+    ? `<button class="add-item-btn" onclick="addNewEvent()">+ Add new event</button>` : '';
 }
 document.querySelectorAll('#sec-events .chip').forEach(chip => {
   chip.addEventListener('click', () => {
@@ -3965,7 +3960,10 @@ async function evwCreateEvent(){
 const editingCommitteeIds = new Set();
 
 function renderCommittee(){
-  document.getElementById('committee-grid').innerHTML = committee.map(m => {
+  const addTile = isLoggedIn
+    ? `<button class="add-item-btn" style="align-self:start;" onclick="addCommitteeMember()">+ Add member</button>`
+    : '';
+  document.getElementById('committee-grid').innerHTML = addTile + committee.map(m => {
     const first = m.first_name || (m.name ? m.name.split(' ')[0] : '');
     const last = m.last_name || (m.name ? m.name.split(' ').slice(1).join(' ') : '');
     const initials = ((first[0] || '') + (last[0] || '')).toUpperCase();
@@ -4027,10 +4025,7 @@ function renderCommittee(){
         ${editToggle}
         ${editForm}
       </div>`;
-  }).join('') + (isLoggedIn
-    ? `<div class="committee-card" style="display:flex;align-items:center;justify-content:center;border-style:dashed;">
-         <button class="add-item-btn" style="border:none;margin:0;" onclick="addCommitteeMember()">+ Add member</button>
-       </div>` : '');
+  }).join('');
 }
 
 function toggleCommitteeEdit(id){
@@ -8017,9 +8012,9 @@ function renderCoursesPanel(){
   panel.innerHTML = `
     <div class="courses-panel">
       <p style="font-size:.82rem; color:var(--text-muted); margin:0 0 .8rem;">Ranked by member rating. Click a name to open in Google Maps — tap Scorecard for par and yardage where it's been added.</p>
-      ${clubSections || '<p class="muted">No courses yet.</p>'}
-      ${isLoggedIn ? `<button class="add-item-btn" style="margin-top:1rem;" onclick="openAddCourseForm()">+ Add course</button>
+      ${isLoggedIn ? `<button class="add-item-btn" onclick="openAddCourseForm()">+ Add course</button>
       <div id="add-course-panel"></div>` : ''}
+      ${clubSections || '<p class="muted">No courses yet.</p>'}
     </div>`;
 }
 
