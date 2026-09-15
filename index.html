@@ -343,6 +343,20 @@
     background:color-mix(in srgb, var(--claret) 14%, transparent); padding:.2rem .55rem; border-radius:999px;
   }
   .leader-name{font-family:var(--display); font-size:1.2rem; font-weight:600; color:var(--ink); margin:.5rem 0 0;}
+
+  /* Captain/Vice-Captain tiles: side by side even on a phone, rather than
+     each wrapping onto its own row — .leader-card's desktop min-width
+     (230px) is wider than two can ever fit at once below ~480px, so this
+     shrinks the tile down (smaller photo, tighter padding/type) instead
+     of letting flex-wrap stack them, cutting the section's height on
+     Home roughly in half on mobile. */
+  @media(max-width:480px){
+    .leaders-row{flex-wrap:nowrap; gap:.6rem;}
+    .leader-card{min-width:0; flex:1 1 0; gap:.6rem; padding:.7rem .6rem; border-left-width:2px;}
+    .leader-photo{width:44px; height:44px; min-width:44px; border-width:2px;}
+    .leader-role{font-size:.56rem; padding:.15rem .4rem;}
+    .leader-name{font-size:.85rem; margin-top:.3rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  }
   .mini-title{
     font-family:var(--body); font-size:.78rem; letter-spacing:.06em; text-transform:uppercase;
     color:var(--ink); border-bottom:2px solid var(--ink); padding-bottom:.5rem; margin:0 0 1rem;
