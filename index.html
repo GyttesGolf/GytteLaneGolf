@@ -1373,7 +1373,6 @@
   .evw-body input[type="time"]{ font-size:.85rem; padding:.75rem .5rem; }
   .evw-body textarea{ resize:vertical; min-height:4.2rem; }
   .evw-body input::placeholder, .evw-body textarea::placeholder{ color:rgba(250,248,242,.35); }
-  .evw-row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; min-width:0; }
 
   .evw-chip-row{ display:flex; gap:8px; flex-wrap:wrap; }
   .evw-chip{ font-family:var(--body); font-size:.78rem; font-weight:700; padding:.5rem .9rem; border-radius:999px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.05); color:var(--paper); cursor:pointer; }
@@ -3631,10 +3630,8 @@ function evwRenderStep(){
             <div class="evw-rc-head"><span>Round ${i+1}</span><span class="evw-del" onclick="evwState.rounds.splice(${i},1); evwRenderStep();">Remove</span></div>
             <input type="text" placeholder="Label (e.g. Saturday)" value="${evwEsc(r.label)}" oninput="evwState.rounds[${i}].label=this.value" style="margin-bottom:8px;">
             <div style="margin-bottom:8px;">${evwDateFieldHtml('round-'+i, r.date)}</div>
-            <div class="evw-row2" style="margin-bottom:8px;">
-              <input type="text" placeholder="Course" value="${evwEsc(r.course)}" oninput="evwState.rounds[${i}].course=this.value">
-              <input type="time" value="${r.teeTime||''}" oninput="evwState.rounds[${i}].teeTime=this.value">
-            </div>
+            <input type="text" placeholder="Course" value="${evwEsc(r.course)}" oninput="evwState.rounds[${i}].course=this.value" style="margin-bottom:8px;">
+            <input type="time" value="${r.teeTime||''}" oninput="evwState.rounds[${i}].teeTime=this.value" style="margin-bottom:8px;">
             <div class="evw-toggle-pair">
               <button class="${r.holes===18?'sel':''}" onclick="evwState.rounds[${i}].holes=18; evwRenderStep();">18 holes</button>
               <button class="${r.holes===9?'sel':''}" onclick="evwState.rounds[${i}].holes=9; evwRenderStep();">9 holes</button>
@@ -3668,10 +3665,8 @@ function evwRenderStep(){
     `;
   } else if (s === 'logistics'){
     body = `
-      <div class="evw-row2">
-        ${evwFld('Meeting time', `<input type="time" value="${evwState.meetingTime}" oninput="evwState.meetingTime=this.value">`)}
-        ${evwFld('First tee time', `<input type="time" value="${evwState.teeTime}" oninput="evwState.teeTime=this.value">`)}
-      </div>
+      ${evwFld('Meeting time', `<input type="time" value="${evwState.meetingTime}" oninput="evwState.meetingTime=this.value">`)}
+      ${evwFld('First tee time', `<input type="time" value="${evwState.teeTime}" oninput="evwState.teeTime=this.value">`)}
       ${evwFld('Cost', `<input type="text" placeholder="e.g. £55" value="${evwEsc(evwState.cost)}" oninput="evwState.cost=this.value">`)}
       ${evwFld('Sign up by', evwDateFieldHtml('signupBy', evwState.signupBy))}
       ${evwFld('Pay by', evwDateFieldHtml('payBy', evwState.payBy))}
