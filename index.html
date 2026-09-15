@@ -16,8 +16,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
 
   /* ============ DESIGN TOKENS ============
@@ -310,25 +308,6 @@
     color:var(--on-dark-muted);
   }
   .fixture-countdown.today .cd-num{font-size:1.4rem;}
-
-  .map-section{margin-bottom:2.2rem;}
-  #events-map{
-    height:320px; width:100%; border-radius:var(--radius); border:1px solid var(--line);
-    background:var(--paper);
-    /* Leaflet's own panes/controls use z-index up to 1000; without this the
-       map has no stacking context of its own, so those layers can escape
-       and paint above fixed elements elsewhere on the page (e.g. the
-       bottom nav) whenever they visually overlap during scroll. */
-    position:relative; z-index:0;
-  }
-  .leaflet-popup-content-wrapper{
-    background:var(--paper); color:var(--text); border-radius:var(--radius); font-family:var(--body);
-  }
-  .leaflet-popup-content{margin:.8rem 1rem; font-size:.88rem;}
-  .leaflet-popup-content h4{font-family:var(--display); margin:0 0 .25rem; font-size:1.02rem; color:var(--ink);}
-  .leaflet-popup-content a{font-family:var(--body); font-size:.76rem; text-transform:uppercase;}
-  .leaflet-popup-tip{background:var(--paper);}
-  .map-empty-note{font-size:.88rem; color:var(--text-muted); margin-top:.6rem;}
 
   .welcome-banner{
     display:flex; align-items:center; justify-content:space-between; gap:.8rem; flex-wrap:wrap;
@@ -1706,12 +1685,6 @@
       <p style="margin:.9rem 0 0;"><a href="#" onclick="goTo('halloffame'); setTimeout(() => { toggleTrophy('__captains__'); }, 100); return false;">Past captains &rarr;</a></p>
     </div>
 
-    <div class="map-section">
-      <h3 class="mini-title">Where we play</h3>
-      <div id="events-map"></div>
-      <p class="map-empty-note" id="map-empty-note" style="display:none;">Add a postcode to an event in Supabase to see it plotted here.</p>
-    </div>
-
     <div class="highlights-section">
       <div class="highlights-header">
         <h3 class="mini-title">Highlights &amp; updates</h3>
@@ -2588,9 +2561,6 @@ function goTo(sectionName, opts){
   window.scrollTo({ top:0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   if (opts && opts.highlightEvent) highlightEvent(opts.highlightEvent);
   if (opts && opts.highlightCommittee) highlightCommitteeMember(opts.highlightCommittee);
-  if (sectionName === 'home' && eventsMapInstance){
-    setTimeout(() => eventsMapInstance.invalidateSize(), 0);
-  }
   if (sectionName === 'scores') openLiveScores();
   if (sectionName === 'courses') renderCoursesPanel();
   if (sectionName === 'leaderboard'){ goTo('scores'); return; }
@@ -5399,7 +5369,6 @@ function renderHome(){
       </div>`;
   }
   renderHighlightsCarousel();
-  renderEventsMap();
 }
 
 /* id format is 'g-<timestamp>-<i>' (see submitBulkGallery) — parsed out so
@@ -5559,8 +5528,11 @@ function netStablefordPoints(strokes, par, strokeIndex, handicap){
   return Math.max(0, 2 + (par - net));
 }
 
-/* ===================== events map ===================== */
-let eventsMapInstance = null;
+/* ===================== postcode geocoding =====================
+   Was originally paired with a Leaflet "Where we play" map on Home
+   (removed 2026-09-15 to shorten the page) — geocodePostcode() itself
+   is kept, since GPS course setup (importGpsCourseFromOsm()) still
+   relies on it to resolve a course's postcode to coordinates. */
 const postcodeCache = {}; // postcode -> {lat, lng} | null, kept in memory for this page load
 
 async function geocodePostcode(postcode){
@@ -5578,47 +5550,6 @@ async function geocodePostcode(postcode){
     postcodeCache[key] = null;
     return null;
   }
-}
-
-async function renderEventsMap(){
-  const mapEl = document.getElementById('events-map');
-  const emptyNote = document.getElementById('map-empty-note');
-  if (!mapEl || typeof L === 'undefined') return;
-
-  if (!eventsMapInstance){
-    eventsMapInstance = L.map('events-map', { scrollWheelZoom:false }).setView([52.95, -1.15], 6); // centred on the UK midlands
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
-      maxZoom: 18,
-    }).addTo(eventsMapInstance);
-    eventsMapInstance._markerLayer = L.layerGroup().addTo(eventsMapInstance);
-  }
-  eventsMapInstance._markerLayer.clearLayers();
-
-  const withPostcode = events.filter(e => e.postcode && e.postcode.trim());
-  if (!withPostcode.length){
-    emptyNote.style.display = 'block';
-    return;
-  }
-  emptyNote.style.display = 'none';
-
-  const points = [];
-  for (const e of withPostcode){
-    const coords = await geocodePostcode(e.postcode);
-    if (!coords) continue;
-    points.push([coords.lat, coords.lng]);
-    const marker = L.marker([coords.lat, coords.lng]).addTo(eventsMapInstance._markerLayer);
-    marker.bindPopup(`
-      <h4>${e.name}</h4>
-      ${eventCourseDisplay(e) ? eventCourseDisplay(e) + '<br>' : ''}${fmtDate(e.date)}<br>
-      <a href="#" onclick="goTo('events',{highlightEvent:'${e.id}'}); return false;">View event &rarr;</a>
-    `);
-  }
-
-  if (points.length){
-    eventsMapInstance.fitBounds(points, { padding:[30,30], maxZoom:11 });
-  }
-  setTimeout(() => eventsMapInstance.invalidateSize(), 0);
 }
 
 /* ===================== live scores ===================== */
