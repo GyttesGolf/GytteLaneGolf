@@ -1211,9 +1211,13 @@
   body.scoring-focus #sec-scores{padding:0; margin:0;}
   body.scoring-focus #live-scores-content{
     position:fixed; inset:0; z-index:600; overflow-y:auto;
-    /* same diagonal fade toward black used by the event wizard overlay,
-       rather than a flat ink fill — see .evw-overlay for the original. */
-    background:linear-gradient(170deg, var(--ink) 0%, color-mix(in srgb, var(--ink) 55%, black) 60%, black 100%);
+    /* same fade toward black used by the event wizard overlay, rather
+       than a flat ink fill — see .evw-overlay for the original. Straight
+       180deg (not a diagonal tilt): a tilted gradient reaches further
+       down on one side than the other, which is barely visible over a
+       whole screen but very visible across the narrow status bar row,
+       where it read as a left/right colour mismatch. */
+    background:linear-gradient(180deg, var(--ink) 0%, color-mix(in srgb, var(--ink) 55%, black) 60%, black 100%);
     color:var(--paper);
     display:flex; flex-direction:column;
     font-family:var(--body);
@@ -1345,11 +1349,15 @@
      (same as Focus Mode and the GPS/scoring work were) — see CLAUDE.md. */
   .evw-overlay{
     position:fixed; inset:0; z-index:600; color:var(--paper);
-    /* a diagonal fade toward black rather than a flat ink fill — same idea
-       as login.html's own background gradient, but built from this page's
+    /* a fade toward black rather than a flat ink fill — same idea as
+       login.html's own background gradient, but built from this page's
        own --ink token (color-mix, not a hardcoded hex) so it still follows
-       a society's own branded colour rather than always going burgundy. */
-    background:linear-gradient(170deg, var(--ink) 0%, color-mix(in srgb, var(--ink) 55%, black) 60%, black 100%);
+       a society's own branded colour rather than always going burgundy.
+       Straight 180deg, not a diagonal tilt — a tilted gradient reaches
+       further down on one side than the other, invisible over a whole
+       screen but very visible as a left/right mismatch across the narrow
+       status bar row. */
+    background:linear-gradient(180deg, var(--ink) 0%, color-mix(in srgb, var(--ink) 55%, black) 60%, black 100%);
     display:flex; flex-direction:column; font-family:var(--body);
     overflow-x:hidden; /* a fixed-position box has no overflow clipping of
       its own by default — without this, anything a descendant renders
