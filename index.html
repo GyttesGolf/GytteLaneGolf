@@ -3612,7 +3612,7 @@ function evwRenderStep(){
           ${evwScoringChip('strokes','Stroke Play')}
           ${evwScoringChip('match_play','Match Play')}
         </div>
-        <p style="font-size:.7rem; color:rgba(250,248,242,.45); margin:.4rem 0 0;">How the round gets recorded — independent of the format above (a Ryder Cup is a format, played with Match Play scoring; Match Play itself is coming soon).</p>`)}
+        <p style="font-size:.7rem; color:rgba(250,248,242,.45); margin:.4rem 0 0;">How the round gets recorded — independent of the format above (a Ryder Cup is a format, played with Match Play scoring).</p>`)}
       ${!evwState.multiRound ? evwFld('Holes', `
         <div class="evw-seg-row">
           <button class="evw-seg-btn ${evwState.holesTouched && evwState.holes===18?'sel':''}" onclick="evwState.holes=18; evwState.holesTouched=true; evwRenderStep();">18 holes</button>
