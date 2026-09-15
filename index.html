@@ -2531,6 +2531,15 @@ function roundsForEvent(eventId){
 function roundHoles(round, event){
   return (round && round.holes) || (event && event.holes) || 18;
 }
+/* Admins type the event cost as free text (e.g. "55" or "£55 pp") — this
+   adds a £ automatically whenever the value starts with a digit and
+   doesn't already carry a currency symbol, so "55" displays as "£55"
+   without forcing anyone to remember to type the symbol themselves. */
+function fmtCost(cost){
+  const s = (cost || '').trim();
+  if (!s || /^[£$€]/.test(s) || !/^[0-9]/.test(s)) return s;
+  return '£' + s;
+}
 function fmtDate(iso){
   const d = new Date(iso + 'T00:00:00');
   return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
@@ -2964,7 +2973,7 @@ function eventDetailHtml(e){
         if (e.meet_at) details.push(['Meet at', e.meet_at]);
         if (e.meeting_time) details.push(['Meeting time', e.meeting_time]);
         if (e.tee_time) details.push(['First tee time', e.tee_time]);
-        if (e.cost) details.push(['Cost', e.cost]);
+        if (e.cost) details.push(['Cost', fmtCost(e.cost)]);
         if (e.max_players) details.push(['Max players', e.max_players]);
         if (e.signup_by) details.push(['Sign up by', fmtDate(e.signup_by)]);
         if (e.pay_by) details.push(['Pay by', fmtDate(e.pay_by)]);
@@ -3727,7 +3736,7 @@ function evwRenderStep(){
         <div class="evw-rev-row"><span class="k">Format</span><span class="v">${evwEsc(formatText)}</span></div>
         <div class="evw-rev-row"><span class="k">Rounds</span><span class="v">${evwState.multiRound ? evwState.rounds.length+' rounds' : (evwState.holes+' holes, single round')}</span></div>
         <div class="evw-rev-row"><span class="k">Trophy</span><span class="v">${evwState.hasTrophy ? (evwEsc(evwState.trophy)||'—') : 'No'}</span></div>
-        <div class="evw-rev-row"><span class="k">Cost</span><span class="v">${evwEsc(evwState.cost) || '—'}</span></div>
+        <div class="evw-rev-row"><span class="k">Cost</span><span class="v">${evwState.cost ? evwEsc(fmtCost(evwState.cost)) : '—'}</span></div>
         <div class="evw-rev-row"><span class="k">Tee time</span><span class="v">${evwState.teeTime || '—'}</span></div>
       </div>
       <button class="evw-create-btn" ${evwSaving?'disabled':''} onclick="evwCreateEvent()">${evwSaving ? 'Creating…' : '🏌️ Create Event'}</button>
