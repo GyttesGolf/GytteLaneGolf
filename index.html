@@ -1381,9 +1381,29 @@
   .evw-chip small{ display:block; font-weight:500; font-size:.62rem; opacity:.75; margin-top:1px; }
   .evw-chip.sel small{ opacity:.8; }
 
+  /* single-row horizontal scroller for the Format chips — avoids the
+     3-row wrapped grid that made this step read as a wall of buttons. */
+  .evw-chip-scroll{ display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+  .evw-chip-scroll::-webkit-scrollbar{ display:none; }
+  .evw-chip-scroll .evw-chip{ flex-shrink:0; }
+
   .evw-toggle-pair{ display:flex; gap:8px; }
   .evw-toggle-pair button{ flex:1; padding:.7rem; border-radius:10px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.05); color:var(--paper); font-size:.82rem; font-weight:700; cursor:pointer; }
   .evw-toggle-pair button.sel{ background:var(--brass); color:var(--ink); border-color:var(--brass); }
+
+  /* slim segmented control — replaces the big subtitled chip rows for
+     Scoring method / Holes, so this step isn't three stacked groups of
+     the same heavy pill shape. Never shows a filled "sel" state until the
+     user actually taps one (see evwState.scoringTouched/holesTouched) —
+     a default is still used internally if they skip past untouched, it's
+     just not shown as a choice they never made. */
+  .evw-seg-row{ display:flex; gap:6px; }
+  .evw-seg-btn{
+    flex:1; font-family:var(--body); font-size:.78rem; font-weight:700; padding:.6rem .4rem; border-radius:9px;
+    border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.05); color:rgba(250,248,242,.8); cursor:pointer;
+    text-align:center; transition:background .15s, border-color .15s, color .15s;
+  }
+  .evw-seg-btn.sel{ background:var(--brass); color:var(--ink); border-color:var(--brass); font-weight:800; }
 
   .evw-course-suggest{ display:flex; flex-direction:column; gap:6px; margin-top:6px; }
   .evw-course-opt{ display:flex; justify-content:space-between; align-items:center; padding:.55rem .7rem; border-radius:8px; background:rgba(255,255,255,.05); border:1px solid transparent; font-size:.82rem; cursor:pointer; }
@@ -3430,7 +3450,7 @@ function evwBlankState(){
   return {
     name: '', date: '',
     courseId: null, courseName: '', postcode: '',
-    formatPreset: '', formatCustom: '', scoringMethod: 'stableford', holes: 18,
+    formatPreset: '', formatCustom: '', scoringMethod: 'stableford', scoringTouched: false, holes: 18, holesTouched: false,
     multiRound: false, rounds: [],
     hasTrophy: false, trophy: '',
     hasNtp1: false, hasNtp2: false,
@@ -3581,22 +3601,22 @@ function evwRenderStep(){
     body = `
       ${evwFld('Course', evwCourseFieldHtml())}
       ${evwFld('Format', `
-        <div class="evw-chip-row">
+        <div class="evw-chip-scroll">
           ${EVW_PLAY_FORMATS.map(f => `<button class="evw-chip ${evwState.formatPreset===f.v?'sel':''}" onclick="evwState.formatPreset='${f.v}'; evwRenderStep();">${f.l}</button>`).join('')}
         </div>
         ${evwState.formatPreset==='other' ? `<input type="text" style="margin-top:8px;" placeholder="Describe the format" value="${evwEsc(evwState.formatCustom)}" oninput="evwState.formatCustom=this.value">` : ''}
         <p style="font-size:.7rem; color:rgba(250,248,242,.45); margin:.4rem 0 0;">How players group up on the day.</p>`)}
       ${evwFld('Scoring method', `
-        <div class="evw-chip-row">
-          ${evwScoringChip('stableford','Stableford','Tap points, works today')}
-          ${evwScoringChip('strokes','Stroke Play','Net score from real strokes')}
-          ${evwScoringChip('match_play','Match Play','Head-to-head, coming soon')}
+        <div class="evw-seg-row">
+          ${evwScoringChip('stableford','Stableford')}
+          ${evwScoringChip('strokes','Stroke Play')}
+          ${evwScoringChip('match_play','Match Play')}
         </div>
-        <p style="font-size:.7rem; color:rgba(250,248,242,.45); margin:.4rem 0 0;">How the round gets recorded — independent of the format above (a Ryder Cup is a format, played with Match Play scoring).</p>`)}
+        <p style="font-size:.7rem; color:rgba(250,248,242,.45); margin:.4rem 0 0;">How the round gets recorded — independent of the format above (a Ryder Cup is a format, played with Match Play scoring; Match Play itself is coming soon).</p>`)}
       ${!evwState.multiRound ? evwFld('Holes', `
-        <div class="evw-toggle-pair">
-          <button class="${evwState.holes===18?'sel':''}" onclick="evwState.holes=18; evwRenderStep();">18 holes</button>
-          <button class="${evwState.holes===9?'sel':''}" onclick="evwState.holes=9; evwRenderStep();">9 holes</button>
+        <div class="evw-seg-row">
+          <button class="evw-seg-btn ${evwState.holesTouched && evwState.holes===18?'sel':''}" onclick="evwState.holes=18; evwState.holesTouched=true; evwRenderStep();">18 holes</button>
+          <button class="evw-seg-btn ${evwState.holesTouched && evwState.holes===9?'sel':''}" onclick="evwState.holes=9; evwState.holesTouched=true; evwRenderStep();">9 holes</button>
         </div>`) : `<p style="font-size:.76rem; color:rgba(250,248,242,.55); margin:0;">Holes are set per round, since this event has multiple rounds.</p>`}
     `;
   } else if (s === 'rounds'){
@@ -3721,9 +3741,9 @@ function evwNavHtml(){
 function evwNextStep(){ if (evwStepIndex<EVW_STEPS.length-1){ evwStepIndex++; evwRenderStep(); } }
 function evwPrevStep(){ if (evwStepIndex>0){ evwStepIndex--; evwRenderStep(); } }
 
-function evwScoringChip(val,label,sub){
-  const sel = evwState.scoringMethod===val;
-  return `<button class="evw-chip ${sel?'sel':''}" onclick="evwState.scoringMethod='${val}'; evwRenderStep();">${label}<small>${sub}</small></button>`;
+function evwScoringChip(val,label){
+  const sel = evwState.scoringTouched && evwState.scoringMethod===val;
+  return `<button class="evw-seg-btn ${sel?'sel':''}" onclick="evwState.scoringMethod='${val}'; evwState.scoringTouched=true; evwRenderStep();">${label}</button>`;
 }
 function evwScoringLabel(v){ return v==='stableford'?'Stableford':v==='strokes'?'Stroke Play':'Match Play'; }
 function evwFormatLabel(){
