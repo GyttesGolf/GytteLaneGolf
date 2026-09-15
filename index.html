@@ -351,11 +351,18 @@
      of letting flex-wrap stack them, cutting the section's height on
      Home roughly in half on mobile. */
   @media(max-width:480px){
+    /* Stacked (photo above text, centered) rather than side-by-side within
+       the tile — a horizontal layout left so little width per card for
+       the photo that it had to shrink to 44px to leave the name room.
+       Stacking frees the full card width for the photo instead. */
     .leaders-row{flex-wrap:nowrap; gap:.6rem;}
-    .leader-card{min-width:0; flex:1 1 0; gap:.6rem; padding:.7rem .6rem; border-left-width:2px;}
-    .leader-photo{width:44px; height:44px; min-width:44px; border-width:2px;}
-    .leader-role{font-size:.56rem; padding:.15rem .4rem;}
-    .leader-name{font-size:.85rem; margin-top:.3rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .leader-card{
+      min-width:0; flex:1 1 0; flex-direction:column; text-align:center;
+      gap:.5rem; padding:.9rem .5rem .8rem; border-left-width:2px;
+    }
+    .leader-photo{width:64px; height:64px; min-width:64px; border-width:3px;}
+    .leader-role{font-size:.58rem; padding:.15rem .45rem;}
+    .leader-name{font-size:.95rem; margin-top:.3rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   }
   .mini-title{
     font-family:var(--body); font-size:.78rem; letter-spacing:.06em; text-transform:uppercase;
